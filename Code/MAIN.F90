@@ -34,24 +34,28 @@
 !======================================================================
 !  Author:
 !  Xueliang Li
-!  Center South University, Changsha, China
+!  Central South University, Changsha, China
 !  lixueliang@csu.edu.cn
 !======================================================================
 !======================================================================
     program TDCGmain
     implicit none
 
-    print*,'Welcom TDCGprogram'
+    print*,'Welcome TDCGprogram'
     call TDCGReadInp
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
     call OutputFlowField('OK')
-    read(*,*)
 
     end program TDCGmain
 !======================================================================
     subroutine TDCGMesh
+    implicit none
+
+    print*,'Generating mesh......'
+    call GenerateBGMesh
+    print*,'Done'
     end subroutine TDCGMesh
 !======================================================================
     subroutine TDCGInitAll

@@ -1,5 +1,5 @@
-.vscode/
 Data/
+Release/
 *.mod
 *.exe
 ## Core latex/pdflatex auxiliary files:

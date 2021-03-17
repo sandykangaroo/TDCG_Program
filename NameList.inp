@@ -6,8 +6,9 @@ $Global
 $END
 
 $Mesh
-    nCellx=20, nCelly=20, nCellz=20, 
-    DomainX=10.0, DomainY=10.0, DomainZ=10.0, InitRefineLVL=5, AdaptRefineLVL=5,
+    nCell=20, 10, 10, 
+    Domain=10.0, 10.0, 10.0,
+    InitRefineLVL=5, AdaptRefineLVL=5,
 $END
 
 $NRRset

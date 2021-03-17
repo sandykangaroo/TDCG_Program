@@ -1,0 +1,12 @@
+{
+    "version": "2.0.0",
+    "command": "gfortran",
+    "args": [
+        "-g",
+        "./Code/*.F90",
+        "-o",
+        "main.exe"
+        "-J"
+        "./Release/"
+    ]
+}
