@@ -24,7 +24,8 @@
         logical :: Chimera
         integer :: Limiter
         logical :: Restart
-        character(50):: NameStr
+        character(50):: OutputNameStr
+        character(50):: GeometryName
     end module ModInpGlobal
 !======================================================================
     module ModInpMesh
@@ -34,6 +35,7 @@
         real(R8):: Domain(3)
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
+        integer :: cIntersectMethod
     end module ModInpMesh
 !======================================================================
     module ModInpInflow

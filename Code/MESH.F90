@@ -2,10 +2,14 @@
     module ModMesh
         use ModTypDef
         implicit none
+        ! Mesh
         integer :: nBGCells     ! Number of the background Cells.
         integer :: nCells=0     ! Number of total Cells.
         real(R8):: BGStep(3)    ! Step size for background cell.
         type(typCell),pointer :: Cell(:)
+        ! Geometry
+        integer :: nPoints
+        real(R8),ALLOCATABLE :: Geometry(:,:)
     endmodule ModMesh
 !======================================================================
     subroutine GenerateBGMesh   ! BG -- back-ground
@@ -13,8 +17,10 @@
     use ModTypDef
     use ModMesh
     use ModInpMesh
+    use ModCellInsect
     implicit none
     integer :: i
+    type(typCell),pointer :: t
 
     BGStep(1)=Domain(1)/nCell(1)
     BGStep(2)=Domain(2)/nCell(2)
@@ -22,11 +28,11 @@
     nBGCells=nCell(1)*nCell(2)*nCell(3)
     ALLOCATE(Cell(nBGCells))
     do i = 1, nBGCells
-        ASSOCIATE(t=>Cell(i))
+        t=>Cell(i)
             t%nBGCell     = i
             t%nCell       = i
             t%lvl         = 0
-            t%cross       = 0 ! CellInsect(Cell(i))
+            t%cross       = initCellIntersect(t)
             t%fSplitType  = 0
             t%Location    = 0
             t%Node        = 0
@@ -37,7 +43,6 @@
                     t%son5, t%son6, t%son7, t%son8,                 &
                     t%NeighborX1, t%NeighborX2, t%NeighborY1,       &
                     t%NeighborY2, t%NeighborZ1, t%NeighborZ2)
-        end ASSOCIATE
         nCells=nCells+1
     enddo
     contains
@@ -60,15 +65,53 @@
     endfunction GBGMFindCellCenter
     endsubroutine GenerateBGMesh
 !======================================================================
-    function CellInsect(c)
-    use ModPrecision
+    module ModCellInsect
+    use ModMesh
     use ModTypDef
     implicit none
-    integer :: CellInsect
-    type(typCell),pointer :: c
-    end function CellInsect
+    contains
+        integer function initCellIntersect(c)
+        use ModInpMesh
+        type(typCell),pointer :: c
+
+        select case (cIntersectMethod)
+        case(1)
+            initCellIntersect=RayCast(c)
+        end select
+        endfunction initCellIntersect
+!----------------------------------------------------------------------
+        integer function RayCast(c)
+        type(typCell),pointer :: c
+        endfunction RayCast
+!----------------------------------------------------------------------
+    end module ModCellInsect
 !======================================================================
+    subroutine ReadGeometry
+    use ModInpGlobal
+    use ModMesh
+    implicit none
+    integer :: ios, i, j 
+    character(10)::FileForm
+
+    print*,'Read geometry file: ', GeometryName
+    open(unit=31, file=GeometryName, iostat=ios, status="old", action="read")
+    if ( ios /= 0 ) stop ("Error opening file: "//GeometryName)
+    read(31, fmt="(G10.1)", iostat=ios) FileForm
+    if ( ios /= 0 ) stop ("Error reading file: "//GeometryName)
+    if (.NOT.FileForm=="FACET FILE")                                &
+        stop ("Error file header: "//GeometryName)
+    read(31,"(///I9)") nPoints
+    print*,'Geometry points count: ', nPoints
+    ALLOCATE(Geometry(nPoints,3))
+    read(31,"(3(E23.15,1X))") ((Geometry(i,j),j=1,3),i=1,nPoints)
+    close(31)
+    endsubroutine ReadGeometry
 !======================================================================
+    subroutine SurfaceAdapt
+    use ModMesh
+    implicit none
+
+    endsubroutine SurfaceAdapt
 !======================================================================
 !======================================================================
 !======================================================================

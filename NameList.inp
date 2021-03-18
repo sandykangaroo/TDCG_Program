@@ -2,13 +2,20 @@ $Global
     Aniso=.f., nStep=10000, nSave=1000, nAdaptStep=500, 
     Debug=.f., CFL=0.5, NRR=.f., Chimera=.f., 
     Limiter=1, Restart=.f., 
-    NameStr= './Data/test',
+    OutputNameStr = './Data/test',
+    GeometryName  = './Data/doublePrecisionMesh.facet',
 $END
 
+! nCell
+! Domain
+! InitRefineLVL
+! AdaptRefineLVL
+! cIntersectMethod   = 1 Ray-cast intersect
 $Mesh
     nCell=20, 10, 10, 
     Domain=10.0, 10.0, 10.0,
     InitRefineLVL=5, AdaptRefineLVL=5,
+    cIntersectMethod=1
 $END
 
 $NRRset

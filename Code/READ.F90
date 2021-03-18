@@ -9,8 +9,10 @@
     integer :: ios
 
     NAMELIST /Global/   Aniso, nStep, nSave, nAdaptStep, Debug, CFL,    &
-                        NRR, Chimera, Limiter, Restart, NameStr
-    NAMELIST /Mesh/     nCell, Domain, InitRefineLVL, AdaptRefineLVL
+                        NRR, Chimera, Limiter, Restart,                 &
+                        OutputNameStr, GeometryName
+    NAMELIST /Mesh/     nCell, Domain, InitRefineLVL, AdaptRefineLVL,   &
+                        cIntersectMethod
     NAMELIST /NRRset/   NRRSeed, NRRLength, NRRTheta
     NAMELIST /Inflow/   Alpha, Beta, ReyNum, T00, Mach00, Gama00
 
@@ -29,8 +31,6 @@
     print*,'Done'
     end subroutine TDCGReadInp
 !======================================================================
-    subroutine ReadGeometry
-    endsubroutine ReadGeometry
 !======================================================================
 !======================================================================
 !======================================================================

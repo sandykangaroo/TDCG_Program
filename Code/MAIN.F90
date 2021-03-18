@@ -51,10 +51,16 @@
     end program TDCGmain
 !======================================================================
     subroutine TDCGMesh
+    use ModInpGlobal
     implicit none
 
+    if (Restart) return
+    print*,'Reading geometry......'
+        call ReadGeometry
+    print*,'Done'
     print*,'Generating mesh......'
-    call GenerateBGMesh
+        call GenerateBGMesh
+        call SurfaceAdapt
     print*,'Done'
     end subroutine TDCGMesh
 !======================================================================

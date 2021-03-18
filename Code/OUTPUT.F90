@@ -21,8 +21,8 @@
 
     ALLOCATE(Nodes(nCells*8,3))  ! Reserve enough space for Nodes-array.
     print*, 'Outputting data......'
-    FileName=trim(NameStr)//'-'//TimeStepStr//'.dat'
-    print*, 'Saving to file: ',FileName
+    FileName=trim(OutputNameStr)//'-'//TimeStepStr//'.dat'
+    print*, 'Save to file: ',FileName
     call InitNodeInfo
     print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
 
@@ -47,7 +47,11 @@
             write(21,"(F16.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
         endif
         call initTSData  ! TS -- Temporary Storage
-        write(21,"(8I10)") ((Cell(j)%Node(i),i=1,8),j=1,nCells)
+        if (nNodes <= 99999) then
+            write(21,"(8(I5,1X))") ((Cell(j)%Node(i),i=1,8),j=1,nCells)
+        else
+            write(21,"(8(I9,1X))") ((Cell(j)%Node(i),i=1,8),j=1,nCells)
+        endif
     close(21)
     DEALLOCATE(Nodes)
     print*, 'Done'
