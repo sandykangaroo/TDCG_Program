@@ -8,13 +8,13 @@
     logical :: exist
     integer :: ios
 
-    NAMELIST /Global/   Aniso, nStep, nSave, nAdaptStep, Debug, CFL,    &
-                        NRR, Chimera, Limiter, Restart,                 &
-                        OutputNameStr, GeometryName
-    NAMELIST /Mesh/     nCell, Domain, InitRefineLVL, AdaptRefineLVL,   &
+    NAMELIST /Global/   Aniso, nStep, nSave, nAdaptStep, Debug, CFL,  &
+                        NRR, Chimera, Limiter, Restart,               &
+                        OutputNameStr, GeometryName, OutputFormat
+    NAMELIST /Mesh/     nCell, Domain, InitRefineLVL, AdaptRefineLVL, &
                         cIntersectMethod
     NAMELIST /NRRset/   NRRSeed, NRRLength, NRRTheta
-    NAMELIST /Inflow/   Alpha, Beta, ReyNum, T00, Mach00, Gama00
+    NAMELIST /Inflow/   Alpha, Beta, ReyNum, T00, Mach00, Gama00, Rgas
 
     print*, 'Reading input file NameList.inp......'
     INQUIRE(file='NameList.inp', exist=exist)

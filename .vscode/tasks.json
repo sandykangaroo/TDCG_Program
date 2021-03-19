@@ -4,6 +4,7 @@
     "args": [
         "-g",
         "./Code/*.F90",
+        "./lib/*.lib",
         "-o",
         "main.exe"
         "-J"

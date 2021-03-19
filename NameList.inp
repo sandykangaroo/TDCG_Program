@@ -1,18 +1,24 @@
+! 
+! 
+! OutputFormat    = '.plt'
+!                   '.szplt'
+!                   '.dat'
 $Global
     Aniso=.f., nStep=10000, nSave=1000, nAdaptStep=500, 
-    Debug=.f., CFL=0.5, NRR=.f., Chimera=.f., 
+    Debug= 0 , CFL=0.5, NRR=.f., Chimera=.f., 
     Limiter=1, Restart=.f., 
     OutputNameStr = './Data/test',
     GeometryName  = './Data/doublePrecisionMesh.facet',
+    OutputFormat  = '.szplt'
 $END
 
 ! nCell
 ! Domain
-! InitRefineLVL
+! InitRefineLVL     It is also the maximum LVL
 ! AdaptRefineLVL
-! cIntersectMethod   = 1 Ray-cast intersect
+! cIntersectMethod  = 1 Ray-cast intersect
 $Mesh
-    nCell=20, 10, 10, 
+    nCell=100, 40, 40, 
     Domain=10.0, 10.0, 10.0,
     InitRefineLVL=5, AdaptRefineLVL=5,
     cIntersectMethod=1
@@ -23,7 +29,7 @@ $NRRset
 $END
 
 $Inflow
-    Alpha=0.0, Beta=0.0, ReyNum=2e-5, 
+    Alpha=0.0, Beta=0.0, ReyNum=2e-5, Rgas=287.0,
     T00=300.0, Mach00=1.7, Gama00=1.4,
 $END
 !!---- Must retain the last row ----!!

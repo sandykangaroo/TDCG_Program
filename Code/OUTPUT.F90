@@ -2,60 +2,155 @@
     module ModOutput
         use ModTypDef
         implicit none
-        real(R8),ALLOCATABLE :: Nodes(:,:)
+        real(R8),ALLOCATABLE :: Nodes(:,:)      ! Nodes coordinate
+        real(R8),ALLOCATABLE :: cVariables(:,:) ! Cell variables value
+        integer ,ALLOCATABLE :: cNodes(:,:)     ! Cell nodes number
         integer :: nNodes
 
     endmodule ModOutput
 !======================================================================
-    subroutine OutputFlowField(TimeStepStr)
+
+!======================================================================
+    subroutine OutputFlowFieldASCII(TimeStepStr)
     use ModInpGlobal
     use ModOutput
     use ModInpMesh
-    use ModMesh,    only : nCells, Cell
+    use ModMesh,    only : nCells
     implicit none
-    character(*),INTENT(IN):: TimeStepStr
-    character(80):: FileName
-    integer :: ios, tp  ! Temp Precision
-    integer :: i, j
-    !real(R8):: minSize
+    character(*),INTENT(IN) :: TimeStepStr
+    character(80)           :: FileName
+    integer                 :: ios, i, j, k
+    integer,PARAMETER       :: nVars = 8 ! Number of cVariables for output
+                                ! node 1-8, U, V, W, Rou, T, P, Ma, Cross
 
-    ALLOCATE(Nodes(nCells*8,3))  ! Reserve enough space for Nodes-array.
-    print*, 'Outputting data......'
-    FileName=trim(OutputNameStr)//'-'//TimeStepStr//'.dat'
+    ALLOCATE(Nodes(nCells*4,3))  ! Reserve enough space for Nodes-array.
+    ALLOCATE(cVariables(nCells,nVars))
+    ALLOCATE(cNodes(nCells,8))
+    print*, 'Outputting ASCII data......'
+    FileName=trim(OutputNameStr)//'-'//TimeStepStr//OutputFormat
     print*, 'Save to file: ',FileName
     call InitNodeInfo
     print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
+    call initTmpStorageVar  ! Temporary Storage cVariables
 
     open(21, file=FileName, iostat=ios, status="replace", action="write")
         if ( ios /= 0 ) stop ("Error====> Error opening file "//FileName)
-        write(21,*) 'TITLE="3D Results"'
-        write(21,*) 'VARIABLES="X","Y","Z"'
-        write(21,*) 'ZONE N=',nNodes,'E=',nCells,'ZONETYPE=FEbrick'
-        write(21,*) 'DATAPACKING=BLOCK'
-        write(21,*) 'VARLOCATION=([1-3]=NODAL)'
-        !write(21,*) 'VARIABLES="X","Y","Z","U","V","W","Rou"',      &
-        !            ',"T","P","Ma","Cross"'
-        ! write(21,*) 'ZONE N=',nNodes,'E=',nCells,'ZONETYPE=FEbrick'
-        ! write(21,*) 'DATAPACKING=BLOCK'
-        ! write(21,*) 'VARLOCATION=([1-3]=NODAL,[4-11]=CELLCENTERED)'
+        write(21,*) 'TITLE="TDCG-program Results"'
+        !write(21,*) 'cVariables="X","Y","Z","U","V"'
+        write(21,*) 'Variables="X","Y","Z","U","V","W","Rou"',      &
+                    ',"T","P","Ma","Cross"'
+        write(21,*) 'ZONE N=',nNodes,'E=',nCells
+        write(21,*) 'DATAPACKING=BLOCK  ','ZONETYPE=FEbrick'
+        write(21,"(1X,A28,I2,A15)")                    &
+            'VARLOCATION=([1-3]=NODAL,[4-',nVars+3,']=CELLCENTERED)'
 
-        ! Single precision -- croase mesh
-        ! Double precision -- fine mesh
-        if (InitRefineLVL <= 5) then
+        if (InitRefineLVL <= 5) then ! Single precision -- croase mesh
             write(21,"(F12.6)") ((real(Nodes(i,j),R4),i=1,nNodes),j=1,3)
-        else
+        else                         ! Double precision -- fine mesh
             write(21,"(F16.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
         endif
-        call initTSData  ! TS -- Temporary Storage
-        if (nNodes <= 99999) then
-            write(21,"(8(I5,1X))") ((Cell(j)%Node(i),i=1,8),j=1,nCells)
+
+        if ( R8<=8 ) then
+            write(21,"(E12.5)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
         else
-            write(21,"(8(I9,1X))") ((Cell(j)%Node(i),i=1,8),j=1,nCells)
+            write(21,"(E16.9)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
         endif
+
+        if (nNodes <= 99999) then
+            write(21,"(8(I5,1X))") ((cNodes(i,j),j=1,8),i=1,nCells)
+        else
+            write(21,"(8(I9,1X))") ((cNodes(i,j),j=1,8),i=1,nCells)
+        endif
+
     close(21)
     DEALLOCATE(Nodes)
+    DEALLOCATE(cVariables)
+    DEALLOCATE(cNodes)
     print*, 'Done'
-    end subroutine OutputFlowField
+    end subroutine OutputFlowFieldASCII
+!======================================================================
+    subroutine OutputFlowFieldBinary(TimeStepStr,FileFormat)
+    use ModInpGlobal
+    use ModOutput
+    use ModInpMesh
+    use ModMesh,    only : nCells
+    use ModSolve,   only : step, TimeStep
+    implicit none
+    include '../lib/tecio.f90'
+    character(*),INTENT(IN) :: TimeStepStr
+    character(80)           :: FileName
+    integer                 :: ios, i
+    integer,PARAMETER       :: nVars = 8 ! Number of cVariables for output
+    character*1             :: NULLCHR
+    real(R8)                :: SolTime
+    Integer*4               :: FileFormat
+    Integer*4               :: VarLocation(11)
+    INTEGER*4,TARGET        :: NULL(11)
+    integer*4,pointer       :: NullPtr(:)
+    
+    NullPtr => Null
+    NullPtr =  0
+    VarLocation=(/1,1,1,0,0,0,0,0,0,0,0/)
+    NULLCHR = CHAR(0)
+    SolTime = real(step,R8)*TimeStep
+
+    ALLOCATE(Nodes(nCells*4,3))  ! Reserve enough space for Nodes-array.
+    ALLOCATE(cVariables(nCells,nVars))
+    ALLOCATE(cNodes(nCells,8))
+    print*, 'Outputting binary data......'
+    FileName=trim(OutputNameStr)//'-'//TimeStepStr//OutputFormat
+    print*, 'Save to file: ',FileName
+    call InitNodeInfo
+    print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
+    call initTmpStorageVar  ! Temporary Storage cVariables
+
+    ! Open the file and write the tecplot datafile header information.
+    ios = TecIni142('TDCG-program Results'//NULLCHR, &
+                    'X Y Z U V W Rou T P Ma Cross'//NULLCHR, &
+                    FileName//NULLCHR, &
+                    NULLCHR, &
+                    FileFormat, &        ! FileFormat
+                    0, &        ! FileType
+                    Debug, &
+                    1)          ! VIsDouble     = 0 Single
+                                !               = 1 Double
+        if (ios/=0) stop "Error return value in TecIni142"
+    ! Write the zone header information.
+    ios = TecZne142('Zone'//NULLCHR, &
+                    5, &        ! ZoneType
+                    nNodes, &   ! NumPts
+                    nCells, &   ! NumElements
+                    0, &        ! Not used for FEbrick Zone type.
+                    0, 0, 0, &  ! For future use.
+                    SolTime, &  ! SolutionTime
+                    0, &        ! StrandID
+                    0, &        ! ParentZn
+                    1, &        ! IsBlock
+                    0, &        ! NumFaceConnections    !!!!!
+                    3, &        ! FaceNeighborMode      !!!!!
+                    0, 0, 0, &  ! Not used for FEbrick Zone type.
+                    Null, &     ! PassiveVarList
+                    VarLocation, &
+                    Null, &     ! ShareVarFromZone
+                    0)          ! ShareConnectivityFromZone
+        if (ios/=0) stop "Error return value in TecZne142"
+    do i=1,3
+    ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
+        if (ios/=0) stop "Error return value in TecDat142"
+    enddo
+    do i=1,nVars
+    ios = TecDat142(nCells,real(cVariables(1:nCells,i),R4),0)
+        if (ios/=0) stop "Error return value in TecDat142"
+    enddo
+    ios = TecNod142(transpose(cNodes))
+        if (ios/=0) stop "Error return value in TecNod142"
+    ios = TecEnd142()
+        if (ios/=0) stop "Error return value in TecEnd142"
+    DEALLOCATE(Nodes)
+    DEALLOCATE(cVariables)
+    DEALLOCATE(cNodes)
+    print*, 'Done'
+    endsubroutine OutputFlowFieldBinary
 !======================================================================
     subroutine InitNodeInfo    ! nCellst=nCells, as a parameter form.
     use ModMesh
@@ -112,7 +207,8 @@
         tN(4)=c%Center(1)+step(1)
         tN(5)=c%Center(2)+step(2)
         tN(6)=c%Center(3)+step(3)
-! Nodes array in xyz:  1 --- 2 +-- 3 ++- 4 -+- 5 --+ 6 +-+ 7 +++ 8 -++
+        ! Nodes array in xyz:
+        ! 1 --- 2 +-- 3 ++- 4 -+- 5 --+ 6 +-+ 7 +++ 8 -++
         do ii=1,nNodes
             if (Nodes(ii,1)==tN(1)) then     ! x -
                 if (Nodes(ii,2)==tN(2)) then     ! y -
@@ -207,25 +303,60 @@
     endsubroutine InitNodeInfo
 !======================================================================
 !======================================================================
-    subroutine initTSData
+    subroutine initTmpStorageVar
     use ModMesh
+    use ModOutput
     implicit none
     type(typCell),pointer :: ct
     integer :: i
     do i = 1, nBGCells
         ct=>Cell(i)
-        call TSData(ct)
+        call TmpStorageVar(ct)
     enddo
         contains
 !----------------------------------------------------------------------
-        subroutine TSData(c)
+        recursive subroutine TmpStorageVar(c)
+        use ModInpInflow,only : Rgas, Gama00
         implicit none
         type(typCell),pointer :: c
+        integer :: n, j
+        REAL(R8):: u, v, w,p
 
-        !write(21,*), (c%nCell(i), i=1,8)
-        endsubroutine TSData
+        if(ASSOCIATED(c%son8))then
+            call TmpStorageVar(c%son1)
+            call TmpStorageVar(c%son2)
+            call TmpStorageVar(c%son3)
+            call TmpStorageVar(c%son4)
+            call TmpStorageVar(c%son5)
+            call TmpStorageVar(c%son6)
+            call TmpStorageVar(c%son7)
+            call TmpStorageVar(c%son8)
+        elseif(ASSOCIATED(c%son4))then
+            call TmpStorageVar(c%son1)
+            call TmpStorageVar(c%son2)
+            call TmpStorageVar(c%son3)
+            call TmpStorageVar(c%son4)
+        elseif(ASSOCIATED(c%son2))then
+            call TmpStorageVar(c%son1)
+            call TmpStorageVar(c%son2)
+        else
+            n=c%nCell
+            do j=1,8; cNodes(n,j)=c%Node(j); enddo
+            u=c%U(1)/c%U(4); v=c%U(2)/c%U(4); w=c%U(3)/c%U(4)
+            p=Rgas*c%U(4)*c%U(5)
+            cVariables(n,1)= u          ! u
+            cVariables(n,2)= v          ! v
+            cVariables(n,3)= w          ! w
+            cVariables(n,4)= c%U(4)     ! rou
+            cVariables(n,5)= c%U(5)     ! T
+            cVariables(n,6)= p          ! P
+            cVariables(n,7)= sqrt((u*u+v*v+w*w)/abs(Gama00*p/c%U(4)))!Ma
+            cVariables(n,8)= c%cross    ! Cross
+            if (c%U(4)==0 .or. c%U(5)==0) cVariables(n,:)=-9999999
+        endif
+        endsubroutine TmpStorageVar
 !----------------------------------------------------------------------
-    endsubroutine initTSData
+    endsubroutine initTmpStorageVar
 !======================================================================
 !======================================================================
 !======================================================================

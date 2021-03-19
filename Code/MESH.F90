@@ -12,6 +12,47 @@
         real(R8),ALLOCATABLE :: Geometry(:,:)
     endmodule ModMesh
 !======================================================================
+    module ModCellInsect
+    use ModMesh
+    use ModTypDef
+    implicit none
+    contains
+        integer function initCellIntersect(c)
+        use ModInpMesh
+        type(typCell),pointer :: c
+
+        select case (cIntersectMethod)
+        case(1)
+            initCellIntersect=RayCast(c)
+        end select
+        endfunction initCellIntersect
+!----------------------------------------------------------------------
+        integer function RayCast(c)
+        type(typCell),pointer :: c
+        endfunction RayCast
+!----------------------------------------------------------------------
+    end module ModCellInsect
+!======================================================================
+    subroutine ReadGeometry
+    use ModInpGlobal
+    use ModMesh
+    implicit none
+    integer :: ios, i, j 
+    character(10)::FileForm
+
+    print*,'Read geometry file: ', GeometryName
+    open(unit=31, file=GeometryName, iostat=ios, status="old", action="read")
+    if ( ios /= 0 ) stop ("Error opening file: "//GeometryName)
+    read(31, fmt="(G10.1)", iostat=ios) FileForm
+    if ( ios /= 0 ) stop ("Error reading file: "//GeometryName)
+    if (.NOT.FileForm=="FACET FILE")                                &
+        stop ("Error file header: "//GeometryName)
+    read(31,"(///I9)") nPoints
+    print*,'Geometry points count: ', nPoints
+    ALLOCATE(Geometry(nPoints,3))
+    read(31,"(3(E23.15,1X))") ((Geometry(i,j),j=1,3),i=1,nPoints)
+    close(31)
+    endsubroutine ReadGeometry
     subroutine GenerateBGMesh   ! BG -- back-ground
     use ModPrecision
     use ModTypDef
@@ -65,47 +106,6 @@
     endfunction GBGMFindCellCenter
     endsubroutine GenerateBGMesh
 !======================================================================
-    module ModCellInsect
-    use ModMesh
-    use ModTypDef
-    implicit none
-    contains
-        integer function initCellIntersect(c)
-        use ModInpMesh
-        type(typCell),pointer :: c
-
-        select case (cIntersectMethod)
-        case(1)
-            initCellIntersect=RayCast(c)
-        end select
-        endfunction initCellIntersect
-!----------------------------------------------------------------------
-        integer function RayCast(c)
-        type(typCell),pointer :: c
-        endfunction RayCast
-!----------------------------------------------------------------------
-    end module ModCellInsect
-!======================================================================
-    subroutine ReadGeometry
-    use ModInpGlobal
-    use ModMesh
-    implicit none
-    integer :: ios, i, j 
-    character(10)::FileForm
-
-    print*,'Read geometry file: ', GeometryName
-    open(unit=31, file=GeometryName, iostat=ios, status="old", action="read")
-    if ( ios /= 0 ) stop ("Error opening file: "//GeometryName)
-    read(31, fmt="(G10.1)", iostat=ios) FileForm
-    if ( ios /= 0 ) stop ("Error reading file: "//GeometryName)
-    if (.NOT.FileForm=="FACET FILE")                                &
-        stop ("Error file header: "//GeometryName)
-    read(31,"(///I9)") nPoints
-    print*,'Geometry points count: ', nPoints
-    ALLOCATE(Geometry(nPoints,3))
-    read(31,"(3(E23.15,1X))") ((Geometry(i,j),j=1,3),i=1,nPoints)
-    close(31)
-    endsubroutine ReadGeometry
 !======================================================================
     subroutine SurfaceAdapt
     use ModMesh

@@ -18,7 +18,7 @@
         integer :: nStep
         integer :: nSave
         integer :: nAdaptStep
-        logical :: Debug
+        integer :: Debug
         Real(R8):: CFL
         logical :: NRR
         logical :: Chimera
@@ -26,6 +26,7 @@
         logical :: Restart
         character(50):: OutputNameStr
         character(50):: GeometryName
+        character(10):: OutputFormat
     end module ModInpGlobal
 !======================================================================
     module ModInpMesh
@@ -47,6 +48,7 @@
         real(R8):: T00
         real(R8):: Mach00
         real(R8):: Gama00
+        real(R8):: Rgas    ![J/(kg.K)]
     end module ModInpInflow
 !======================================================================
     module ModInpNRRset
@@ -148,7 +150,6 @@
         implicit none
 ! constants used in sutherlan'law, =110.3 in NSMB5.0
 !        real(R8),parameter:: C00=100.4
-!        real(R8),parameter:: Rgas=287    ![J/(kg.K)]
 !        real(R8),parameter:: gama=1.4, gama1=gama-1.0
 !        real(R8),parameter:: pr=0.72, prt=0.9
         real(R8),parameter:: PI=3.14159265358979

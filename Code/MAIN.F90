@@ -46,7 +46,8 @@
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
-    call OutputFlowField('OK')
+    call TDCGOutput('OK')
+    print*,' '
 
     end program TDCGmain
 !======================================================================
@@ -68,7 +69,27 @@
     end subroutine TDCGInitAll
 !======================================================================
     subroutine TDCGSolver
+    use ModSolve
+    use ModInpGlobal
+    use ModMesh
+    use ModInpMesh
+    implicit none
+    TimeStep=CFL*(BGStep(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
+    subroutine TDCGOutput(TimeStepStr)
+    use ModInpGlobal
+    implicit none
+    character(*),INTENT(IN) :: TimeStepStr
+
+    if (OutputFormat=='.plt') then
+        CALL OutputFlowFieldBinary(TimeStepStr,0)
+    elseif (OutputFormat=='.szplt') then
+        CALL OutputFlowFieldBinary(TimeStepStr,1)
+    else
+        CALL OutputFlowFieldASCII(TimeStepStr)
+    endif
+
+    endsubroutine TDCGOutput
 !======================================================================
 !======================================================================
