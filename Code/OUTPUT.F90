@@ -27,7 +27,7 @@
     print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
 
     open(21, file=FileName, iostat=ios, status="replace", action="write")
-        if ( ios /= 0 ) stop ("Error====> Error opening file "//FileName)
+        if ( ios /= 0 ) stop ('Error====> Error opening file ')
         write(21,*) 'TITLE="3D Results"'
         write(21,*) 'VARIABLES="X","Y","Z"'
         write(21,*) 'ZONE N=',nNodes,'E=',nCells,'ZONETYPE=FEbrick'

@@ -24,6 +24,8 @@
         logical :: Chimera
         integer :: Limiter
         logical :: Restart
+        integer :: DimensionALL ! 20, 2D; 30, 3D
+        integer :: NGeom ! Number of body
         character(50):: OutputNameStr
         character(50):: GeometryName
     end module ModInpGlobal
@@ -159,5 +161,53 @@
         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
     end module GlobalConstantsMod
 !======================================================================
+    module spatial_mod
+!   module spatial_mod is developed to define data type of point, segment and triangle in 3D space
+        use ModPrecision
+        implicit none
+   
+        type :: point
+            real(R8)               :: x(3)         ! x(1) = x, x(2) = y, x(3) = z
+            integer                :: label
+        end type point
+   
+        type :: segment
+            type(point)            :: p(2)         !p(1) = p1, p(2) = p2
+        end type segment
+   
+        type :: triangle
+            type(point)            :: p(4)         !p(1) = p1, p(2) = p2, p(3) = p3, p(4) = center
+        end type triangle
+    
+    end module spatial_mod    
 !======================================================================
+    module geometry_mod
+!   module geometry_mod is developed to define geometry discreted points and elements.
+       use ModPrecision
+       use spatial_mod
+       implicit none  
+   
+       type :: geom
+            integer                          ::   nsp, nse
+         !  type(segment) , pointer          ::   se2d(:)
+            type(triangle) , allocatable     ::   se3d(:)
+            real(R8)                         ::   box(6)      
+!  nsp, nse            ：number of surface points & number of surface element
+!  sp                  ：surface points
+!  se3d                ：surface elements of 3D
+        end type geom
+
+    end module geometry_mod    
 !======================================================================
+    module commons
+        use ModPrecision
+        use spatial_mod
+        use geometry_mod
+        implicit none  
+        
+        type(geom), allocatable, target     :: body(:) 
+        
+        
+    end module commons
+!======================================================================
+    

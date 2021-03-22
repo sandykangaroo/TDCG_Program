@@ -9,8 +9,8 @@
     integer :: ios
 
     NAMELIST /Global/   Aniso, nStep, nSave, nAdaptStep, Debug, CFL,    &
-                        NRR, Chimera, Limiter, Restart,                 &
-                        OutputNameStr, GeometryName
+                        NRR, Chimera, Limiter, Restart,    &
+                         OutputNameStr, GeometryName
     NAMELIST /Mesh/     nCell, Domain, InitRefineLVL, AdaptRefineLVL,   &
                         cIntersectMethod
     NAMELIST /NRRset/   NRRSeed, NRRLength, NRRTheta
