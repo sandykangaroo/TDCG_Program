@@ -33,7 +33,7 @@
         use ModPrecision
         implicit none
         integer :: nCell(3)
-        real(R8):: Domain(3)
+        real(R8):: Domain1(3), Domain2(3)
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
@@ -85,7 +85,7 @@
     
 ! Cartesian Cell's point coordinate
         type typPoint
-            real(R8):: x,y,z
+            real(R8):: P(3)
         end type typPoint
     
 ! ! Triangle's three vertexs��odered by right-hand rule
@@ -145,7 +145,7 @@
     end module ModTypDef
 !======================================================================
 ! Define globally share constants
-    module GlobalConstantsMod
+    module ModGlobalConstants
         use ModPrecision
         implicit none
 ! constants used in sutherlan'law, =110.3 in NSMB5.0
@@ -158,7 +158,7 @@
         integer,parameter:: BCWall=2, BCSymmetry=3, BCFarfield=4
         integer,parameter:: TimeRK3=1,TimeLUSGS=0
         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
-    end module GlobalConstantsMod
+    end module ModGlobalConstants
 !======================================================================
 !======================================================================
 !======================================================================

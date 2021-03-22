@@ -1,5 +1,6 @@
 Data/
 Release/
+doc/
 *.mod
 *.exe
 ## Core latex/pdflatex auxiliary files:

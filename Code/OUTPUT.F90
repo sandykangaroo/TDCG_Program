@@ -23,7 +23,7 @@
     integer,PARAMETER       :: nVars = 8 ! Number of cVariables for output
                                 ! node 1-8, U, V, W, Rou, T, P, Ma, Cross
 
-    ALLOCATE(Nodes(nCells*4,3))  ! Reserve enough space for Nodes-array.
+    ALLOCATE(Nodes(nCells*8,3))  ! Reserve enough space for Nodes-array.
     ALLOCATE(cVariables(nCells,nVars))
     ALLOCATE(cNodes(nCells,8))
     print*, 'Outputting ASCII data......'
@@ -44,24 +44,9 @@
         write(21,"(1X,A28,I2,A15)")                    &
             'VARLOCATION=([1-3]=NODAL,[4-',nVars+3,']=CELLCENTERED)'
 
-        if (InitRefineLVL <= 5) then ! Single precision -- croase mesh
-            write(21,"(F12.6)") ((real(Nodes(i,j),R4),i=1,nNodes),j=1,3)
-        else                         ! Double precision -- fine mesh
-            write(21,"(F16.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
-        endif
-
-        if ( R8<=8 ) then
-            write(21,"(E12.5)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
-        else
-            write(21,"(E16.9)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
-        endif
-
-        if (nNodes <= 99999) then
-            write(21,"(8(I5,1X))") ((cNodes(i,j),j=1,8),i=1,nCells)
-        else
-            write(21,"(8(I9,1X))") ((cNodes(i,j),j=1,8),i=1,nCells)
-        endif
-
+        write(21,"(F20.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
+        write(21,"(F20.10)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
+        write(21,"(8(I9,1X))") ((cNodes(i,j),j=1,8),i=1,nCells)
     close(21)
     DEALLOCATE(Nodes)
     DEALLOCATE(cVariables)
@@ -94,7 +79,7 @@
     NULLCHR = CHAR(0)
     SolTime = real(step,R8)*TimeStep
 
-    ALLOCATE(Nodes(nCells*4,3))  ! Reserve enough space for Nodes-array.
+    ALLOCATE(Nodes(nCells*8,3))  ! Reserve enough space for Nodes-array.
     ALLOCATE(cVariables(nCells,nVars))
     ALLOCATE(cNodes(nCells,8))
     print*, 'Outputting binary data......'
@@ -114,7 +99,7 @@
                     Debug, &
                     1)          ! VIsDouble     = 0 Single
                                 !               = 1 Double
-        if (ios/=0) stop "Error return value in TecIni142"
+        if (ios/=0) stop "Error value returned in TecIni142"
     ! Write the zone header information.
     ios = TecZne142('Zone'//NULLCHR, &
                     5, &        ! ZoneType
@@ -126,26 +111,26 @@
                     0, &        ! StrandID
                     0, &        ! ParentZn
                     1, &        ! IsBlock
-                    0, &        ! NumFaceConnections    !!!!!
-                    3, &        ! FaceNeighborMode      !!!!!
+                    0, &        ! NumFaceConnections
+                    3, &        ! FaceNeighborMode
                     0, 0, 0, &  ! Not used for FEbrick Zone type.
                     Null, &     ! PassiveVarList
                     VarLocation, &
                     Null, &     ! ShareVarFromZone
                     0)          ! ShareConnectivityFromZone
-        if (ios/=0) stop "Error return value in TecZne142"
+        if (ios/=0) stop "Error value returned in TecZne142"
     do i=1,3
     ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
-        if (ios/=0) stop "Error return value in TecDat142"
+        if (ios/=0) stop "Error value returned in TecDat142"
     enddo
     do i=1,nVars
     ios = TecDat142(nCells,real(cVariables(1:nCells,i),R4),0)
-        if (ios/=0) stop "Error return value in TecDat142"
+        if (ios/=0) stop "Error value returned in TecDat142"
     enddo
     ios = TecNod142(transpose(cNodes))
-        if (ios/=0) stop "Error return value in TecNod142"
+        if (ios/=0) stop "Error value returned in TecNod142"
     ios = TecEnd142()
-        if (ios/=0) stop "Error return value in TecEnd142"
+        if (ios/=0) stop "Error value returned in TecEnd142"
     DEALLOCATE(Nodes)
     DEALLOCATE(cVariables)
     DEALLOCATE(cNodes)
@@ -160,8 +145,8 @@
     type(typCell),pointer :: ct
     integer :: i
     
-    nNodes=1
-    Nodes(1,1:3)=0.0
+    !nNodes=1
+    !Nodes(1,1:3)=0.0
 
     do i=1,nBGCells
         ct=>Cell(i)
@@ -199,47 +184,49 @@
         call NodeInfo(c%son2)
     else
         Mark=.true.
-        do ii=1,3; step(ii)=BGStep(ii)/(2**c%lvl(ii)+1); enddo
+        do ii=1,3
+            step(ii)=BGStep(ii)/(2**(c%lvl(ii)+1))
+        enddo
         ! Initial node number.
-        tN(1)=c%Center(1)-step(1)
-        tN(2)=c%Center(2)-step(2)
-        tN(3)=c%Center(3)-step(3)
-        tN(4)=c%Center(1)+step(1)
-        tN(5)=c%Center(2)+step(2)
-        tN(6)=c%Center(3)+step(3)
+        tN(1)=c%Center(1)-step(1)   ! x -
+        tN(2)=c%Center(2)-step(2)   ! y -
+        tN(3)=c%Center(3)-step(3)   ! z -
+        tN(4)=c%Center(1)+step(1)   ! x +
+        tN(5)=c%Center(2)+step(2)   ! y +
+        tN(6)=c%Center(3)+step(3)   ! z +
         ! Nodes array in xyz:
         ! 1 --- 2 +-- 3 ++- 4 -+- 5 --+ 6 +-+ 7 +++ 8 -++
-        do ii=1,nNodes
-            if (Nodes(ii,1)==tN(1)) then     ! x -
-                if (Nodes(ii,2)==tN(2)) then     ! y -
-                    if (Nodes(ii,3)==tN(3)) then     ! z -
-                        c%Node(1)=ii; mark(1)=.false.          ! 1 ---
-                    elseif (Nodes(ii,3)==tN(6)) then ! z +
-                        c%Node(5)=ii; mark(5)=.false.          ! 5 --+
-                    endif
-                elseif (Nodes(ii,2)==tN(5)) then ! y +
-                    if (Nodes(ii,3)==tN(3)) then     ! z -
-                        c%Node(4)=ii; mark(4)=.false.          ! 4 -+-
-                    elseif (Nodes(ii,3)==tN(6)) then ! z +
-                        c%Node(8)=ii; mark(8)=.false.          ! 8 -++
-                    endif
-                endif
-            elseif (Nodes(ii,1)==tN(4)) then ! x +
-                if (Nodes(ii,2)==tN(2)) then     ! y -
-                    if (Nodes(ii,3)==tN(3)) then     ! z -
-                        c%Node(2)=ii; mark(2)=.false.          ! 2 +--
-                    elseif (Nodes(ii,3)==tN(6)) then ! z +
-                        c%Node(6)=ii; mark(6)=.false.          ! 6 +-+
-                    endif
-                elseif (Nodes(ii,2)==tN(5)) then ! y +
-                    if (Nodes(ii,3)==tN(3)) then     ! z -
-                        c%Node(3)=ii; mark(3)=.false.          ! 3 ++-
-                    elseif (Nodes(ii,3)==tN(6)) then ! z +
-                        c%Node(7)=ii; mark(7)=.false.          ! 7 +++
-                    endif
-                endif
-            endif
-        enddo
+        ! do ii=1,nNodes
+        !     if (Nodes(ii,1)==tN(1)) then     ! x -
+        !         if (Nodes(ii,2)==tN(2)) then     ! y -
+        !             if (Nodes(ii,3)==tN(3)) then     ! z -
+        !                 c%Node(1)=ii; mark(1)=.false.          ! 1 ---
+        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+        !                 c%Node(5)=ii; mark(5)=.false.          ! 5 --+
+        !             endif
+        !         elseif (Nodes(ii,2)==tN(5)) then ! y +
+        !             if (Nodes(ii,3)==tN(3)) then     ! z -
+        !                 c%Node(4)=ii; mark(4)=.false.          ! 4 -+-
+        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+        !                 c%Node(8)=ii; mark(8)=.false.          ! 8 -++
+        !             endif
+        !         endif
+        !     elseif (Nodes(ii,1)==tN(4)) then ! x +
+        !         if (Nodes(ii,2)==tN(2)) then     ! y -
+        !             if (Nodes(ii,3)==tN(3)) then     ! z -
+        !                 c%Node(2)=ii; mark(2)=.false.          ! 2 +--
+        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+        !                 c%Node(6)=ii; mark(6)=.false.          ! 6 +-+
+        !             endif
+        !         elseif (Nodes(ii,2)==tN(5)) then ! y +
+        !             if (Nodes(ii,3)==tN(3)) then     ! z -
+        !                 c%Node(3)=ii; mark(3)=.false.          ! 3 ++-
+        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+        !                 c%Node(7)=ii; mark(7)=.false.          ! 7 +++
+        !             endif
+        !         endif
+        !     endif
+        ! enddo
 
         if (mark(1)) then   ! Node 1 ---
             nNodes=nNodes+1

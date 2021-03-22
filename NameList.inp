@@ -1,15 +1,15 @@
 ! 
-! 
-! OutputFormat    = '.plt'
-!                   '.szplt'
+! GeometryName    Both single and double precision files are supported
+! OutputFormat    = '.szplt'
+!                   '.plt'
 !                   '.dat'
 $Global
-    Aniso=.f., nStep=10000, nSave=1000, nAdaptStep=500, 
-    Debug= 0 , CFL=0.5, NRR=.f., Chimera=.f., 
-    Limiter=1, Restart=.f., 
+    Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
+    Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
+    Limiter = 1, Restart = .f., 
+    GeometryName  = './Data/singlePrecisionMesh.facet',
     OutputNameStr = './Data/test',
-    GeometryName  = './Data/doublePrecisionMesh.facet',
-    OutputFormat  = '.szplt'
+    OutputFormat  = '.plt'
 $END
 
 ! nCell
@@ -18,18 +18,20 @@ $END
 ! AdaptRefineLVL
 ! cIntersectMethod  = 1 Ray-cast intersect
 $Mesh
-    nCell=100, 40, 40, 
-    Domain=10.0, 10.0, 10.0,
-    InitRefineLVL=5, AdaptRefineLVL=5,
-    cIntersectMethod=1
+    !nCell = 2, 2, 2, 
+    nCell = 20, 20, 20,
+    Domain1 = -300.0, -300.0, -300.0,
+    Domain2 =  300.0,  300.0,  300.0,
+    InitRefineLVL = 3, AdaptRefineLVL  =  2,
+    cIntersectMethod = 1
 $END
 
 $NRRset
-    NRRSeed=1, NRRLength=1, NRRTheta=1,
+    NRRSeed = 1, NRRLength = 1, NRRTheta  =  1,
 $END
 
 $Inflow
-    Alpha=0.0, Beta=0.0, ReyNum=2e-5, Rgas=287.0,
-    T00=300.0, Mach00=1.7, Gama00=1.4,
+    Alpha = 0.0, Beta = 0.0, ReyNum = 2e+5, Rgas = 287.0,
+    T00 = 300.0, Mach00 = 1.7, Gama00 = 1.4,
 $END
 !!---- Must retain the last row ----!!

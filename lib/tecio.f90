@@ -3,10 +3,10 @@ interface
 
 ! Output routine interfaces
 integer(c_int32_t) function tecFileWriterOpen( &
-    fileName, &
+    fileName1, &
     dataSetTitle, &
     variableList, &
-    fileFormat, &
+    fileFormat1, &
     fileType, &
     defaultVarType, &
     gridFileHandle, &
@@ -14,10 +14,10 @@ integer(c_int32_t) function tecFileWriterOpen( &
     bind(c, name="tecFileWriterOpen")
     use iso_c_binding
     implicit none
-    character(c_char), intent(in)         :: fileName(*)
+    character(c_char), intent(in)         :: fileName1(*)
     character(c_char), intent(in)         :: dataSetTitle(*)
     character(c_char), intent(in)         :: variableList(*)
-    integer(c_int32_t), value, intent(in) :: fileFormat
+    integer(c_int32_t), value, intent(in) :: fileFormat1
     integer(c_int32_t), value, intent(in) :: fileType
     integer(c_int32_t), value, intent(in) :: defaultVarType
     type(c_ptr), value, intent(in)        :: gridFileHandle
@@ -362,7 +362,7 @@ integer(c_int32_t) function tecZoneNodeMapWrite32( &
     partition, &
     nodesAreOneBased, &
     count, &
-    nodes) &
+    nodes1) &
     bind(c, name="tecZoneNodeMapWrite32")
     use iso_c_binding
     implicit none
@@ -371,7 +371,7 @@ integer(c_int32_t) function tecZoneNodeMapWrite32( &
     integer(c_int32_t), value, intent(in) :: partition
     integer(c_int32_t), value, intent(in) :: nodesAreOneBased
     integer(c_int64_t), value, intent(in) :: count
-    integer(c_int32_t), intent(in)        :: nodes(*)
+    integer(c_int32_t), intent(in)        :: nodes1(*)
 end function tecZoneNodeMapWrite32
 
 integer(c_int32_t) function tecZoneNodeMapWrite64( &
@@ -380,7 +380,7 @@ integer(c_int32_t) function tecZoneNodeMapWrite64( &
     partition, &
     nodeAreOneBased, &
     count, &
-    nodes) &
+    nodes1) &
     bind(c, name="tecZoneNodeMapWrite64")
     use iso_c_binding
     implicit none
@@ -389,7 +389,7 @@ integer(c_int32_t) function tecZoneNodeMapWrite64( &
     integer(c_int32_t), value, intent(in) :: partition
     integer(c_int32_t), value, intent(in) :: nodeAreOneBased
     integer(c_int64_t), value, intent(in) :: count
-    integer(c_int64_t), intent(in)        :: nodes(*)
+    integer(c_int64_t), intent(in)        :: nodes1(*)
 end function tecZoneNodeMapWrite64
 
 integer(c_int32_t) function tecZoneFaceNbrWriteConnections32( &
@@ -1100,12 +1100,12 @@ integer(c_int32_t) function tecFileReaderClose( &
 end function tecFileReaderClose
 
 integer(c_int32_t) function tecFileReaderOpen( &
-  fileName, &
+  fileName1, &
   fileHandle) &
   bind (c, name="tecFileReaderOpen")
   use iso_c_binding
   implicit none
-  character(c_char), intent(in) :: fileName(*)
+  character(c_char), intent(in) :: fileName1(*)
   type(c_ptr), intent(out)      :: fileHandle
 end function tecFileReaderOpen
 
@@ -2339,9 +2339,9 @@ integer(c_int32_t) function tecini142( &
   Variables, &
   FName, &
   ScratchDir, &
-  FileFormat, &
+  FileFormat1, &
   FileType, &
-  Debug, &
+  Debug1, &
   VIsDouble) &
   bind (c, name="tecini142")
   use iso_c_binding
@@ -2350,9 +2350,9 @@ integer(c_int32_t) function tecini142( &
   character(c_char), intent(in)  :: Variables(*)
   character(c_char), intent(in)  :: FName(*)
   character(c_char), intent(in)  :: ScratchDir(*)
-  integer(c_int32_t), intent(in) :: FileFormat
+  integer(c_int32_t), intent(in) :: FileFormat1
   integer(c_int32_t), intent(in) :: FileType
-  integer(c_int32_t), intent(in) :: Debug
+  integer(c_int32_t), intent(in) :: Debug1
   integer(c_int32_t), intent(in) :: VIsDouble
 end function tecini142
 

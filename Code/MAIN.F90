@@ -42,7 +42,8 @@
     implicit none
 
     print*,'Welcome TDCGprogram'
-    call TDCGReadInp
+    call TDCGRead
+    call TDCGPerporcessing
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
@@ -51,17 +52,30 @@
 
     end program TDCGmain
 !======================================================================
+    subroutine TDCGRead
+    implicit none
+
+    print*, 'Reading input file NameList.inp......'
+        call ReadInp
+    print*,'Done'
+    print*,'Reading geometry file......'
+        call ReadGeometry
+    print*,'Done'
+
+    endsubroutine TDCGRead
+!======================================================================
+    subroutine TDCGPerporcessing
+    call BuildGeoBBOX
+    endsubroutine TDCGPerporcessing
+!======================================================================
     subroutine TDCGMesh
     use ModInpGlobal
     implicit none
 
     if (Restart) return
-    print*,'Reading geometry......'
-        call ReadGeometry
-    print*,'Done'
     print*,'Generating mesh......'
         call GenerateBGMesh
-        call SurfaceAdapt
+        call initSurfaceAdapt
     print*,'Done'
     end subroutine TDCGMesh
 !======================================================================
