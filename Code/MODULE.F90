@@ -18,7 +18,7 @@
         integer :: nStep
         integer :: nSave
         integer :: nAdaptStep
-        logical :: Debug
+        integer :: Debug
         Real(R8):: CFL
         logical :: NRR
         logical :: Chimera
@@ -28,13 +28,14 @@
         integer :: NGeom ! Number of body
         character(50):: OutputNameStr
         character(50):: GeometryName
+        character(10):: OutputFormat
     end module ModInpGlobal
 !======================================================================
     module ModInpMesh
         use ModPrecision
         implicit none
         integer :: nCell(3)
-        real(R8):: Domain(3)
+        real(R8):: Domain1(3), Domain2(3)
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
@@ -49,6 +50,7 @@
         real(R8):: T00
         real(R8):: Mach00
         real(R8):: Gama00
+        real(R8):: Rgas    ![J/(kg.K)]
     end module ModInpInflow
 !======================================================================
     module ModInpNRRset
@@ -85,7 +87,7 @@
     
 ! Cartesian Cell's point coordinate
         type typPoint
-            real(R8):: x,y,z
+            real(R8):: P(3)
         end type typPoint
     
 ! ! Triangle's three vertexs��odered by right-hand rule
@@ -145,12 +147,11 @@
     end module ModTypDef
 !======================================================================
 ! Define globally share constants
-    module GlobalConstantsMod
+    module ModGlobalConstants
         use ModPrecision
         implicit none
 ! constants used in sutherlan'law, =110.3 in NSMB5.0
 !        real(R8),parameter:: C00=100.4
-!        real(R8),parameter:: Rgas=287    ![J/(kg.K)]
 !        real(R8),parameter:: gama=1.4, gama1=gama-1.0
 !        real(R8),parameter:: pr=0.72, prt=0.9
         real(R8),parameter:: PI=3.14159265358979
@@ -159,7 +160,7 @@
         integer,parameter:: BCWall=2, BCSymmetry=3, BCFarfield=4
         integer,parameter:: TimeRK3=1,TimeLUSGS=0
         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
-    end module GlobalConstantsMod
+    end module ModGlobalConstants
 !======================================================================
     module spatial_mod
 !   module spatial_mod is developed to define data type of point, segment and triangle in 3D space
