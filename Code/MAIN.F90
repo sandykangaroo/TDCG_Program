@@ -65,7 +65,7 @@
     endsubroutine TDCGRead
 !======================================================================
     subroutine TDCGPerporcessing
-    call BuildGeoBBOX
+    !call BuildGeoBBOX
     endsubroutine TDCGPerporcessing
 !======================================================================
     subroutine TDCGMesh

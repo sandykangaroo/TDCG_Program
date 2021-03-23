@@ -6,8 +6,8 @@
 $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
-    Limiter = 1, Restart = .f., 
-    GeometryName  = './Data/singlePrecisionMesh.facet',
+    Limiter = 1, Restart = .f., nGeometry = 1,
+    GeometryName  = './Data/threeBody',
     OutputNameStr = './Data/test',
     OutputFormat  = '.plt'
 $END

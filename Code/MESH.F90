@@ -31,16 +31,17 @@
         end select
         endfunction initCellIntersect
 !----------------------------------------------------------------------
-        logical function BBOX(p)
+        logical function BBOX(p,box)
         implicit none
         real(R8),INTENT(IN)::p(3)
+        real(R8),INTENT(IN)::box(6)
 
-        if (p(1) < GeoBBOX(1)%P(1) .or.    &
-            p(2) < GeoBBOX(1)%P(2) .or.    &
-            p(3) < GeoBBOX(1)%P(3) .or.    &
-            p(1) > GeoBBOX(2)%P(1) .or.    &
-            p(2) > GeoBBOX(2)%P(2) .or.    &
-            p(3) > GeoBBOX(2)%P(3)) then
+        if (p(1) < box(1) .or.    &
+            p(2) < box(2) .or.    &
+            p(3) < box(3) .or.    &
+            p(1) > box(4) .or.    &
+            p(2) > box(5) .or.    &
+            p(3) > box(6)) then
             BBOX = .False.
         else
             BBOX = .True.
@@ -48,11 +49,14 @@
         endfunction BBOX
 !----------------------------------------------------------------------
         integer function CellCast(c)
+        use ModKDTree
+        use ModInpGlobal
         implicit none
         type(typCell),pointer :: c
         type(typPoint)        :: p(8)
         real(R8):: x, y, z, dx, dy, dz
-        integer :: i, Pintersect
+        real(R8):: box(6)
+        integer :: i, ii, Pintersect
 
         Pintersect=0
         x=c%Center(1); y=c%Center(2); z=c%Center(3)
@@ -69,7 +73,9 @@
         p(8)%P=(/x-dx,y+dy,z+dz/)
         do i = 1,8
             ! Quick BBOX identify
-            if (.not. BBOX(p(i)%P)) cycle ! outside
+            do ii = 1,nGeometry
+            if (.not. BBOX(p(i)%P,KDTree(ii)%root%box)) cycle ! outside
+            enddo
             Pintersect=Pintersect+RayCast(p(i)%P)
         enddo
         if (Pintersect==0) then
@@ -86,8 +92,133 @@
         endif
         endfunction CellCast
 !----------------------------------------------------------------------
+        ! integer function RayCast(point)
+        ! use ModGeometry
+        ! use ModInpGlobal, only: nGeometry
+        ! implicit none
+        ! real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
+        ! integer,PARAMETER  :: nRays = 20   ! Number of Rays.
+        ! type(typPoint)     :: k(nRays)  ! Three rays
+        ! integer :: i, j, jj, ng
+        ! integer :: nIntersect ! Save the intersections number of any ray.
+        ! integer :: nRayCast   ! Once a ray intersections, nRay=nRay+1.
+        ! type(typPoint):: triFace(3)
+
+        ! k(1)%P = [1., 1., 0.]
+        ! k(2)%P = [-1., 1., 0.]
+        ! k(3)%P = [1., -1., 0.]
+        ! k(4)%P = [-1., -1., 0.]
+        ! k(5)%P = [1., 0., 1.]
+        ! k(6)%P = [-1., 0., 1.]
+        ! k(7)%P = [1., 0., -1.]
+        ! k(8)%P = [-1., 0., -1.]
+        ! k(9)%P = [0., 1., 1.]
+        ! k(10)%P= [0., -1., 1.]
+        ! k(11)%P= [0., 1., -1.]
+        ! k(12)%P= [0., -1., -1.]
+        ! k(13)%P= [1., 1., 1.]
+        ! k(14)%P= [1., 1., -1.]
+        ! k(15)%P= [1., -1., -1.]
+        ! k(16)%P= [1., -1., 1.]
+        ! k(17)%P= [-1., 1., 1.]
+        ! k(18)%P= [-1., -1., 1.]
+        ! k(19)%P= [-1., 1., -1.]
+        ! k(20)%P= [-1., -1., -1.]
+        ! nRayCast   = 0
+        ! do ng= 1,nGeometry
+        ! do i = 1,nRays
+        !     nIntersect = 0
+        !     do j = 1,body(ng)%nse
+        !         do jj = 1,3
+        !             triFace(jj)%P = body(ng)%se3d(j)%P(jj)%P
+        !         enddo
+        !         ! Quick BBOX identify
+        !         ! if (.not. BBOX(p(i)%P,body(ng)%box)) cycle ! outside
+        !         ! newPoint = IntersectPoint(point,k(i)%P,triFace)
+        !         ! nIntersect=nIntersect+RayCast2D(newPoint,triFace)
+        !         nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
+        !     enddo
+        !     if (nIntersect == 0) then
+        !         RayCast=0; return
+        !     elseif (mod(nIntersect,2)==0) then
+        !         nRayCast = nRayCast + 0
+        !     else
+        !         nRayCast = nRayCast + 1
+        !     endif
+        ! enddo
+        ! enddo
+        ! if (nRayCast > nRays/2)then
+        !     RayCast=1; return
+        ! else
+        !     RayCast=0; return
+        ! endif
+        ! endfunction RayCast
         integer function RayCast(point)
+        use ModGeometry
+        use ModInpGlobal, only: nGeometry
         implicit none
+        real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
+        integer,PARAMETER  :: nRays = 1   ! Number of Rays.
+        type(typPoint)     :: k(nRays)  ! Three rays
+        integer :: i, j, jj, ng
+        integer :: nIntersect ! Save the intersections number of any ray.
+        integer :: nRayCast   ! Once a ray intersections, nRay=nRay+1.
+        type(typPoint):: triFace(3)
+
+        k(1)%P = [1., 0., 0.]
+        ! k(2)%P = [-1., 1., 0.]
+        ! k(3)%P = [1., -1., 0.]
+        ! k(4)%P = [-1., -1., 0.]
+        ! k(5)%P = [1., 0., 1.]
+        ! k(6)%P = [-1., 0., 1.]
+        ! k(7)%P = [1., 0., -1.]
+        ! k(8)%P = [-1., 0., -1.]
+        ! k(9)%P = [0., 1., 1.]
+        ! k(10)%P= [0., -1., 1.]
+        ! k(11)%P= [0., 1., -1.]
+        ! k(12)%P= [0., -1., -1.]
+        ! k(13)%P= [1., 1., 1.]
+        ! k(14)%P= [1., 1., -1.]
+        ! k(15)%P= [1., -1., -1.]
+        ! k(16)%P= [1., -1., 1.]
+        ! k(17)%P= [-1., 1., 1.]
+        ! k(18)%P= [-1., -1., 1.]
+        ! k(19)%P= [-1., 1., -1.]
+        ! k(20)%P= [-1., -1., -1.]
+        nRayCast   = 0
+        do ng= 1,nGeometry
+        do i = 1,nRays
+            nIntersect = 0
+            do j = 1,body(ng)%nse
+                do jj = 1,3
+                    triFace(jj)%P = body(ng)%se3d(j)%P(jj)%P
+                enddo
+                ! Quick BBOX identify
+                ! if (.not. BBOX(p(i)%P,body(ng)%box)) cycle ! outside
+                ! newPoint = IntersectPoint(point,k(i)%P,triFace)
+                ! nIntersect=nIntersect+RayCast2D(newPoint,triFace)
+                nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
+            enddo
+            if (nIntersect == 0) then
+                RayCast=0; return
+            elseif (mod(nIntersect,2)==0) then
+                nRayCast = nRayCast + 0
+            else
+                nRayCast = nRayCast + 1
+            endif
+        enddo
+        enddo
+        if (nRayCast > nRays/2)then
+            RayCast=1; return
+        else
+            RayCast=0; return
+        endif
+        endfunction RayCast
+!----------------------------------------------------------------------
+        recursive function RayCast2(point)
+        use ModKDTree
+        implicit none
+        integer :: RayCast2
         real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
         integer,PARAMETER  :: nRays = 20   ! Number of Rays.
         type(typPoint)     :: k(nRays)  ! Three rays
@@ -116,15 +247,14 @@
         k(18)%P= [-1., -1., 1.]
         k(19)%P= [-1., 1., -1.]
         k(20)%P= [-1., -1., -1.]
-        nRayCast   = 0
+
+        nRayCast = 0
         do i = 1,nRays
             nIntersect = 0
             do j = 1,nGeoFaces
                 do jj = 1,3
                     triFace(jj)%P = Geometry(GeoFace(j,jj),:)
                 enddo
-                ! newPoint = IntersectPoint(point,k(i)%P,triFace)
-                ! nIntersect=nIntersect+RayCast2D(newPoint,triFace)
                 nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
             enddo
             if (nIntersect == 0) then
@@ -136,11 +266,11 @@
             endif
         enddo
         if (nRayCast > nRays/2)then
-            RayCast=1; return
+            RayCast2=1; return
         else
-            RayCast=0; return
+            RayCast2=0; return
         endif
-        endfunction RayCast
+        endfunction RayCast2
 !----------------------------------------------------------------------
         integer function MollerTrumbore(Point,D,tri)
         use ModTools

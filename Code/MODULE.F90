@@ -25,12 +25,12 @@
         integer :: Limiter
         logical :: Restart
         integer :: DimensionALL ! 20, 2D; 30, 3D
-        integer :: NGeom ! Number of body
+        integer :: nGeometry ! Number of body
         character(50):: OutputNameStr
         character(50):: GeometryName
         character(10):: OutputFormat
     end module ModInpGlobal
-!======================================================================
+!----------------------------------------------------------------------
     module ModInpMesh
         use ModPrecision
         implicit none
@@ -40,7 +40,7 @@
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
     end module ModInpMesh
-!======================================================================
+!----------------------------------------------------------------------
     module ModInpInflow
         use ModPrecision
         implicit none
@@ -52,7 +52,7 @@
         real(R8):: Gama00
         real(R8):: Rgas    ![J/(kg.K)]
     end module ModInpInflow
-!======================================================================
+!----------------------------------------------------------------------
     module ModInpNRRset
         use ModPrecision
         implicit none
@@ -88,8 +88,17 @@
 ! Cartesian Cell's point coordinate
         type typPoint
             real(R8):: P(3)
+            integer :: label
         end type typPoint
-    
+
+        type segment
+            type(typPoint):: P(2)  !p(1) = p1, p(2) = p2
+        end type segment
+
+        type triangle
+            type(typPoint):: P(4)  
+            !p(1) = p1, p(2) = p2, p(3) = p3, p(4) = center
+        end type triangle
 ! ! Triangle's three vertexs��odered by right-hand rule
 !         type triangle
 !             type(typPoint)::tripoint1, tripoint2, tripoint3
@@ -162,53 +171,40 @@
         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
     end module ModGlobalConstants
 !======================================================================
-    module spatial_mod
-!   module spatial_mod is developed to define data type of point, segment and triangle in 3D space
-        use ModPrecision
-        implicit none
-   
-        type :: point
-            real(R8)               :: x(3)         ! x(1) = x, x(2) = y, x(3) = z
-            integer                :: label
-        end type point
-   
-        type :: segment
-            type(point)            :: p(2)         !p(1) = p1, p(2) = p2
-        end type segment
-   
-        type :: triangle
-            type(point)            :: p(4)         !p(1) = p1, p(2) = p2, p(3) = p3, p(4) = center
-        end type triangle
-    
-    end module spatial_mod    
-!======================================================================
-    module geometry_mod
-!   module geometry_mod is developed to define geometry discreted points and elements.
+    module ModGeometry
+!   module ModGeometry is developed to define geometry discreted points and elements.
        use ModPrecision
-       use spatial_mod
-       implicit none  
+       use ModTypDef
+       implicit none
    
-       type :: geom
-            integer                          ::   nsp, nse
-         !  type(segment) , pointer          ::   se2d(:)
-            type(triangle) , allocatable     ::   se3d(:)
-            real(R8)                         ::   box(6)      
-!  nsp, nse            ：number of surface points & number of surface element
-!  sp                  ：surface points
-!  se3d                ：surface elements of 3D
+       type geom
+            integer                          :: nsp, nse
+            type(triangle) , allocatable     :: se3d(:)
+            real(R8)                         :: box(6)
         end type geom
 
-    end module geometry_mod    
-!======================================================================
-    module commons
-        use ModPrecision
-        use spatial_mod
-        use geometry_mod
-        implicit none  
-        
         type(geom), allocatable, target     :: body(:) 
-        
-        
-    end module commons
+
+    end module ModGeometry
 !======================================================================
+    module ModKDTree
+    use ModPrecision
+    use ModTypDef
     
+    type KDT_node
+        type(triangle), pointer:: the_data
+        integer                :: splitaxis ! The dimension of split.
+                                    !  =1 x_axis; =2 y_axis; =3 z_axis
+        real(R8)               :: box(6) ! The_data corresponding to the box. box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax
+        integer                :: level ! depth of KDTree
+        type(KDT_node), pointer:: left, right, parent
+    end type KDT_node
+
+    type typKDTtree 
+        type(KDT_node), pointer:: root=>null()
+    end type typKDTtree
+
+    type(typKDTtree), allocatable, target   :: KDTree(:)
+
+    endmodule ModKDTree
+!======================================================================

@@ -9,7 +9,7 @@
     integer :: ios
 
     NAMELIST /Global/   Aniso, nStep, nSave, nAdaptStep, Debug, CFL,  &
-                        NRR, Chimera, Limiter, Restart,               &
+                        NRR, Chimera, Limiter, Restart, nGeometry,    &
                         OutputNameStr, GeometryName, OutputFormat
     NAMELIST /Mesh/     nCell, Domain1, Domain2, InitRefineLVL,       &
                         AdaptRefineLVL, cIntersectMethod
@@ -29,42 +29,44 @@
     close(21)
     end subroutine ReadInp
 !======================================================================
-    subroutine ReadGeometry
-    use ModInpGlobal
-    use ModMesh
-    implicit none
-    integer :: ios, i, j 
-    character(10)::FileForm
+    ! subroutine ReadGeometry
+    ! use ModInpGlobal
+    ! use ModMesh
+    ! implicit none
+    ! integer :: ios, i, j 
+    ! character(10)::FileForm
 
-    print*,'File name: ', GeometryName
-    open(unit=31, file=GeometryName, iostat=ios, status="old", action="read")
-    if ( ios /= 0 ) stop ("Error opening file: "//GeometryName)
-    read(31, fmt="(G10.1)", iostat=ios) FileForm
-    if ( ios /= 0 ) stop ("Error reading file: "//GeometryName)
-    if (.NOT.FileForm=="FACET FILE")              &
-        stop ("Error file header: "//GeometryName)
-    read(31,"(///I9)") nGeoPoints
-    print*,'Geometry points count: ', nGeoPoints
-    ALLOCATE(Geometry(nGeoPoints,3))
-    read(31,"(3(E23.15,1X))",err=10) ((Geometry(i,j),j=1,3),i=1,nGeoPoints)
-    read(31,"(/)")
-    read(31,*) nGeoFaces
-    print*,'Geometry faces count: ', nGeoFaces
-    ALLOCATE(GeoFace(nGeoFaces,3))
-    read(31,"(3(I7,1X))") ((GeoFace(i,j),j=1,3),i=1,nGeoFaces)
-    close(31)
-    RETURN
-    10  continue
-        backspace(31)
-        read(31,"(3(E14.6,1X))") ((Geometry(i,j),j=1,3),i=1,nGeoPoints)
-        read(31,"(/)")
-        read(31,*) nGeoFaces
-        print*,'Geometry faces count: ', nGeoFaces
-        ALLOCATE(GeoFace(nGeoFaces,3))
-        read(31,"(3(I7,1X))") ((GeoFace(i,j),j=1,3),i=1,nGeoFaces)
-        close(31)
-        RETURN
-    endsubroutine ReadGeometry
+    ! print*,'File name: ', GeometryName
+    ! open(unit=31, file=GeometryName, iostat=ios, status="old", action="read")
+    ! if ( ios /= 0 ) stop ("Error opening file: "//GeometryName)
+    ! read(31, fmt="(G10.1)", iostat=ios) FileForm
+    ! if ( ios /= 0 ) stop ("Error reading file: "//GeometryName)
+    ! if (.NOT.FileForm=="FACET FILE")              &
+    !     stop ("Error file header: "//GeometryName)
+    ! read(31,"(///I9)") nGeoPoints
+    ! print*,'Geometry points count: ', nGeoPoints
+    ! ALLOCATE(Geometry(nGeoPoints,3))
+    ! read(31,"(3(E23.15,1X))",err=10) ((Geometry(i,j),j=1,3),i=1,nGeoPoints)
+    ! read(31,"(/)")
+    ! read(31,*) nGeoFaces
+    ! print*,'Geometry faces count: ', nGeoFaces
+    ! ALLOCATE(GeoFace(nGeoFaces,3))
+    ! read(31,"(3(I7,1X))") ((GeoFace(i,j),j=1,3),i=1,nGeoFaces)
+    ! close(31)
+    ! RETURN
+    ! 10  continue
+    !     backspace(31)
+    !     read(31,"(3(E14.6,1X))") ((Geometry(i,j),j=1,3),i=1,nGeoPoints)
+    !     read(31,"(/)")
+    !     read(31,*) nGeoFaces
+    !     print*,'Geometry faces count: ', nGeoFaces
+    !     ALLOCATE(GeoFace(nGeoFaces,3))
+    !     read(31,"(3(I7,1X))") ((GeoFace(i,j),j=1,3),i=1,nGeoFaces)
+    !     close(31)
+    !     RETURN
+    ! endsubroutine ReadGeometry
 !======================================================================
+    subroutine ReadGeometryBinary
+    endsubroutine ReadGeometryBinary
 !======================================================================
 !======================================================================

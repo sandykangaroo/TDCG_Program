@@ -339,7 +339,7 @@
             cVariables(n,6)= p          ! P
             cVariables(n,7)= sqrt((u*u+v*v+w*w)/abs(Gama00*p/c%U(4)))!Ma
             cVariables(n,8)= c%cross    ! Cross
-            if (c%U(4)==0 .or. c%U(5)==0) cVariables(n,:)=-9999999
+            if (c%U(4)==0 .or. c%U(5)==0) cVariables(n,1:7)=-9999999
         endif
         endsubroutine TmpStorageVar
 !----------------------------------------------------------------------
