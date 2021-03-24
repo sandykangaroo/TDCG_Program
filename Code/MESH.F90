@@ -4,9 +4,9 @@
         implicit none
         ! Mesh
         integer :: nBGCells     ! Number of the background Cells.
-        integer :: nCells=0     ! Number of total Cells.
+        integer :: nCells     ! Number of total Cells.
         real(R8):: BGStep(3)    ! Step size for background cell.
-        type(typCell),pointer :: Cell(:)
+        type(typCell),pointer :: Cell(:,:,:)
         ! Geometry
         integer :: nGeoPoints   ! Number of the geometry points.
         integer :: nGeoFaces    ! Number of the geometry faces.
@@ -75,9 +75,9 @@
         do i = 1,8
             do ii = 1,nGeometry
             ! Quick BBOX identify
-            ! if (BBOX(p(i)%P,KDTree(ii)%root%box)) then ! inside
+            if (BBOX(p(i)%P,KDTree(ii)%root%box)) then ! inside
                 Pintersect=Pintersect+RayCast(p(i)%P,KDTree(ii)%root)
-            ! endif
+            endif
             enddo
         enddo
 
@@ -179,115 +179,9 @@
         elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<0) then
             MollerTrumbore=1; return
         else
-        MollerTrumbore=0; return
+            MollerTrumbore=0; return
         endif
         endfunction MollerTrumbore
-!----------------------------------------------------------------------
-        integer function RayCast2D(point,triFace)
-        ! Not used. 2021.3.22
-        ! Barycentric Coordinates Method (in the Theory Guide)
-        real(R8)      ,INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        type(typPoint),INTENT(IN):: triFace(3)
-        !real(R8):: A(2), B(2), C(2) ! Vertices's coordinate of triangle
-        !real(R8):: P(2) ! Point got by dimensionality reduction
-        real(R8):: V0(3), V1(3), V2(3)    ! Vectors AP, AB, AC
-        real(R8):: c1, c2   ! Coefficient u, v in the Theory Guide.
-        real(R8):: dot01, dot02, dot11, dot12, dot22 ! Dot product
-        real(R8):: t        ! Temp value
-
-        ! Quick BBOX detremine
-        if     (triFace(1)%P(1) > point(1) .and.    &
-                triFace(2)%P(1) > point(1) .and.    &
-                triFace(3)%P(1) > point(1)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(1) < point(1) .and.    &
-                triFace(2)%P(1) < point(1) .and.    &
-                triFace(3)%P(1) < point(1)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(2) > point(2) .and.    &
-                triFace(2)%P(2) > point(2) .and.    &
-                triFace(3)%P(2) > point(2)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(2) < point(2) .and.    &
-                triFace(2)%P(2) < point(2) .and.    &
-                triFace(3)%P(2) < point(2)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(3) > point(3) .and.    &
-                triFace(2)%P(3) > point(3) .and.    &
-                triFace(3)%P(3) > point(3)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(3) < point(3) .and.    &
-                triFace(2)%P(3) < point(3) .and.    &
-                triFace(3)%P(3) < point(3)) then
-                RayCast2D=0; return
-        endif
-        ! Dimensionality reduction
-        ! if (triFace(1)%P(3) == triFace(2)%P(3).and.   &
-        !     triFace(2)%P(3) == triFace(3)%P(3))then
-        !     A=[triFace(1)%P(1),triFace(1)%P(2)]
-        !     B=[triFace(2)%P(1),triFace(2)%P(2)]
-        !     C=[triFace(3)%P(1),triFace(3)%P(2)]
-        !     P=[point(1),point(2)]
-        ! else
-        !     A=[triFace(1)%P(3),triFace(1)%P(2)]
-        !     B=[triFace(2)%P(3),triFace(2)%P(2)]
-        !     C=[triFace(3)%P(3),triFace(3)%P(2)]
-        !     P=[point(3),point(2)]
-        ! endif
-
-        ! Barycentric Coordinates Method (in the Theory Guide)
-        V0 = point - triFace(1)%P
-        V1 = triFace(2)%P - triFace(1)%P
-        V2 = triFace(3)%P - triFace(1)%P
-        ! dot01 = DPROD(V0,V1)
-        ! dot02 = DPROD(V0,V2)
-        ! dot11 = DPROD(V1,V1)
-        ! dot12 = DPROD(V1,V2)
-        ! dot22 = DPROD(V2,V2)
-        dot01 = DOT_PRODUCT(V0,V1)
-        dot02 = DOT_PRODUCT(V0,V2)
-        dot11 = DOT_PRODUCT(V1,V1)
-        dot12 = DOT_PRODUCT(V1,V2)
-        dot22 = DOT_PRODUCT(V2,V2)
-        t=1/(dot22*dot11-dot12*dot12)
-
-        c1=(dot11*dot02-dot12*dot01)*t
-        if (c1 < 0 .or. c1 >1) then
-            RayCast2D=0; return
-        endif
-
-        c2=(dot22*dot01-dot12*dot02)*t
-        if (c2 < 0 .or. c2 >1) then
-            RayCast2D=0; return
-        endif
-
-        if (c1+c2 <= 1) then
-            RayCast2D=0; return
-        else
-            RayCast2D=1; return
-        endif
-        endfunction RayCast2D
-!----------------------------------------------------------------------
-        !function IntersectPoint(point,normal,triFace)
-        !!Not used 2021.3.22
-        !! Method (in the Theory Guide)
-        !implicit none
-        !real(8),DIMENSION(3):: IntersectPoint
-        !real(8)       ,INTENT(IN):: point
-        !real(8)       ,INTENT(IN):: normal
-        !type(typPoint),INTENT(IN):: triFace(3)
-        !real(R8):: n(3)       ! Normal vector: n=ABxAC
-        !real(R8):: V1(3), V2(3)
-        !real(R8):: d    ! Temp value
-        !! Find the triangle surface Ax+By+Cz+D=0
-        !!   turned to formula n(1)*x+n(2)*y+n(3)*z=c
-        !V1 = triFace(2)%P - triFace(1)%P
-        !V2 = triFace(3)%P - triFace(1)%P
-        !d = n(1)*triFace(1)%P(1)+ &
-        !    n(2)*triFace(1)%P(2)+ &
-        !    n(3)*triFace(1)%P(3)
-        !
-        !endfunction IntersectPoint
 !----------------------------------------------------------------------
         subroutine NewCell(c,split)
         ! Called by: many
@@ -552,9 +446,7 @@
                 c%NeighborY2, c%NeighborZ1, c%NeighborZ2)
         endsubroutine NullifyCell
 !----------------------------------------------------------------------
-!----------------------------------------------------------------------
     end module ModMeshTools
-!======================================================================
 !======================================================================
     subroutine GenerateBGMesh   ! BG -- back-ground
     use ModPrecision
@@ -563,24 +455,27 @@
     use ModInpMesh
     use ModMeshTools
     implicit none
-    integer :: i
+    integer :: i, j, k
     type(typCell),pointer :: t
 
     BGStep=abs(Domain1-Domain2)/nCell
-    ! BGStep(2)=Domain(2)/nCell(2)
-    ! BGStep(3)=Domain(3)/nCell(3);
     nBGCells=nCell(1)*nCell(2)*nCell(3)
-    nCells=nBGCells
-    ALLOCATE(Cell(nBGCells))
-    do i = 1, nBGCells
-        t=>Cell(i)
-            t%nBGCell     = i
-            t%nCell       = i
+    nCells=0
+    ALLOCATE(Cell(nCell(1),nCell(2),nCell(3)))
+    do i = 1, nCell(1)
+    do j = 1, nCell(2)
+    do k = 1, nCell(3)
+        t=>Cell(i, j, k)
+        nCells=nCells+1
+            t%nBGCell     = [i, j, k]
+            t%nCell       = nCells
             t%lvl         = 0
             t%fSplitType  = 0
             t%Location    = 0
             t%Node        = 0
-            t%Center      = GBGMFindCellCenter(i)
+            t%Center      = (/Domain1(1)+(i-0.5)*BGStep(1),         &
+                              Domain1(2)+(j-0.5)*BGStep(2),         &
+                              Domain1(3)+(k-0.5)*BGStep(3)/)
             t%U           = 0
             t%cross       = initCellIntersect(t)
             NULLIFY(t%Father,                                       &
@@ -589,26 +484,9 @@
                     t%NeighborX1, t%NeighborX2, t%NeighborY1,       &
                     t%NeighborY2, t%NeighborZ1, t%NeighborZ2)
     enddo
-    contains
-!----------------------------------------------------------------------
-    function GBGMFindCellCenter(num)
-    use ModPrecision
-    implicit none
-    real(R8),DIMENSION(3)   :: GBGMFindCellCenter
-    integer,INTENT(IN)      :: num
-    integer                 :: xx, yy, zz
-
-    xx=mod(num,nCell(1))
-    if (xx==0) xx=nCell(1)
-    yy=mod(int((num-xx)/nCell(1)+1),nCell(2))
-    if (yy==0) yy=nCell(2)
-    zz=ceiling(real(num)/real(nCell(1)*nCell(2)))
-    GBGMFindCellCenter=(/Domain1(1)+(xx-0.5)*BGStep(1),             &
-                         Domain1(2)+(yy-0.5)*BGStep(2),             &
-                         Domain1(3)+(zz-0.5)*BGStep(3)/)
-    endfunction GBGMFindCellCenter
+    enddo
+    enddo
     endsubroutine GenerateBGMesh
-!======================================================================
 !======================================================================
     subroutine initSurfaceAdapt
     use ModMesh
@@ -616,17 +494,22 @@
     use ModInpMesh
     implicit none
     type(typCell),pointer :: t
-    integer :: i, ii
+    integer :: i, j, k
 
-    do i=1,nBGCells
-        t=>Cell(i)
+    do i = 1, nCell(1)
+    do j = 1, nCell(2)
+    do k = 1, nCell(3)
+        t=>Cell(i, j, k)
         call SurfaceAdapt(t)
+    enddo
+    enddo
     enddo
         contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
-    implicit none
+        implicit none
         type(typCell),pointer :: c
+        integer :: ii
 
         do ii=1,3
             if (c%lvl(ii) >= InitRefineLVL) return

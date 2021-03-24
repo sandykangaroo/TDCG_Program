@@ -138,7 +138,8 @@
 ! Neighbor   1 plus
 !            2 minus
         type typCell
-            integer :: nBGCell, nCell
+            integer :: nBGCell(3)
+            integer :: nCell
             integer :: lvl(3)
             integer :: cross
             integer :: fSplitType, Location

@@ -138,19 +138,21 @@
     endsubroutine OutputFlowFieldBinary
 !======================================================================
     subroutine InitNodeInfo    ! nCellst=nCells, as a parameter form.
+    use ModInpMesh
     use ModMesh
     use ModOutput
     use ModTypDef
     implicit none
-    type(typCell),pointer :: ct
-    integer :: i
-    
-    !nNodes=1
-    !Nodes(1,1:3)=0.0
+    type(typCell),pointer :: t
+    integer :: i, j, k
 
-    do i=1,nBGCells
-        ct=>Cell(i)
-        call NodeInfo(ct)
+    do i = 1, nCell(1)
+    do j = 1, nCell(2)
+    do k = 1, nCell(3)
+        t=>Cell(i, j, k)
+        call NodeInfo(t)
+    enddo
+    enddo
     enddo
 
     contains
@@ -291,14 +293,20 @@
 !======================================================================
 !======================================================================
     subroutine initTmpStorageVar
+    use ModInpMesh
     use ModMesh
     use ModOutput
     implicit none
-    type(typCell),pointer :: ct
-    integer :: i
-    do i = 1, nBGCells
-        ct=>Cell(i)
-        call TmpStorageVar(ct)
+    type(typCell),pointer :: t
+    integer :: i, j, k
+
+    do i = 1, nCell(1)
+    do j = 1, nCell(2)
+    do k = 1, nCell(3)
+        t=>Cell(i, j, k)
+        call TmpStorageVar(t)
+    enddo
+    enddo
     enddo
         contains
 !----------------------------------------------------------------------
@@ -306,7 +314,7 @@
         use ModInpInflow,only : Rgas, Gama00
         implicit none
         type(typCell),pointer :: c
-        integer :: n, j
+        integer :: n, jj
         REAL(R8):: u, v, w,p
 
         if(ASSOCIATED(c%son8))then
@@ -328,7 +336,7 @@
             call TmpStorageVar(c%son2)
         else
             n=c%nCell
-            do j=1,8; cNodes(n,j)=c%Node(j); enddo
+            do jj=1,8; cNodes(n,jj)=c%Node(jj); enddo
             u=c%U(1)/c%U(4); v=c%U(2)/c%U(4); w=c%U(3)/c%U(4)
             p=Rgas*c%U(4)*c%U(5)
             cVariables(n,1)= u          ! u

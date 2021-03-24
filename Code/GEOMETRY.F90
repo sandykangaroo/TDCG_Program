@@ -307,9 +307,9 @@
         integer                                          :: i, mid
         logical                                          :: opd
  
-        inquire(file='split2.dat', opened=opd)
+        inquire(file='./Data/split2.dat', opened=opd)
         if ( .not. opd) then
-            open(1, file='split2.dat', status='unknown', form='formatted')
+            open(1, file='./Data/split2.dat', status='unknown', form='formatted')
         end if
         
         if( .not. associated(node%left) .and. .not. associated(node%right) ) then 
