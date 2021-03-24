@@ -34,7 +34,7 @@
     call initTmpStorageVar  ! Temporary Storage cVariables
 
     open(21, file=FileName, iostat=ios, status="replace", action="write")
-        if ( ios /= 0 ) stop ("Error====> Error opening file "//FileName)
+        if ( ios /= 0 ) stop ("Error====> Error opening file ")
         write(21,*) 'TITLE="TDCG-program Results"'
         !write(21,*) 'cVariables="X","Y","Z","U","V"'
         write(21,*) 'Variables="X","Y","Z","U","V","W","Rou"',      &

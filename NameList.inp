@@ -19,7 +19,7 @@ $END
 ! cIntersectMethod  = 1 Ray-cast intersect
 $Mesh
     !nCell = 2, 2, 2, 
-    nCell = 20, 20, 20,
+    nCell = 50, 50, 50,
     Domain1 = -300.0, -300.0, -300.0,
     Domain2 =  300.0,  300.0,  300.0,
     InitRefineLVL = 3, AdaptRefineLVL  =  2,
