@@ -477,7 +477,7 @@
                               Domain1(2)+(j-0.5)*BGStep(2),         &
                               Domain1(3)+(k-0.5)*BGStep(3)/)
             t%U           = 0
-            t%cross       = initCellIntersect(t)
+            t%cross       = -5
             NULLIFY(t%Father,                                       &
                     t%son1, t%son2, t%son3, t%son4,                 &
                     t%son5, t%son6, t%son7, t%son8,                 &
@@ -486,6 +486,85 @@
     enddo
     enddo
     enddo
+    call BGMeshCross
+    contains
+!----------------------------------------------------------------------
+        subroutine BGMeshCross
+        implicit none
+
+        if (PaintingAlgorithmMethod) then
+            loop1: do i = 1, nCell(1)
+                    do j = 1, nCell(2)
+                    do k = 1, nCell(3)
+                        t=>Cell(i,j,k)
+                        t%cross=initCellIntersect(t)
+                        if (t%cross==0) then
+                            call PaintingAlgorithm(t,0)
+                            exit loop1
+                        endif
+                    enddo
+                    enddo
+            enddo loop1
+        else
+            do i = 1, nCell(1)
+            do j = 1, nCell(2)
+            do k = 1, nCell(3)
+                t=>Cell(i,j,k)
+                t%cross=initCellIntersect(t)
+            enddo
+            enddo
+            enddo
+        endif
+        endsubroutine BGMeshCross
+!----------------------------------------------------------------------
+        recursive subroutine PaintingAlgorithm(c,dirct)
+        implicit none
+        type(typCell),pointer :: c, cc
+        integer               :: dirct
+
+        if (dirct /= 0) then
+            if (c%cross /=-5) return    ! Cell has been paintted, return.
+            c%cross = initCellIntersect(c)
+            if (c%cross == 3) return    ! Inside cell, return.
+        endif
+
+        if (dirct /= 4) then
+            if (c%nBGCell(1)<nCell(1)) then
+                cc=>Cell(c%nBGCell(1)+1,c%nBGCell(2),c%nBGCell(3))
+                call PaintingAlgorithm(cc,1)
+            endif
+        endif
+        if (dirct /= 1) then
+            if (c%nBGCell(1)>1) then
+                cc=>Cell(c%nBGCell(1)-1,c%nBGCell(2),c%nBGCell(3))
+                call PaintingAlgorithm(cc,4)
+            endif
+        endif
+        if (dirct /= 5) then
+            if (c%nBGCell(2)<nCell(2)) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2)+1,c%nBGCell(3))
+                call PaintingAlgorithm(cc,2)
+            endif
+        endif
+        if (dirct /= 2) then
+            if (c%nBGCell(2)>1) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2)-1,c%nBGCell(3))
+                call PaintingAlgorithm(cc,5)
+            endif
+        endif
+        if (dirct /= 6) then
+            if (c%nBGCell(3)<nCell(3)) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)+1)
+                call PaintingAlgorithm(cc,3)
+            endif
+        endif
+        if (dirct /= 3) then
+            if (c%nBGCell(3)>1) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)-1)
+                call PaintingAlgorithm(cc,6)
+            endif
+        endif
+        endsubroutine PaintingAlgorithm
     endsubroutine GenerateBGMesh
 !======================================================================
     subroutine initSurfaceAdapt

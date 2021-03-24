@@ -18,12 +18,12 @@ $END
 ! AdaptRefineLVL
 ! cIntersectMethod  = 1 Ray-cast intersect
 $Mesh
-    !nCell = 2, 2, 2, 
-    nCell = 50, 50, 50,
-    Domain1 = -300.0, -300.0, -300.0,
+    nCell = 30, 30, 30,
+    Domain1 = 0, 0, 0,
     Domain2 =  300.0,  300.0,  300.0,
     InitRefineLVL = 3, AdaptRefineLVL  =  2,
     cIntersectMethod = 1
+    PaintingAlgorithmMethod = .False.
 $END
 
 $NRRset

@@ -39,6 +39,7 @@
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
+        logical :: PaintingAlgorithmMethod
     end module ModInpMesh
 !----------------------------------------------------------------------
     module ModInpInflow
@@ -111,10 +112,11 @@
 ! levely     = y-direct level
 ! levelz     = z-direct level
 ! cross      relationship between cell and the object surface.
-!            = 0 Cell outside the object surface.
-!            = 1 Intersect while cell center outside the object surface
-!            = 2 Intersect while cell center inside the object surface
-!            = 3 Cell inside the object surface
+!            = -5 Initial or inside.
+!            =  0 Cell outside the object surface.
+!            =  1 Intersect while cell center outside the object surface
+!            =  2 Intersect while cell center inside the object surface
+!            =  3 Cell inside the object surface
 !            = -1 NRR: ray region
 !            = -2 NRR: region between ray-ray
 ! fSplitType = 0 Cell is isotropical 
