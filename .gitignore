@@ -1,8 +1,14 @@
 Data/
 Release/
 doc/
+neighbor/
+test*/
+x64/
+Debug/
+.gitattributes
 *.mod
 *.exe
+*.suo
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof

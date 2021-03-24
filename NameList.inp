@@ -7,9 +7,9 @@ $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
     Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/threeBody',
+    GeometryName  = './Data/body',
     OutputNameStr = './Data/test',
-    OutputFormat  = '.plt'
+    OutputFormat  = '.dat'
 $END
 
 ! nCell
@@ -20,8 +20,8 @@ $END
 $Mesh
     !nCell = 2, 2, 2, 
     nCell = 20, 20, 20,
-    Domain1 = -300.0, -300.0, -300.0,
-    Domain2 =  300.0,  300.0,  300.0,
+    Domain1 = -5.0, -5.0, -5.0,
+    Domain2 =  5.0,  5.0,  5.0,
     InitRefineLVL = 3, AdaptRefineLVL  =  2,
     cIntersectMethod = 1
 $END
