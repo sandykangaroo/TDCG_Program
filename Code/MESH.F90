@@ -4,9 +4,9 @@
         implicit none
         ! Mesh
         integer :: nBGCells     ! Number of the background Cells.
-        integer :: nCells=0     ! Number of total Cells.
+        integer :: nCells     ! Number of total Cells.
         real(R8):: BGStep(3)    ! Step size for background cell.
-        type(typCell),pointer :: Cell(:)
+        type(typCell),pointer :: Cell(:,:,:)
         ! Geometry
         integer :: nGeoPoints   ! Number of the geometry points.
         integer :: nGeoFaces    ! Number of the geometry faces.
@@ -22,12 +22,27 @@
     contains
         integer function initCellIntersect(c)
         use ModInpMesh
+        use ModKDTree
+        use ModInpGlobal, only: nGeometry
         implicit none
         type(typCell),pointer :: c
-
+        integer ::i
+        
         select case (cIntersectMethod)
         case(1)
             initCellIntersect=CellCast(c)
+        case(2)
+            if (AABB(c)) then
+                do i = 1,nGeometry
+                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=2
+                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=1
+                enddo
+            else
+                do i = 1,nGeometry
+                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=3
+                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=0
+                enddo
+            endif
         end select
         endfunction initCellIntersect
 !----------------------------------------------------------------------
@@ -58,7 +73,6 @@
         real(R8):: box(6)
         integer :: i, ii, Pintersect
 
-        Pintersect=0
         x=c%Center(1); y=c%Center(2); z=c%Center(3)
         dx=BGStep(1)/2**(c%lvl(1)+1)
         dy=BGStep(2)/2**(c%lvl(2)+1)
@@ -71,19 +85,26 @@
         p(6)%P=(/x+dx,y-dy,z+dz/)
         p(7)%P=(/x+dx,y+dy,z+dz/)
         p(8)%P=(/x-dx,y+dy,z+dz/)
+
+        Pintersect=0
         do i = 1,8
-            ! Quick BBOX identify
             do ii = 1,nGeometry
-            if (.not. BBOX(p(i)%P,KDTree(ii)%root%box)) cycle ! outside
+            ! Quick BBOX identify
+            if (BBOX(p(i)%P,KDTree(ii)%root%box)) then ! inside
+                Pintersect=Pintersect+RayCast(p(i)%P,KDTree(ii)%root)
+            endif
             enddo
-            Pintersect=Pintersect+RayCast(p(i)%P)
         enddo
+
         if (Pintersect==0) then
             CellCast = 0    ! outside
         elseif (Pintersect==8) then
             CellCast = 3    ! inside
         else
-            Pintersect=RayCast(c%Center)
+            Pintersect=0
+            do ii = 1,nGeometry
+                Pintersect=Pintersect+RayCast(c%Center,KDTree(ii)%root)
+            enddo
             if (Pintersect==0) then
                 CellCast=1  ! intersect but outside
             else
@@ -92,73 +113,14 @@
         endif
         endfunction CellCast
 !----------------------------------------------------------------------
-        ! integer function RayCast(point)
-        ! use ModGeometry
-        ! use ModInpGlobal, only: nGeometry
-        ! implicit none
-        ! real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        ! integer,PARAMETER  :: nRays = 20   ! Number of Rays.
-        ! type(typPoint)     :: k(nRays)  ! Three rays
-        ! integer :: i, j, jj, ng
-        ! integer :: nIntersect ! Save the intersections number of any ray.
-        ! integer :: nRayCast   ! Once a ray intersections, nRay=nRay+1.
-        ! type(typPoint):: triFace(3)
-
-        ! k(1)%P = [1., 1., 0.]
-        ! k(2)%P = [-1., 1., 0.]
-        ! k(3)%P = [1., -1., 0.]
-        ! k(4)%P = [-1., -1., 0.]
-        ! k(5)%P = [1., 0., 1.]
-        ! k(6)%P = [-1., 0., 1.]
-        ! k(7)%P = [1., 0., -1.]
-        ! k(8)%P = [-1., 0., -1.]
-        ! k(9)%P = [0., 1., 1.]
-        ! k(10)%P= [0., -1., 1.]
-        ! k(11)%P= [0., 1., -1.]
-        ! k(12)%P= [0., -1., -1.]
-        ! k(13)%P= [1., 1., 1.]
-        ! k(14)%P= [1., 1., -1.]
-        ! k(15)%P= [1., -1., -1.]
-        ! k(16)%P= [1., -1., 1.]
-        ! k(17)%P= [-1., 1., 1.]
-        ! k(18)%P= [-1., -1., 1.]
-        ! k(19)%P= [-1., 1., -1.]
-        ! k(20)%P= [-1., -1., -1.]
-        ! nRayCast   = 0
-        ! do ng= 1,nGeometry
-        ! do i = 1,nRays
-        !     nIntersect = 0
-        !     do j = 1,body(ng)%nse
-        !         do jj = 1,3
-        !             triFace(jj)%P = body(ng)%se3d(j)%P(jj)%P
-        !         enddo
-        !         ! Quick BBOX identify
-        !         ! if (.not. BBOX(p(i)%P,body(ng)%box)) cycle ! outside
-        !         ! newPoint = IntersectPoint(point,k(i)%P,triFace)
-        !         ! nIntersect=nIntersect+RayCast2D(newPoint,triFace)
-        !         nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
-        !     enddo
-        !     if (nIntersect == 0) then
-        !         RayCast=0; return
-        !     elseif (mod(nIntersect,2)==0) then
-        !         nRayCast = nRayCast + 0
-        !     else
-        !         nRayCast = nRayCast + 1
-        !     endif
-        ! enddo
-        ! enddo
-        ! if (nRayCast > nRays/2)then
-        !     RayCast=1; return
-        ! else
-        !     RayCast=0; return
-        ! endif
-        ! endfunction RayCast
-        integer function RayCast(point)
+        integer function RayCast(point,tree)
         use ModGeometry
+        use ModKDTree
         use ModInpGlobal, only: nGeometry
         implicit none
         real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        integer,PARAMETER  :: nRays = 1   ! Number of Rays.
+        type(KDT_node),pointer:: tree
+        integer,PARAMETER  :: nRays = 3   ! Number of Rays.
         type(typPoint)     :: k(nRays)  ! Three rays
         integer :: i, j, jj, ng
         integer :: nIntersect ! Save the intersections number of any ray.
@@ -166,25 +128,9 @@
         type(typPoint):: triFace(3)
 
         k(1)%P = [1., 0., 0.]
-        ! k(2)%P = [-1., 1., 0.]
-        ! k(3)%P = [1., -1., 0.]
-        ! k(4)%P = [-1., -1., 0.]
-        ! k(5)%P = [1., 0., 1.]
-        ! k(6)%P = [-1., 0., 1.]
-        ! k(7)%P = [1., 0., -1.]
-        ! k(8)%P = [-1., 0., -1.]
-        ! k(9)%P = [0., 1., 1.]
-        ! k(10)%P= [0., -1., 1.]
-        ! k(11)%P= [0., 1., -1.]
-        ! k(12)%P= [0., -1., -1.]
-        ! k(13)%P= [1., 1., 1.]
-        ! k(14)%P= [1., 1., -1.]
-        ! k(15)%P= [1., -1., -1.]
-        ! k(16)%P= [1., -1., 1.]
-        ! k(17)%P= [-1., 1., 1.]
-        ! k(18)%P= [-1., -1., 1.]
-        ! k(19)%P= [-1., 1., -1.]
-        ! k(20)%P= [-1., -1., -1.]
+        k(2)%P = [0., 1., 0.]
+        k(3)%P = [0., 0., 1.]
+
         nRayCast   = 0
         do ng= 1,nGeometry
         do i = 1,nRays
@@ -195,8 +141,6 @@
                 enddo
                 ! Quick BBOX identify
                 ! if (.not. BBOX(p(i)%P,body(ng)%box)) cycle ! outside
-                ! newPoint = IntersectPoint(point,k(i)%P,triFace)
-                ! nIntersect=nIntersect+RayCast2D(newPoint,triFace)
                 nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
             enddo
             if (nIntersect == 0) then
@@ -208,69 +152,402 @@
             endif
         enddo
         enddo
-        if (nRayCast > nRays/2)then
+        
+        if (nRayCast > nRays/2)then ! nRays/2=INT(real.nRays/2.0)
             RayCast=1; return
         else
             RayCast=0; return
         endif
         endfunction RayCast
 !----------------------------------------------------------------------
-        recursive function RayCast2(point)
-        use ModKDTree
-        implicit none
-        integer :: RayCast2
-        real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        integer,PARAMETER  :: nRays = 20   ! Number of Rays.
-        type(typPoint)     :: k(nRays)  ! Three rays
-        integer :: i, j, jj
-        integer :: nIntersect ! Save the intersections number of any ray.
-        integer :: nRayCast   ! Once a ray intersections, nRay=nRay+1.
-        type(typPoint):: triFace(3)
-
-        k(1)%P = [1., 1., 0.]
-        k(2)%P = [-1., 1., 0.]
-        k(3)%P = [1., -1., 0.]
-        k(4)%P = [-1., -1., 0.]
-        k(5)%P = [1., 0., 1.]
-        k(6)%P = [-1., 0., 1.]
-        k(7)%P = [1., 0., -1.]
-        k(8)%P = [-1., 0., -1.]
-        k(9)%P = [0., 1., 1.]
-        k(10)%P= [0., -1., 1.]
-        k(11)%P= [0., 1., -1.]
-        k(12)%P= [0., -1., -1.]
-        k(13)%P= [1., 1., 1.]
-        k(14)%P= [1., 1., -1.]
-        k(15)%P= [1., -1., -1.]
-        k(16)%P= [1., -1., 1.]
-        k(17)%P= [-1., 1., 1.]
-        k(18)%P= [-1., -1., 1.]
-        k(19)%P= [-1., 1., -1.]
-        k(20)%P= [-1., -1., -1.]
-
-        nRayCast = 0
-        do i = 1,nRays
-            nIntersect = 0
-            do j = 1,nGeoFaces
-                do jj = 1,3
-                    triFace(jj)%P = Geometry(GeoFace(j,jj),:)
-                enddo
-                nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
-            enddo
-            if (nIntersect == 0) then
-                !RayCast=0; return
-            elseif (mod(nIntersect,2)==0) then
-                nRayCast = nRayCast + 0
+        Logical function AABB(c)!1=intersect,0=no intersect
+            use ModKDTree
+            use ModInpGlobal
+            use ModGeometry
+            implicit none
+            type(typCell),pointer :: c
+            type(triangle)        :: tri
+            integer               :: i,ii,ng
+            real(R8)              :: boxCell(6)
+            type(KDT_node),pointer:: node
+            logical               :: aaa
+            
+            boxCell(1)=c%center(1)-BGStep(1)/2**(c%lvl(1)+1)
+            boxCell(2)=c%center(2)-BGStep(2)/2**(c%lvl(2)+1)
+            boxCell(3)=c%center(3)-BGStep(3)/2**(c%lvl(3)+1)
+            boxCell(4)=c%center(1)+BGStep(1)/2**(c%lvl(1)+1)
+            boxCell(5)=c%center(2)+BGStep(2)/2**(c%lvl(2)+1)
+            boxCell(6)=c%center(3)+BGStep(3)/2**(c%lvl(3)+1)
+            
+            node=>kdtree%root
+            if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
+                &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
+                 AABB=.false.
             else
-                nRayCast = nRayCast + 1
+                call KdFindTri (c,boxCell,node,trinode)
+                if(aaa)then
+                    AABB=.false.
+                else
+                    AABB=.true.
+                endif        
             endif
-        enddo
-        if (nRayCast > nRays/2)then
-            RayCast2=1; return
-        else
-            RayCast2=0; return
-        endif
-        endfunction RayCast2
+            return
+        end function AABB
+!----------------------------------------------------------------------
+        recursive subroutine KdFindTri(c,boxCell,node,aaa)
+            use ModKDTree
+            implicit none
+            
+            real(R8),INTENT(IN)                     :: boxCell(6)
+            integer                                 :: i,split
+            type(KDT_node), pointer,INTENT(IN)      :: node
+            type(KDT_node), pointer                 :: leftside,rightside
+            type(triangle)                          :: triright,trileft
+            logical ,INTENT(out)                    :: aaa
+            type(typCell),pointer                   :: c
+            
+            if ( .not. associated(node%left) .and. .not.associated(node%right) ) then 
+                 tri = node%the_data
+                 aaa = TriBoxOverlap(c,tri)
+                 return
+            endif
+            
+            split=node%splitaxis 
+            splitmax=node%splitaxis+3
+            if(boxCell(split)>node%the_data%p(4)%p(split))then
+                rightside=>node%right
+                triright = rightside%the_data
+                aaa = TriBoxOverlap(c,triright)
+                if(aaa)then
+                    goto 12
+                else    
+                    call KdFindTri(c,boxCell,rightside,trinode)
+                endif
+            elseif(boxCell(splitmax)<node%the_data%p(4)%p(split))then
+                leftside=>node%left
+                trileft = leftside%the_data
+                aaa = TriBoxOverlap(c,trileft)
+                if(aaa)then
+                    goto 12
+                else    
+                    call KdFindTri(c,boxCell,leftside,trinode)
+                endif
+            else 
+                rightside=>node%right
+                leftside=>node%left
+                triright = rightside%the_data
+                trileft = leftside%the_data
+                call KdFindTri(c,boxCell,rightside,trinode)
+                call KdFindTri(c,boxCell,leftside,trinode)
+            endif
+12       return
+        end subroutine KdFindTri    
+!----------------------------------------------------------------------
+!/* use separating axis theorem to test overlap between triangle and box */
+!/* need to test for overlap in these directions: */
+!/* 1) the {x,y,z}-directions (actually, since we use the AABB of the triangle */
+!/* we do not even need to test these) */
+!/* 2) normal of the triangle */
+!/* 3) crossproduct(edge from tri, {x,y,z}-directin) */
+!/* this gives 3x3=9 more tests */
+        Logical function TriBoxOverlap (c,tri)
+            use ModKDTree
+            use ModInpGlobal
+            use ModGeometry
+            use ModTools
+            implicit none
+            
+            type(typCell),pointer :: c
+            type(triangle)        :: tri
+            real(R8)              :: v0(3), v1(3), v2(3), boxcenter(3), normal(3), e0(3), e1(3), e2(3),boxhalfsize(3)
+            real(R8)              :: min, max, rad, d, dd, fex, fey, fez,a
+             real(R8)             :: X01P0, X01P2,Y02P0,Y02P2,Z12P2,Z12P1,Z0P0,Z0P1,X2P0,X2P1,Y1P0,Y1P1
+        
+            boxcenter(1)=c%center(1)
+            boxcenter(2)=c%center(2)
+            boxcenter(3)=c%center(3)
+            boxhalfsize(1)= BGStep(1)/2**(c%lvl(1)+1)
+            boxhalfsize(2)= BGStep(2)/2**(c%lvl(2)+1)
+            boxhalfsize(3)= BGStep(3)/2**(c%lvl(3)+1)
+            
+            v0(:)=Sub(tri%p(1)%P(:),boxcenter(:))
+            v1(:)=Sub(tri%p(2)%P(:),boxcenter(:))
+            v2(:)=Sub(tri%p(3)%P(:),boxcenter(:))
+            
+            !compute triangle edges
+            e0(:)=Sub(v1(:),v0(:))
+            e1(:)=Sub(v2(:),v1(:))
+            e2(:)=Sub(v0(:),v2(:))
+            
+!/* Bullet 3: */
+!/* test the 9 tests first (this was faster) */
+            fex=abs(e0(1))
+            fey=abs(e0(2))
+            fez=abs(e0(3))
+            !AxisTestX01
+            X01P0=e0(3)*v0(2)-e0(2)*v0(3)
+            X01P2=e0(3)*v2(2)-e0(2)*v2(3)
+            if(X01P0<X01P2)then
+                min=X01P0
+                max=X01P2
+            else
+                min=X01P2
+                max=X01P0
+            endif
+            rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestY02
+            Y02P0=-e0(3)*v0(1)+e0(1)*v0(3)
+            Y02P2=-e0(3)*v2(1)+e0(1)*v2(3)
+            if(Y02P0<Y02P2)then
+                min=Y02P0
+                max=Y02P2
+            else
+                min=Y02P2
+                max=Y02P0
+            endif
+            rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestZ12
+            Z12P1=e0(2)*v1(1)-e0(1)*v1(2)
+            Z12P2=e0(2)*v2(1)-e0(1)*v2(2)
+            if(Z12P2<Z12P1)then
+                min=Z12P2
+                max=Z12P1
+            else
+                min=Z12P1
+                max=Z12P2
+            endif
+            rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+                        
+            
+            fex=abs(e1(1))
+            fey=abs(e1(2))
+            fez=abs(e1(3))
+            !AxisTestX01
+            X01P0=e1(3)*v0(2)-e1(2)*v0(3)
+            X01P2=e1(3)*v2(2)-e1(2)*v2(3)
+            if(X01P0<X01P2)then
+                min=X01P0
+                max=X01P2
+            else
+                min=X01P2
+                max=X01P0
+            endif
+            rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestY02
+            Y02P0=-e1(3)*v0(1)+e1(1)*v0(3)
+            Y02P2=-e1(3)*v2(1)+e1(1)*v2(3)
+            if(Y02P0<Y02P2)then
+                min=Y02P0
+                max=Y02P2
+            else
+                min=Y02P2
+                max=Y02P0
+            endif
+            rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestZ0
+            Z0P0=e1(2)*v0(1)-e1(1)*v0(2)
+            Z0P1=e1(2)*v1(1)-e1(1)*v1(2)
+            if(Z0P0<Z0P1)then
+                min=Z0P0
+                max=Z0P1
+            else
+                min=Z0P1
+                max=Z0P0
+            endif
+            rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            
+            
+            fex=abs(e2(1))
+            fey=abs(e2(2))
+            fez=abs(e2(3))
+            !AxisTestX2
+            X2P0=e2(3)*v0(2)-e2(2)*v0(3)
+            X2P1=e2(3)*v1(2)-e2(2)*v1(3)
+            if(X2P0<X2P1)then
+                min=X2P0
+                max=X2P1
+            else
+                min=X2P1
+                max=X2P0
+            endif
+            rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            !AxisTestY1
+            Y1P0=-e2(3)*v0(1)+e2(1)*v0(3)
+            Y1P1=-e2(3)*v1(1)+e2(1)*v1(3)
+            if(Y1P0<Y1P1)then
+                min=Y1P0
+                max=Y1P1
+            else
+                min=Y1P1
+                max=Y1P0
+            endif
+            rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+            !AxisTestZ12
+            Z12P1=e2(2)*v1(1)-e2(1)*v1(2)
+            Z12P2=e2(2)*v2(1)-e2(1)*v2(2)
+            if(Z12P2<Z12P1)then
+                min=Z12P2
+                max=Z12P1
+            else
+                min=Z12P1
+                max=Z12P2
+            endif
+            rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            
+!/* Bullet 1: */
+!/* first test overlap in the {x,y,z}-directions */
+!/* find min, max of the triangle each direction, and test for overlap in */
+!/* that direction -- this is equivalent to testing a minimal AABB around */
+!/*  the triangle against the AABB */
+            
+            !/* test in X-direction */ 
+            min=FindMin(v0(1),v1(1),v2(1),a)
+            max=FindMax(v0(1),v1(1),v2(1),a)
+            if(min>boxhalfsize(1).or.max<-boxhalfsize(1))then
+                TriBoxOverlap=.false.
+                return
+            endif
+                        
+            !/* test in Y-direction */ 
+            min=FindMin(v0(2),v1(2),v2(2),a)
+            max=FindMax(v0(2),v1(2),v2(2),a)
+            if(min>boxhalfsize(2).or.max<-boxhalfsize(2))then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            !/* test in Z-direction */ 
+            min=FindMin(v0(3),v1(3),v2(3),a)
+            max=FindMax(v0(3),v1(3),v2(3),a)
+            if(min>boxhalfsize(3).or.max<-boxhalfsize(3)) then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+!/* Bullet 2: */
+!/* test if the box intersects the plane of the triangle */
+!/* compute plane equation of triangle: normal*x+d=0 */   
+            normal = CROSS_PRODUCT_3(e0,e1)
+            if(.not.planeBoxOverlap(normal,v0,boxhalfsize)) then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            TriBoxOverlap=.true.
+            return
+        end function TriBoxOverlap   
+!---------------------------------------------------------------------- 
+        Logical function planeBoxOverlap(normal,vert,maxbox)
+            use ModPrecision   
+            implicit none
+        
+            integer  :: i,ii,iii
+            real(R8) :: v,vmin(3),vmax(3),normal(3),vert(3),maxbox(3)
+        
+            do i=1,3
+                v=vert(i)
+                if(normal(i)>0)then
+                    vmin(i)=-maxbox(i)-v
+                    vmax(i)=maxbox(i)-v
+                else
+                    vmin(i)=maxbox(i)-v
+                    vmax(i)=-maxbox(i)-v
+                endif
+            enddo
+            
+            ii = DOT_PRODUCT(normal, vmin)
+            if(ii>0)then
+                planeBoxOverlap =.false.
+                return
+            endif
+            iii= DOT_PRODUCT(normal, vmax)          
+            if(iii>=0)then
+                planeBoxOverlap =.true.
+                return
+            endif  
+            
+            planeBoxOverlap =.false.
+            return
+        end function
+!----------------------------------------------------------------------        
+          function Sub(a,b)
+            use ModPrecision
+            implicit none
+            real(R8)           :: SUB(3)
+            real(R8),INTENT(IN):: a(3), b(3)
+            SUB =              [a(1)-b(1), &
+                                a(2)-b(2), &
+                                a(3)-b(3)]
+        endfunction Sub
+!----------------------------------------------------------------------        
+        Real(R8)function FindMin(x0,x1,x2,a)
+            use ModPrecision
+            implicit none
+            real(R8),INTENT(IN)  :: x0,x1,x2
+            real(R8),INTENT(out) :: a
+            
+            a = x0
+            
+            if (x1 < a) then
+                a = x1
+            endif 
+            if (x2 < a) then
+                a = x2
+            endif
+        end function FindMin
+       Real(R8) function FindMax(x0,x1,x2,a)
+            use ModPrecision
+            implicit none
+            real(R8),INTENT(IN)  ::x0,x1,x2
+            real(R8),INTENT(out) :: a
+            
+            a = x0
+            if (x1 > a) then
+                a = x1
+            endif 
+            if (x2 > a) then
+                a = x2
+            endif
+        end function FindMax
+        
 !----------------------------------------------------------------------
         integer function MollerTrumbore(Point,D,tri)
         use ModTools
@@ -296,123 +573,19 @@
 
         P = CROSS_PRODUCT_3(D,V2)
         Q = CROSS_PRODUCT_3(V0,V1)
-        A = DOT_PRODUCT(P,V1)
+        A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
         t = DOT_PRODUCT(Q,V2)
         u = DOT_PRODUCT(P,V0)
         v = DOT_PRODUCT(Q,D)
 
-        if (u>=0 .and. v>=0 .and. u+v<=A .and. t>0) then
+        if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>0) then
+            MollerTrumbore=1; return
+        elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<0) then
             MollerTrumbore=1; return
         else
             MollerTrumbore=0; return
         endif
         endfunction MollerTrumbore
-!----------------------------------------------------------------------
-        integer function RayCast2D(point,triFace)
-        ! Not used. 2021.3.22
-        ! Barycentric Coordinates Method (in the Theory Guide)
-        real(R8)      ,INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        type(typPoint),INTENT(IN):: triFace(3)
-        !real(R8):: A(2), B(2), C(2) ! Vertices's coordinate of triangle
-        !real(R8):: P(2) ! Point got by dimensionality reduction
-        real(R8):: V0(3), V1(3), V2(3)    ! Vectors AP, AB, AC
-        real(R8):: c1, c2   ! Coefficient u, v in the Theory Guide.
-        real(R8):: dot01, dot02, dot11, dot12, dot22 ! Dot product
-        real(R8):: t        ! Temp value
-
-        ! Quick BBOX detremine
-        if     (triFace(1)%P(1) > point(1) .and.    &
-                triFace(2)%P(1) > point(1) .and.    &
-                triFace(3)%P(1) > point(1)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(1) < point(1) .and.    &
-                triFace(2)%P(1) < point(1) .and.    &
-                triFace(3)%P(1) < point(1)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(2) > point(2) .and.    &
-                triFace(2)%P(2) > point(2) .and.    &
-                triFace(3)%P(2) > point(2)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(2) < point(2) .and.    &
-                triFace(2)%P(2) < point(2) .and.    &
-                triFace(3)%P(2) < point(2)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(3) > point(3) .and.    &
-                triFace(2)%P(3) > point(3) .and.    &
-                triFace(3)%P(3) > point(3)) then
-                RayCast2D=0; return
-        elseif (triFace(1)%P(3) < point(3) .and.    &
-                triFace(2)%P(3) < point(3) .and.    &
-                triFace(3)%P(3) < point(3)) then
-                RayCast2D=0; return
-        endif
-        ! Dimensionality reduction
-        ! if (triFace(1)%P(3) == triFace(2)%P(3).and.   &
-        !     triFace(2)%P(3) == triFace(3)%P(3))then
-        !     A=[triFace(1)%P(1),triFace(1)%P(2)]
-        !     B=[triFace(2)%P(1),triFace(2)%P(2)]
-        !     C=[triFace(3)%P(1),triFace(3)%P(2)]
-        !     P=[point(1),point(2)]
-        ! else
-        !     A=[triFace(1)%P(3),triFace(1)%P(2)]
-        !     B=[triFace(2)%P(3),triFace(2)%P(2)]
-        !     C=[triFace(3)%P(3),triFace(3)%P(2)]
-        !     P=[point(3),point(2)]
-        ! endif
-
-        ! Barycentric Coordinates Method (in the Theory Guide)
-        V0 = point - triFace(1)%P
-        V1 = triFace(2)%P - triFace(1)%P
-        V2 = triFace(3)%P - triFace(1)%P
-        ! dot01 = DPROD(V0,V1)
-        ! dot02 = DPROD(V0,V2)
-        ! dot11 = DPROD(V1,V1)
-        ! dot12 = DPROD(V1,V2)
-        ! dot22 = DPROD(V2,V2)
-        dot01 = DOT_PRODUCT(V0,V1)
-        dot02 = DOT_PRODUCT(V0,V2)
-        dot11 = DOT_PRODUCT(V1,V1)
-        dot12 = DOT_PRODUCT(V1,V2)
-        dot22 = DOT_PRODUCT(V2,V2)
-        t=1/(dot22*dot11-dot12*dot12)
-
-        c1=(dot11*dot02-dot12*dot01)*t
-        if (c1 < 0 .or. c1 >1) then
-            RayCast2D=0; return
-        endif
-
-        c2=(dot22*dot01-dot12*dot02)*t
-        if (c2 < 0 .or. c2 >1) then
-            RayCast2D=0; return
-        endif
-
-        if (c1+c2 <= 1) then
-            RayCast2D=0; return
-        else
-            RayCast2D=1; return
-        endif
-        endfunction RayCast2D
-!----------------------------------------------------------------------
-        function IntersectPoint(point,normal,triFace)
-        !Not used 2021.3.22
-        ! Method (in the Theory Guide)
-        implicit none
-        real(8),DIMENSION(3):: IntersectPoint
-        real(8)       ,INTENT(IN):: point
-        real(8)       ,INTENT(IN):: normal
-        type(typPoint),INTENT(IN):: triFace(3)
-        real(R8):: n(3)       ! Normal vector: n=ABxAC
-        real(R8):: V1(3), V2(3)
-        real(R8):: d    ! Temp value
-        ! Find the triangle surface Ax+By+Cz+D=0
-        !   turned to formula n(1)*x+n(2)*y+n(3)*z=c
-        V1 = triFace(2)%P - triFace(1)%P
-        V2 = triFace(3)%P - triFace(1)%P
-        d = n(1)*triFace(1)%P(1)+ &
-            n(2)*triFace(1)%P(2)+ &
-            n(3)*triFace(1)%P(3)
-
-        endfunction IntersectPoint
 !----------------------------------------------------------------------
         subroutine NewCell(c,split)
         ! Called by: many
@@ -677,9 +850,7 @@
                 c%NeighborY2, c%NeighborZ1, c%NeighborZ2)
         endsubroutine NullifyCell
 !----------------------------------------------------------------------
-!----------------------------------------------------------------------
     end module ModMeshTools
-!======================================================================
 !======================================================================
     subroutine GenerateBGMesh   ! BG -- back-ground
     use ModPrecision
@@ -688,24 +859,27 @@
     use ModInpMesh
     use ModMeshTools
     implicit none
-    integer :: i
+    integer :: i, j, k
     type(typCell),pointer :: t
 
     BGStep=abs(Domain1-Domain2)/nCell
-    ! BGStep(2)=Domain(2)/nCell(2)
-    ! BGStep(3)=Domain(3)/nCell(3);
     nBGCells=nCell(1)*nCell(2)*nCell(3)
-    nCells=nBGCells
-    ALLOCATE(Cell(nBGCells))
-    do i = 1, nBGCells
-        t=>Cell(i)
-            t%nBGCell     = i
-            t%nCell       = i
+    nCells=0
+    ALLOCATE(Cell(nCell(1),nCell(2),nCell(3)))
+    do i = 1, nCell(1)
+    do j = 1, nCell(2)
+    do k = 1, nCell(3)
+        t=>Cell(i, j, k)
+        nCells=nCells+1
+            t%nBGCell     = [i, j, k]
+            t%nCell       = nCells
             t%lvl         = 0
             t%fSplitType  = 0
             t%Location    = 0
             t%Node        = 0
-            t%Center      = GBGMFindCellCenter(i)
+            t%Center      = (/Domain1(1)+(i-0.5)*BGStep(1),         &
+                              Domain1(2)+(j-0.5)*BGStep(2),         &
+                              Domain1(3)+(k-0.5)*BGStep(3)/)
             t%U           = 0
             t%cross       = initCellIntersect(t)
             NULLIFY(t%Father,                                       &
@@ -714,26 +888,9 @@
                     t%NeighborX1, t%NeighborX2, t%NeighborY1,       &
                     t%NeighborY2, t%NeighborZ1, t%NeighborZ2)
     enddo
-    contains
-!----------------------------------------------------------------------
-    function GBGMFindCellCenter(num)
-    use ModPrecision
-    implicit none
-    real(R8),DIMENSION(3)   :: GBGMFindCellCenter
-    integer,INTENT(IN)      :: num
-    integer                 :: xx, yy, zz
-
-    xx=mod(num,nCell(1))
-    if (xx==0) xx=nCell(1)
-    yy=mod(int((num-xx)/nCell(1)+1),nCell(2))
-    if (yy==0) yy=nCell(2)
-    zz=ceiling(real(num)/real(nCell(1)*nCell(2)))
-    GBGMFindCellCenter=(/Domain1(1)+(xx-0.5)*BGStep(1),             &
-                         Domain1(2)+(yy-0.5)*BGStep(2),             &
-                         Domain1(3)+(zz-0.5)*BGStep(3)/)
-    endfunction GBGMFindCellCenter
+    enddo
+    enddo
     endsubroutine GenerateBGMesh
-!======================================================================
 !======================================================================
     subroutine initSurfaceAdapt
     use ModMesh
@@ -741,17 +898,22 @@
     use ModInpMesh
     implicit none
     type(typCell),pointer :: t
-    integer :: i, ii
+    integer :: i, j, k
 
-    do i=1,nBGCells
-        t=>Cell(i)
+    do i = 1, nCell(1)
+    do j = 1, nCell(2)
+    do k = 1, nCell(3)
+        t=>Cell(i, j, k)
         call SurfaceAdapt(t)
+    enddo
+    enddo
     enddo
         contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
-    implicit none
+        implicit none
         type(typCell),pointer :: c
+        integer :: ii
 
         do ii=1,3
             if (c%lvl(ii) >= InitRefineLVL) return

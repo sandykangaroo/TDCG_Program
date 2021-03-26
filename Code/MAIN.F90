@@ -40,11 +40,15 @@
 !======================================================================
     program TDCGmain
     implicit none
+    Real(8):: CpuTimeBegin,CpuTimeEnd
 
     print*,'Welcome TDCGprogram'
+    call CPU_TIME(CpuTimeBegin)
     call TDCGRead
     call TDCGPerporcessing
     call TDCGMesh
+    call CPU_TIME(CpuTimeEnd)
+    write(*,*)"CPU TIME", CpuTimeEnd-CpuTimeBegin
     call TDCGInitAll
     call TDCGSolver
     call TDCGOutput('OK')
