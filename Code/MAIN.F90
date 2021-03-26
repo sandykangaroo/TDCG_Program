@@ -39,16 +39,22 @@
 !======================================================================
 !======================================================================
     program TDCGmain
+    use ModTime
+    use ModPrecision
     implicit none
+    real(R8):: tProgramStart
+    real(R8):: tProgramEnd
 
     print*,'Welcome TDCGprogram'
+    call CPU_TIME(tProgramStart)
     call TDCGRead
     call TDCGPerporcessing
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
     call TDCGOutput('OK')
-    print*,' '
+    call CPU_TIME(tProgramEnd)
+    print*,'Program running time: ', tProgramEnd-tProgramStart
 
     end program TDCGmain
 !======================================================================
@@ -70,12 +76,20 @@
 !======================================================================
     subroutine TDCGMesh
     use ModInpGlobal
+    use ModTime
     implicit none
 
-    if (Restart) return
     print*,'Generating mesh......'
-        call GenerateBGMesh
-        call initSurfaceAdapt
+    call CPU_TIME(tStart)
+    if (Restart) return
+    call GenerateBGMesh
+    call CPU_TIME(tEnd)
+    print*,"Subroutine-BGMeshCross time: ", tEnd-tStart
+
+    call CPU_TIME(tStart)
+    call initSurfaceAdapt
+    call CPU_TIME(tEnd)
+    print*,"Subroutine-SurfaceAdapt time: ", tEnd-tStart
     print*,'Done'
     end subroutine TDCGMesh
 !======================================================================
@@ -93,9 +107,11 @@
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
     use ModInpGlobal
+    use ModTime
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
 
+    call CPU_TIME(tStart)
     if (OutputFormat=='.plt') then
         CALL OutputFlowFieldBinary(TimeStepStr,0)
     elseif (OutputFormat=='.szplt') then
@@ -103,6 +119,8 @@
     else
         CALL OutputFlowFieldASCII(TimeStepStr)
     endif
+    call CPU_TIME(tEnd)
+    print*,"Subroutine-Output time: ", tEnd-tStart
 
     endsubroutine TDCGOutput
 !======================================================================

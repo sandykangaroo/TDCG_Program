@@ -74,7 +74,7 @@
         Pintersect=0
         do i = 1,8
             do ii = 1,nGeometry
-            ! Quick BBOX identify
+            ! Quick Bounding-BOX identify
             if (BBOX(p(i)%P,KDTree(ii)%root%box)) then ! inside
                 Pintersect=Pintersect+RayCast(p(i)%P,KDTree(ii)%root)
             endif
@@ -121,11 +121,51 @@
         do i = 1,nRays
             nIntersect = 0
             do j = 1,body(ng)%nse
+                ! Quick BBOX identify
                 do jj = 1,3
                     triFace(jj)%P = body(ng)%se3d(j)%P(jj)%P
                 enddo
-                ! Quick BBOX identify
-                ! if (.not. BBOX(p(i)%P,body(ng)%box)) cycle ! outside
+                select case (i)
+                case (1)
+                if ((point(2)<min(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2))  .or.  &
+                     point(2)>max(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2))) .and. &
+                    (point(3)<min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3))  .or.  &
+                     point(3)>min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3)))) cycle ! outside
+                case (2)
+                if ((point(1)<min(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))  .or.  &
+                     point(1)>max(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))) .and. &
+                    (point(3)<min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3))  .or.  &
+                     point(3)>min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3)))) cycle ! outside
+                case (3)
+                if ((point(1)<min(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))  .or.  &
+                     point(1)>max(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))) .and. &
+                    (point(2)<min(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2))  .or.  &
+                     point(2)>min(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2)))) cycle ! outside
+                end select
                 nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
             enddo
             if (nIntersect == 0) then

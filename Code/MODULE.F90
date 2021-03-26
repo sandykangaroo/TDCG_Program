@@ -179,7 +179,7 @@
        use ModPrecision
        use ModTypDef
        implicit none
-   
+
        type geom
             integer                          :: nsp, nse
             type(triangle) , allocatable     :: se3d(:)
@@ -193,7 +193,8 @@
     module ModKDTree
     use ModPrecision
     use ModTypDef
-    
+    implicit none
+
     type KDT_node
         type(triangle), pointer:: the_data
         integer                :: splitaxis ! The dimension of split.
@@ -210,4 +211,13 @@
     type(typKDTtree), allocatable, target   :: KDTree(:)
 
     endmodule ModKDTree
+!======================================================================
+    module ModTime
+    use ModPrecision
+    implicit none
+
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
+    real(R8):: tTmp
+    endmodule ModTime
 !======================================================================
