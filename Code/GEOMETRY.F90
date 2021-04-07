@@ -466,17 +466,17 @@
     use ModKDTree
     implicit none
     
-    integer                               :: i, j, k, l
-    integer                               :: vertex(3), ng, nsp, nse, a, inout
-    character(80)                         :: FileName
-    character(20)::dd
-    logical                               :: file_exist
-    type(typPoint), allocatable              :: sp(:)
-    type(typKDTtree), pointer               :: tp => null()
-    real(R8)                              :: box(6), aa, bb
-    real(R8), allocatable                 :: dis(:, :, :)
-    type(typPoint), allocatable              :: att(:, :, :), att2
-    type(KDT_node), pointer               :: nearest
+    integer                     :: i, j, k, l
+    integer                     :: vertex(3), ng, nsp, nse, a, inout
+    character(80)               :: FileName
+    character(20)               :: dd
+    logical                     :: file_exist
+    type(typPoint), allocatable :: sp(:)
+    type(typKDTtree), pointer   :: tp => null()
+    real(R8)                    :: box(6), aa, bb
+    real(R8), allocatable       :: dis(:, :, :)
+    type(typPoint), allocatable :: att(:, :, :), att2
+    type(KDT_node), pointer     :: nearest
 
     ! write(*,"(a, I3)") ' Number of seperated objects in this simulation is: ', nGeometry
     ! write(*,*)'-----------------------------------------------------------------------------'    
@@ -488,7 +488,8 @@
     open(22, file='./Data/Geometry.dat', status='unknown', form='formatted')
 
     do ng = 1, nGeometry
-        if (ng .LT. 10) then
+        if (ng == 0) then
+        elseif (ng .LT. 10) then
             write(dd,'(g0)') ng
             dd = '00'//adjustl(dd)
         elseif (ng .LT. 100) then

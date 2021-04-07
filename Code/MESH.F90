@@ -27,7 +27,7 @@
         implicit none
         type(typCell),pointer :: c
         integer ::i
-        
+
         select case (cIntersectMethod)
         case(1)
             initCellIntersect=CellCast(c)
@@ -89,7 +89,7 @@
         Pintersect=0
         do i = 1,8
             do ii = 1,nGeometry
-            ! Quick BBOX identify
+            ! Quick Bounding-BOX identify
             if (BBOX(p(i)%P,KDTree(ii)%root%box)) then ! inside
                 Pintersect=Pintersect+RayCast(p(i)%P,KDTree(ii)%root)
             endif
@@ -136,11 +136,51 @@
         do i = 1,nRays
             nIntersect = 0
             do j = 1,body(ng)%nse
+                ! Quick BBOX identify
                 do jj = 1,3
                     triFace(jj)%P = body(ng)%se3d(j)%P(jj)%P
                 enddo
-                ! Quick BBOX identify
-                ! if (.not. BBOX(p(i)%P,body(ng)%box)) cycle ! outside
+                select case (i)
+                case (1)
+                if ((point(2)<min(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2))  .or.  &
+                     point(2)>max(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2))) .and. &
+                    (point(3)<min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3))  .or.  &
+                     point(3)>min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3)))) cycle ! outside
+                case (2)
+                if ((point(1)<min(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))  .or.  &
+                     point(1)>max(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))) .and. &
+                    (point(3)<min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3))  .or.  &
+                     point(3)>min(triFace(1)%P(3), &
+                                  triFace(2)%P(3), &
+                                  triFace(3)%P(3)))) cycle ! outside
+                case (3)
+                if ((point(1)<min(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))  .or.  &
+                     point(1)>max(triFace(1)%P(1), &
+                                  triFace(2)%P(1), &
+                                  triFace(3)%P(1))) .and. &
+                    (point(2)<min(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2))  .or.  &
+                     point(2)>min(triFace(1)%P(2), &
+                                  triFace(2)%P(2), &
+                                  triFace(3)%P(2)))) cycle ! outside
+                end select
                 nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
             enddo
             if (nIntersect == 0) then
@@ -171,7 +211,9 @@
             real(R8)              :: boxCell(6)
             type(KDT_node),pointer:: node
             logical               :: aaa
+            type(typKDTtree), pointer   :: tp => null()
             
+            aaa=.false.
             boxCell(1)=c%center(1)-BGStep(1)/2**(c%lvl(1)+1)
             boxCell(2)=c%center(2)-BGStep(2)/2**(c%lvl(2)+1)
             boxCell(3)=c%center(3)-BGStep(3)/2**(c%lvl(3)+1)
@@ -179,19 +221,30 @@
             boxCell(5)=c%center(2)+BGStep(2)/2**(c%lvl(2)+1)
             boxCell(6)=c%center(3)+BGStep(3)/2**(c%lvl(3)+1)
             
-            node=>kdtree%root
+            tp => kdtree(1)
+            node=>tp%root
             if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
                 &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
                  AABB=.false.
             else
-                call KdFindTri (c,boxCell,node,trinode)
+                call KdFindTri (c,boxCell,node,aaa)
                 if(aaa)then
-                    AABB=.false.
-                else
                     AABB=.true.
+                else
+                    AABB=.false.
                 endif        
             endif
             return
+
+!Traverse            
+            !Loop1:do ng=1,nGeometry
+            !    do i=1, body(ng)%nse
+            !        tri= body(ng)%se3d(i)
+            !        AABB=TriBoxOverlap (c,tri)
+            !        if(AABB) exit Loop1
+            !    enddo
+            !enddo Loop1
+            !return         
         end function AABB
 !----------------------------------------------------------------------
         recursive subroutine KdFindTri(c,boxCell,node,aaa)
@@ -199,48 +252,49 @@
             implicit none
             
             real(R8),INTENT(IN)                     :: boxCell(6)
-            integer                                 :: i,split
+            integer                                 :: i,split,splitmax,a
             type(KDT_node), pointer,INTENT(IN)      :: node
             type(KDT_node), pointer                 :: leftside,rightside
-            type(triangle)                          :: triright,trileft
-            logical ,INTENT(out)                    :: aaa
+            type(triangle)                          :: triright,trileft,tri
+            logical, INTENT(OUT)                    :: aaa
             type(typCell),pointer                   :: c
             
-            if ( .not. associated(node%left) .and. .not.associated(node%right) ) then 
-                 tri = node%the_data
-                 aaa = TriBoxOverlap(c,tri)
-                 return
+            tri = node%the_data
+            aaa = TriBoxOverlap(c,tri)
+         
+            if(aaa)then
+                return
             endif
             
             split=node%splitaxis 
             splitmax=node%splitaxis+3
             if(boxCell(split)>node%the_data%p(4)%p(split))then
-                rightside=>node%right
-                triright = rightside%the_data
-                aaa = TriBoxOverlap(c,triright)
-                if(aaa)then
-                    goto 12
-                else    
-                    call KdFindTri(c,boxCell,rightside,trinode)
+                if(associated(node%right))then
+                    call KdFindTri(c,boxCell,node%right,aaa)
+                    if(aaa)then
+                      return
+                    endif
                 endif
             elseif(boxCell(splitmax)<node%the_data%p(4)%p(split))then
-                leftside=>node%left
-                trileft = leftside%the_data
-                aaa = TriBoxOverlap(c,trileft)
-                if(aaa)then
-                    goto 12
-                else    
-                    call KdFindTri(c,boxCell,leftside,trinode)
+                if(associated(node%left))then
+                    call KdFindTri(c,boxCell,node%left,aaa)
+                    if(aaa)then
+                        return
+                    endif
                 endif
-            else 
-                rightside=>node%right
-                leftside=>node%left
-                triright = rightside%the_data
-                trileft = leftside%the_data
-                call KdFindTri(c,boxCell,rightside,trinode)
-                call KdFindTri(c,boxCell,leftside,trinode)
+            else
+                if(associated(node%right))then
+                    call KdFindTri(c,boxCell,node%right,aaa)
+                    if(aaa)then
+                        return
+                    elseif(associated(node%left))then
+                        call KdFindTri(c,boxCell,node%left,aaa)
+                        if(aaa)then
+                            return
+                        endif
+                    endif
+                endif
             endif
-12       return
         end subroutine KdFindTri    
 !----------------------------------------------------------------------
 !/* use separating axis theorem to test overlap between triangle and box */
@@ -261,7 +315,7 @@
             type(triangle)        :: tri
             real(R8)              :: v0(3), v1(3), v2(3), boxcenter(3), normal(3), e0(3), e1(3), e2(3),boxhalfsize(3)
             real(R8)              :: min, max, rad, d, dd, fex, fey, fez,a
-             real(R8)             :: X01P0, X01P2,Y02P0,Y02P2,Z12P2,Z12P1,Z0P0,Z0P1,X2P0,X2P1,Y1P0,Y1P1
+            real(R8)              :: X01P0, X01P2,Y02P0,Y02P2,Z12P2,Z12P1,Z0P0,Z0P1,X2P0,X2P1,Y1P0,Y1P1
         
             boxcenter(1)=c%center(1)
             boxcenter(2)=c%center(2)
@@ -269,6 +323,7 @@
             boxhalfsize(1)= BGStep(1)/2**(c%lvl(1)+1)
             boxhalfsize(2)= BGStep(2)/2**(c%lvl(2)+1)
             boxhalfsize(3)= BGStep(3)/2**(c%lvl(3)+1)
+            
             
             v0(:)=Sub(tri%p(1)%P(:),boxcenter(:))
             v1(:)=Sub(tri%p(2)%P(:),boxcenter(:))
@@ -439,24 +494,24 @@
 !/*  the triangle against the AABB */
             
             !/* test in X-direction */ 
-            min=FindMin(v0(1),v1(1),v2(1),a)
-            max=FindMax(v0(1),v1(1),v2(1),a)
+            min=FindMin(v0(1),v1(1),v2(1))
+            max=FindMax(v0(1),v1(1),v2(1))
             if(min>boxhalfsize(1).or.max<-boxhalfsize(1))then
                 TriBoxOverlap=.false.
                 return
             endif
                         
             !/* test in Y-direction */ 
-            min=FindMin(v0(2),v1(2),v2(2),a)
-            max=FindMax(v0(2),v1(2),v2(2),a)
+            min=FindMin(v0(2),v1(2),v2(2))
+            max=FindMax(v0(2),v1(2),v2(2))
             if(min>boxhalfsize(2).or.max<-boxhalfsize(2))then
                 TriBoxOverlap=.false.
                 return
             endif
             
             !/* test in Z-direction */ 
-            min=FindMin(v0(3),v1(3),v2(3),a)
-            max=FindMax(v0(3),v1(3),v2(3),a)
+            min=FindMin(v0(3),v1(3),v2(3))
+            max=FindMax(v0(3),v1(3),v2(3))
             if(min>boxhalfsize(3).or.max<-boxhalfsize(3)) then
                 TriBoxOverlap=.false.
                 return
@@ -518,33 +573,31 @@
                                 a(3)-b(3)]
         endfunction Sub
 !----------------------------------------------------------------------        
-        Real(R8)function FindMin(x0,x1,x2,a)
+        Real(R8)function FindMin(x0,x1,x2)
             use ModPrecision
             implicit none
             real(R8),INTENT(IN)  :: x0,x1,x2
-            real(R8),INTENT(out) :: a
+                       
+            FindMin = x0
             
-            a = x0
-            
-            if (x1 < a) then
-                a = x1
+            if (x1 < FindMin) then
+                FindMin = x1
             endif 
-            if (x2 < a) then
-                a = x2
+            if (x2 < FindMin) then
+                FindMin = x2
             endif
         end function FindMin
-       Real(R8) function FindMax(x0,x1,x2,a)
+       Real(R8) function FindMax(x0,x1,x2)
             use ModPrecision
             implicit none
             real(R8),INTENT(IN)  ::x0,x1,x2
-            real(R8),INTENT(out) :: a
             
-            a = x0
-            if (x1 > a) then
-                a = x1
+            FindMax = x0
+            if (x1 > FindMax) then
+                FindMax = x1
             endif 
-            if (x2 > a) then
-                a = x2
+            if (x2 > FindMax) then
+                FindMax = x2
             endif
         end function FindMax
         
@@ -881,7 +934,7 @@
                               Domain1(2)+(j-0.5)*BGStep(2),         &
                               Domain1(3)+(k-0.5)*BGStep(3)/)
             t%U           = 0
-            t%cross       = initCellIntersect(t)
+            t%cross       = -5
             NULLIFY(t%Father,                                       &
                     t%son1, t%son2, t%son3, t%son4,                 &
                     t%son5, t%son6, t%son7, t%son8,                 &
@@ -890,6 +943,85 @@
     enddo
     enddo
     enddo
+    call BGMeshCross
+    contains
+!----------------------------------------------------------------------
+        subroutine BGMeshCross
+        implicit none
+
+        if (PaintingAlgorithmMethod) then
+            loop1: do i = 1, nCell(1)
+                    do j = 1, nCell(2)
+                    do k = 1, nCell(3)
+                        t=>Cell(i,j,k)
+                        t%cross=initCellIntersect(t)
+                        if (t%cross==0) then
+                            call PaintingAlgorithm(t,0)
+                            exit loop1
+                        endif
+                    enddo
+                    enddo
+            enddo loop1
+        else
+            do i = 1, nCell(1)
+            do j = 1, nCell(2)
+            do k = 1, nCell(3)
+                t=>Cell(i,j,k)
+                t%cross=initCellIntersect(t)
+            enddo
+            enddo
+            enddo
+        endif
+        endsubroutine BGMeshCross
+!----------------------------------------------------------------------
+        recursive subroutine PaintingAlgorithm(c,dirct)
+        implicit none
+        type(typCell),pointer :: c, cc
+        integer               :: dirct
+
+        if (dirct /= 0) then
+            if (c%cross /=-5) return    ! Cell has been paintted, return.
+            c%cross = initCellIntersect(c)
+            if (c%cross == 3) return    ! Inside cell, return.
+        endif
+
+        if (dirct /= 4) then
+            if (c%nBGCell(1)<nCell(1)) then
+                cc=>Cell(c%nBGCell(1)+1,c%nBGCell(2),c%nBGCell(3))
+                call PaintingAlgorithm(cc,1)
+            endif
+        endif
+        if (dirct /= 1) then
+            if (c%nBGCell(1)>1) then
+                cc=>Cell(c%nBGCell(1)-1,c%nBGCell(2),c%nBGCell(3))
+                call PaintingAlgorithm(cc,4)
+            endif
+        endif
+        if (dirct /= 5) then
+            if (c%nBGCell(2)<nCell(2)) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2)+1,c%nBGCell(3))
+                call PaintingAlgorithm(cc,2)
+            endif
+        endif
+        if (dirct /= 2) then
+            if (c%nBGCell(2)>1) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2)-1,c%nBGCell(3))
+                call PaintingAlgorithm(cc,5)
+            endif
+        endif
+        if (dirct /= 6) then
+            if (c%nBGCell(3)<nCell(3)) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)+1)
+                call PaintingAlgorithm(cc,3)
+            endif
+        endif
+        if (dirct /= 3) then
+            if (c%nBGCell(3)>1) then
+                cc=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)-1)
+                call PaintingAlgorithm(cc,6)
+            endif
+        endif
+        endsubroutine PaintingAlgorithm
     endsubroutine GenerateBGMesh
 !======================================================================
     subroutine initSurfaceAdapt
@@ -911,7 +1043,7 @@
         contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
-        implicit none
+    implicit none
         type(typCell),pointer :: c
         integer :: ii
 

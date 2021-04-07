@@ -39,6 +39,7 @@
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
+        logical :: PaintingAlgorithmMethod
     end module ModInpMesh
 !----------------------------------------------------------------------
     module ModInpInflow
@@ -111,10 +112,11 @@
 ! levely     = y-direct level
 ! levelz     = z-direct level
 ! cross      relationship between cell and the object surface.
-!            = 0 Cell outside the object surface.
-!            = 1 Intersect while cell center outside the object surface
-!            = 2 Intersect while cell center inside the object surface
-!            = 3 Cell inside the object surface
+!            = -5 Initial or inside.
+!            =  0 Cell outside the object surface.
+!            =  1 Intersect while cell center outside the object surface
+!            =  2 Intersect while cell center inside the object surface
+!            =  3 Cell inside the object surface
 !            = -1 NRR: ray region
 !            = -2 NRR: region between ray-ray
 ! fSplitType = 0 Cell is isotropical 
@@ -177,7 +179,7 @@
        use ModPrecision
        use ModTypDef
        implicit none
-   
+
        type geom
             integer                          :: nsp, nse
             type(triangle) , allocatable     :: se3d(:)
@@ -191,7 +193,8 @@
     module ModKDTree
     use ModPrecision
     use ModTypDef
-    
+    implicit none
+
     type KDT_node
         type(triangle), pointer:: the_data
         integer                :: splitaxis ! The dimension of split.
@@ -208,4 +211,13 @@
     type(typKDTtree), allocatable, target   :: KDTree(:)
 
     endmodule ModKDTree
+!======================================================================
+    module ModTime
+    use ModPrecision
+    implicit none
+
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
+    real(R8):: tTmp
+    endmodule ModTime
 !======================================================================
