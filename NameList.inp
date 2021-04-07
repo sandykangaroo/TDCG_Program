@@ -13,15 +13,15 @@ $Global
 $END
 
 ! nCell
-! Domain 1          minSize
-!        2          maxSize
+! DomainMin          minSize
+! DomainMax          maxSize
 ! InitRefineLVL     It is also the maximum LVL
 ! AdaptRefineLVL
 ! cIntersectMethod  = 1 Ray-cast intersect 2 AABB
 $Mesh
     nCell = 20, 20, 20,
-    Domain1 = -2000.0, -2000.0, -2000.0,
-    Domain2 =  2000.0,  2000.0,  2000.0,
+    DomainMin = -2000.0, -2000.0, -2000.0,
+    DomainMax =  2000.0,  2000.0,  2000.0,
     InitRefineLVL = 3, AdaptRefineLVL  =  2,
     cIntersectMethod = 2
     PaintingAlgorithmMethod = .False.
@@ -32,7 +32,7 @@ $NRRset
 $END
 
 $Inflow
-    Alpha = 0.0, Beta = 0.0, ReyNum = 2e+5, Rgas = 287.0,
-    T00 = 300.0, Mach00 = 1.7, Gama00 = 1.4,
+    Alpha = 0.0, Beta = 0.0, Re = 2e+5, Rgas = 287.0,
+    T00 = 300.0, Ma00 = 1.7, Gama00 = 1.4,
 $END
 !!---- Must retain the last row ----!!

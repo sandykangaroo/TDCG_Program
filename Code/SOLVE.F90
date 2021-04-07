@@ -18,7 +18,7 @@
     implicit none
     
     integer :: i, j, k, l, h, m
-    type(typCell),pointer           :: t
+    type(octCell),pointer           :: t
     type(typKDTtree),pointer        :: tp => null()
     real(R8)                        :: tempoint(3),mindis
     real(R8)                        :: tstart,tend

@@ -104,7 +104,7 @@
     use ModInpMesh
     implicit none
     !call GetMinDistance
-    TimeStep=CFL*(BGStep(1)/2**InitRefineLVL)
+    TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
     subroutine AABBtime
@@ -116,7 +116,7 @@
     implicit none
     
     integer :: i, j, k
-    type(typCell),pointer :: t
+    type(octCell),pointer :: t
     
     call CPU_TIME(tStart)
     do i = 1, nCell(1)

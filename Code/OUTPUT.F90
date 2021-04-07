@@ -143,7 +143,7 @@
     use ModOutput
     use ModTypDef
     implicit none
-    type(typCell),pointer :: t
+    type(octCell),pointer :: t
     integer :: i, j, k
 
     do i = 1, nCell(1)
@@ -162,7 +162,7 @@
     use ModMesh
     use ModOutput
     implicit none
-    type(typCell),pointer :: c
+    type(octCell),pointer :: c
     real(R8):: step(3), tN(6) ! Temp-Nodes
     logical :: Mark(8)
     integer :: ii
@@ -187,7 +187,7 @@
     else
         Mark=.true.
         do ii=1,3
-            step(ii)=BGStep(ii)/(2**(c%lvl(ii)+1))
+            step(ii)=BGCellSize(ii)/(2**(c%lvl(ii)+1))
         enddo
         ! Initial node number.
         tN(1)=c%Center(1)-step(1)   ! x -
@@ -297,7 +297,7 @@
     use ModMesh
     use ModOutput
     implicit none
-    type(typCell),pointer :: t
+    type(octCell),pointer :: t
     integer :: i, j, k
 
     do i = 1, nCell(1)
@@ -313,7 +313,7 @@
         recursive subroutine TmpStorageVar(c)
         use ModInpInflow,only : Rgas, Gama00
         implicit none
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         integer :: n, jj
         REAL(R8):: u, v, w,p
 

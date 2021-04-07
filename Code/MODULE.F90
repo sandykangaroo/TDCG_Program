@@ -35,7 +35,7 @@
         use ModPrecision
         implicit none
         integer :: nCell(3)
-        real(R8):: Domain1(3), Domain2(3)
+        real(R8):: DomainMin(3), DomainMax(3)
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
@@ -47,9 +47,9 @@
         implicit none
         real(R8):: Alpha
         real(R8):: Beta
-        real(R8):: ReyNum
+        real(R8):: Re
         real(R8):: T00
-        real(R8):: Mach00
+        real(R8):: Ma00
         real(R8):: Gama00
         real(R8):: Rgas    ![J/(kg.K)]
     end module ModInpInflow
@@ -139,7 +139,7 @@
 !            3 z
 ! Neighbor   1 plus
 !            2 minus
-        type typCell
+        type octCell
             integer :: nBGCell(3)
             integer :: nCell
             integer :: lvl(3)
@@ -148,14 +148,14 @@
             integer :: Node(8)
             real(R8):: Center(3)
             real(R8):: U(5)
-            type(typCell),pointer :: Father
-            type(typCell),pointer :: son1, son2, son3, son4,    &
+            type(octCell),pointer :: Father
+            type(octCell),pointer :: son1, son2, son3, son4,    &
                                      son5, son6, son7, son8
-            type(typCell),pointer :: NeighborX1, NeighborX2,    &
+            type(octCell),pointer :: NeighborX1, NeighborX2,    &
                                      NeighborY1, NeighborY2,    &
                                      NeighborZ1, NeighborZ2
 
-        end type typCell
+        end type octCell
     end module ModTypDef
 !======================================================================
 ! Define globally share constants
@@ -175,7 +175,7 @@
     end module ModGlobalConstants
 !======================================================================
     module ModGeometry
-!   module ModGeometry is developed to define geometry discreted points and elements.
+    ! Define geometry discreted points and elements.
        use ModPrecision
        use ModTypDef
        implicit none
@@ -199,7 +199,8 @@
         type(triangle), pointer:: the_data
         integer                :: splitaxis ! The dimension of split.
                                     !  =1 x_axis; =2 y_axis; =3 z_axis
-        real(R8)               :: box(6) ! The_data corresponding to the box. box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax
+        real(R8)               :: box(6) ! Bounding box of The_data.
+            ! box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax
         integer                :: level ! depth of KDTree
         type(KDT_node), pointer:: left, right, parent
     end type KDT_node
