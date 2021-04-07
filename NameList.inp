@@ -19,7 +19,6 @@ $END
 ! AdaptRefineLVL
 ! cIntersectMethod  = 1 Ray-cast intersect 2 AABB
 $Mesh
-    !nCell = 2, 2, 2, 
     nCell = 20, 20, 20,
     Domain1 = -2000.0, -2000.0, -2000.0,
     Domain2 =  2000.0,  2000.0,  2000.0,

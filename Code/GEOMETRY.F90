@@ -426,6 +426,7 @@
     real(R8) function distance(a, b)
  !      real(R8)                                    :: distance
         type(typPoint)                                   :: a, b
+        !real(R8)                                    :: a(3), b(3)
         integer                                       :: i
 
         distance = 0.d0
