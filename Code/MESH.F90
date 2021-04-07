@@ -213,38 +213,38 @@
             logical               :: aaa
             type(typKDTtree), pointer   :: tp => null()
             
-            aaa=.false.
-            boxCell(1)=c%center(1)-BGStep(1)/2**(c%lvl(1)+1)
-            boxCell(2)=c%center(2)-BGStep(2)/2**(c%lvl(2)+1)
-            boxCell(3)=c%center(3)-BGStep(3)/2**(c%lvl(3)+1)
-            boxCell(4)=c%center(1)+BGStep(1)/2**(c%lvl(1)+1)
-            boxCell(5)=c%center(2)+BGStep(2)/2**(c%lvl(2)+1)
-            boxCell(6)=c%center(3)+BGStep(3)/2**(c%lvl(3)+1)
-            
-            tp => kdtree(1)
-            node=>tp%root
-            if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
-                &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
-                 AABB=.false.
-            else
-                call KdFindTri (c,boxCell,node,aaa)
-                if(aaa)then
-                    AABB=.true.
-                else
-                    AABB=.false.
-                endif        
-            endif
-            return
+            !aaa=.false.
+            !boxCell(1)=c%center(1)-BGStep(1)/2**(c%lvl(1)+1)
+            !boxCell(2)=c%center(2)-BGStep(2)/2**(c%lvl(2)+1)
+            !boxCell(3)=c%center(3)-BGStep(3)/2**(c%lvl(3)+1)
+            !boxCell(4)=c%center(1)+BGStep(1)/2**(c%lvl(1)+1)
+            !boxCell(5)=c%center(2)+BGStep(2)/2**(c%lvl(2)+1)
+            !boxCell(6)=c%center(3)+BGStep(3)/2**(c%lvl(3)+1)
+            !
+            !tp => kdtree(1)
+            !node=>tp%root
+            !if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
+            !    &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
+            !     AABB=.false.
+            !else
+            !    call KdFindTri(c,boxCell,node,aaa)
+            !    if(aaa)then
+            !        AABB=.true.
+            !    else
+            !        AABB=.false.
+            !    endif        
+            !endif
+            !return
 
 !Traverse            
-            !Loop1:do ng=1,nGeometry
-            !    do i=1, body(ng)%nse
-            !        tri= body(ng)%se3d(i)
-            !        AABB=TriBoxOverlap (c,tri)
-            !        if(AABB) exit Loop1
-            !    enddo
-            !enddo Loop1
-            !return         
+            Loop1:do ng=1,nGeometry
+                do i=1, body(ng)%nse
+                    tri= body(ng)%se3d(i)
+                    AABB=TriBoxOverlap (c,tri)
+                    if(AABB) exit Loop1
+                enddo
+            enddo Loop1
+            return         
         end function AABB
 !----------------------------------------------------------------------
         recursive subroutine KdFindTri(c,boxCell,node,aaa)
