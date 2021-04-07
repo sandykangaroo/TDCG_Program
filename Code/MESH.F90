@@ -22,12 +22,27 @@
     contains
         integer function initCellIntersect(c)
         use ModInpMesh
+        use ModKDTree
+        use ModInpGlobal, only: nGeometry
         implicit none
         type(typCell),pointer :: c
+        integer ::i
 
         select case (cIntersectMethod)
         case(1)
             initCellIntersect=CellCast(c)
+        case(2)
+            if (AABB(c)) then
+                do i = 1,nGeometry
+                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=2
+                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=1
+                enddo
+            else
+                do i = 1,nGeometry
+                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=3
+                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=0
+                enddo
+            endif
         end select
         endfunction initCellIntersect
 !----------------------------------------------------------------------
@@ -184,6 +199,408 @@
             RayCast=0; return
         endif
         endfunction RayCast
+!----------------------------------------------------------------------
+        Logical function AABB(c)!1=intersect,0=no intersect
+            use ModKDTree
+            use ModInpGlobal
+            use ModGeometry
+            implicit none
+            type(typCell),pointer :: c
+            type(triangle)        :: tri
+            integer               :: i,ii,ng
+            real(R8)              :: boxCell(6)
+            type(KDT_node),pointer:: node
+            logical               :: aaa
+            type(typKDTtree), pointer   :: tp => null()
+            
+            aaa=.false.
+            boxCell(1)=c%center(1)-BGStep(1)/2**(c%lvl(1)+1)
+            boxCell(2)=c%center(2)-BGStep(2)/2**(c%lvl(2)+1)
+            boxCell(3)=c%center(3)-BGStep(3)/2**(c%lvl(3)+1)
+            boxCell(4)=c%center(1)+BGStep(1)/2**(c%lvl(1)+1)
+            boxCell(5)=c%center(2)+BGStep(2)/2**(c%lvl(2)+1)
+            boxCell(6)=c%center(3)+BGStep(3)/2**(c%lvl(3)+1)
+            
+            tp => kdtree(1)
+            node=>tp%root
+            if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
+                &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
+                 AABB=.false.
+            else
+                call KdFindTri (c,boxCell,node,aaa)
+                if(aaa)then
+                    AABB=.true.
+                else
+                    AABB=.false.
+                endif        
+            endif
+            return
+
+!Traverse            
+            !Loop1:do ng=1,nGeometry
+            !    do i=1, body(ng)%nse
+            !        tri= body(ng)%se3d(i)
+            !        AABB=TriBoxOverlap (c,tri)
+            !        if(AABB) exit Loop1
+            !    enddo
+            !enddo Loop1
+            !return         
+        end function AABB
+!----------------------------------------------------------------------
+        recursive subroutine KdFindTri(c,boxCell,node,aaa)
+            use ModKDTree
+            implicit none
+            
+            real(R8),INTENT(IN)                     :: boxCell(6)
+            integer                                 :: i,split,splitmax,a
+            type(KDT_node), pointer,INTENT(IN)      :: node
+            type(KDT_node), pointer                 :: leftside,rightside
+            type(triangle)                          :: triright,trileft,tri
+            logical, INTENT(OUT)                    :: aaa
+            type(typCell),pointer                   :: c
+            
+            tri = node%the_data
+            aaa = TriBoxOverlap(c,tri)
+         
+            if(aaa)then
+                return
+            endif
+            
+            split=node%splitaxis 
+            splitmax=node%splitaxis+3
+            if(boxCell(split)>node%the_data%p(4)%p(split))then
+                if(associated(node%right))then
+                    call KdFindTri(c,boxCell,node%right,aaa)
+                    if(aaa)then
+                      return
+                    endif
+                endif
+            elseif(boxCell(splitmax)<node%the_data%p(4)%p(split))then
+                if(associated(node%left))then
+                    call KdFindTri(c,boxCell,node%left,aaa)
+                    if(aaa)then
+                        return
+                    endif
+                endif
+            else
+                if(associated(node%right))then
+                    call KdFindTri(c,boxCell,node%right,aaa)
+                    if(aaa)then
+                        return
+                    elseif(associated(node%left))then
+                        call KdFindTri(c,boxCell,node%left,aaa)
+                        if(aaa)then
+                            return
+                        endif
+                    endif
+                endif
+            endif
+        end subroutine KdFindTri    
+!----------------------------------------------------------------------
+!/* use separating axis theorem to test overlap between triangle and box */
+!/* need to test for overlap in these directions: */
+!/* 1) the {x,y,z}-directions (actually, since we use the AABB of the triangle */
+!/* we do not even need to test these) */
+!/* 2) normal of the triangle */
+!/* 3) crossproduct(edge from tri, {x,y,z}-directin) */
+!/* this gives 3x3=9 more tests */
+        Logical function TriBoxOverlap (c,tri)
+            use ModKDTree
+            use ModInpGlobal
+            use ModGeometry
+            use ModTools
+            implicit none
+            
+            type(typCell),pointer :: c
+            type(triangle)        :: tri
+            real(R8)              :: v0(3), v1(3), v2(3), boxcenter(3), normal(3), e0(3), e1(3), e2(3),boxhalfsize(3)
+            real(R8)              :: min, max, rad, d, dd, fex, fey, fez,a
+            real(R8)              :: X01P0, X01P2,Y02P0,Y02P2,Z12P2,Z12P1,Z0P0,Z0P1,X2P0,X2P1,Y1P0,Y1P1
+        
+            boxcenter(1)=c%center(1)
+            boxcenter(2)=c%center(2)
+            boxcenter(3)=c%center(3)
+            boxhalfsize(1)= BGStep(1)/2**(c%lvl(1)+1)
+            boxhalfsize(2)= BGStep(2)/2**(c%lvl(2)+1)
+            boxhalfsize(3)= BGStep(3)/2**(c%lvl(3)+1)
+            
+            
+            v0(:)=Sub(tri%p(1)%P(:),boxcenter(:))
+            v1(:)=Sub(tri%p(2)%P(:),boxcenter(:))
+            v2(:)=Sub(tri%p(3)%P(:),boxcenter(:))
+            
+            !compute triangle edges
+            e0(:)=Sub(v1(:),v0(:))
+            e1(:)=Sub(v2(:),v1(:))
+            e2(:)=Sub(v0(:),v2(:))
+            
+!/* Bullet 3: */
+!/* test the 9 tests first (this was faster) */
+            fex=abs(e0(1))
+            fey=abs(e0(2))
+            fez=abs(e0(3))
+            !AxisTestX01
+            X01P0=e0(3)*v0(2)-e0(2)*v0(3)
+            X01P2=e0(3)*v2(2)-e0(2)*v2(3)
+            if(X01P0<X01P2)then
+                min=X01P0
+                max=X01P2
+            else
+                min=X01P2
+                max=X01P0
+            endif
+            rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestY02
+            Y02P0=-e0(3)*v0(1)+e0(1)*v0(3)
+            Y02P2=-e0(3)*v2(1)+e0(1)*v2(3)
+            if(Y02P0<Y02P2)then
+                min=Y02P0
+                max=Y02P2
+            else
+                min=Y02P2
+                max=Y02P0
+            endif
+            rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestZ12
+            Z12P1=e0(2)*v1(1)-e0(1)*v1(2)
+            Z12P2=e0(2)*v2(1)-e0(1)*v2(2)
+            if(Z12P2<Z12P1)then
+                min=Z12P2
+                max=Z12P1
+            else
+                min=Z12P1
+                max=Z12P2
+            endif
+            rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+                        
+            
+            fex=abs(e1(1))
+            fey=abs(e1(2))
+            fez=abs(e1(3))
+            !AxisTestX01
+            X01P0=e1(3)*v0(2)-e1(2)*v0(3)
+            X01P2=e1(3)*v2(2)-e1(2)*v2(3)
+            if(X01P0<X01P2)then
+                min=X01P0
+                max=X01P2
+            else
+                min=X01P2
+                max=X01P0
+            endif
+            rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestY02
+            Y02P0=-e1(3)*v0(1)+e1(1)*v0(3)
+            Y02P2=-e1(3)*v2(1)+e1(1)*v2(3)
+            if(Y02P0<Y02P2)then
+                min=Y02P0
+                max=Y02P2
+            else
+                min=Y02P2
+                max=Y02P0
+            endif
+            rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            !AxisTestZ0
+            Z0P0=e1(2)*v0(1)-e1(1)*v0(2)
+            Z0P1=e1(2)*v1(1)-e1(1)*v1(2)
+            if(Z0P0<Z0P1)then
+                min=Z0P0
+                max=Z0P1
+            else
+                min=Z0P1
+                max=Z0P0
+            endif
+            rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return 
+            endif
+            
+            
+            fex=abs(e2(1))
+            fey=abs(e2(2))
+            fez=abs(e2(3))
+            !AxisTestX2
+            X2P0=e2(3)*v0(2)-e2(2)*v0(3)
+            X2P1=e2(3)*v1(2)-e2(2)*v1(3)
+            if(X2P0<X2P1)then
+                min=X2P0
+                max=X2P1
+            else
+                min=X2P1
+                max=X2P0
+            endif
+            rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            !AxisTestY1
+            Y1P0=-e2(3)*v0(1)+e2(1)*v0(3)
+            Y1P1=-e2(3)*v1(1)+e2(1)*v1(3)
+            if(Y1P0<Y1P1)then
+                min=Y1P0
+                max=Y1P1
+            else
+                min=Y1P1
+                max=Y1P0
+            endif
+            rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+            !AxisTestZ12
+            Z12P1=e2(2)*v1(1)-e2(1)*v1(2)
+            Z12P2=e2(2)*v2(1)-e2(1)*v2(2)
+            if(Z12P2<Z12P1)then
+                min=Z12P2
+                max=Z12P1
+            else
+                min=Z12P1
+                max=Z12P2
+            endif
+            rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
+            if(min>rad.or.max<-rad)then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            
+!/* Bullet 1: */
+!/* first test overlap in the {x,y,z}-directions */
+!/* find min, max of the triangle each direction, and test for overlap in */
+!/* that direction -- this is equivalent to testing a minimal AABB around */
+!/*  the triangle against the AABB */
+            
+            !/* test in X-direction */ 
+            min=FindMin(v0(1),v1(1),v2(1))
+            max=FindMax(v0(1),v1(1),v2(1))
+            if(min>boxhalfsize(1).or.max<-boxhalfsize(1))then
+                TriBoxOverlap=.false.
+                return
+            endif
+                        
+            !/* test in Y-direction */ 
+            min=FindMin(v0(2),v1(2),v2(2))
+            max=FindMax(v0(2),v1(2),v2(2))
+            if(min>boxhalfsize(2).or.max<-boxhalfsize(2))then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            !/* test in Z-direction */ 
+            min=FindMin(v0(3),v1(3),v2(3))
+            max=FindMax(v0(3),v1(3),v2(3))
+            if(min>boxhalfsize(3).or.max<-boxhalfsize(3)) then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+!/* Bullet 2: */
+!/* test if the box intersects the plane of the triangle */
+!/* compute plane equation of triangle: normal*x+d=0 */   
+            normal = CROSS_PRODUCT_3(e0,e1)
+            if(.not.planeBoxOverlap(normal,v0,boxhalfsize)) then
+                TriBoxOverlap=.false.
+                return
+            endif
+            
+            TriBoxOverlap=.true.
+            return
+        end function TriBoxOverlap   
+!---------------------------------------------------------------------- 
+        Logical function planeBoxOverlap(normal,vert,maxbox)
+            use ModPrecision   
+            implicit none
+        
+            integer  :: i,ii,iii
+            real(R8) :: v,vmin(3),vmax(3),normal(3),vert(3),maxbox(3)
+        
+            do i=1,3
+                v=vert(i)
+                if(normal(i)>0)then
+                    vmin(i)=-maxbox(i)-v
+                    vmax(i)=maxbox(i)-v
+                else
+                    vmin(i)=maxbox(i)-v
+                    vmax(i)=-maxbox(i)-v
+                endif
+            enddo
+            
+            ii = DOT_PRODUCT(normal, vmin)
+            if(ii>0)then
+                planeBoxOverlap =.false.
+                return
+            endif
+            iii= DOT_PRODUCT(normal, vmax)          
+            if(iii>=0)then
+                planeBoxOverlap =.true.
+                return
+            endif  
+            
+            planeBoxOverlap =.false.
+            return
+        end function
+!----------------------------------------------------------------------        
+          function Sub(a,b)
+            use ModPrecision
+            implicit none
+            real(R8)           :: SUB(3)
+            real(R8),INTENT(IN):: a(3), b(3)
+            SUB =              [a(1)-b(1), &
+                                a(2)-b(2), &
+                                a(3)-b(3)]
+        endfunction Sub
+!----------------------------------------------------------------------        
+        Real(R8)function FindMin(x0,x1,x2)
+            use ModPrecision
+            implicit none
+            real(R8),INTENT(IN)  :: x0,x1,x2
+                       
+            FindMin = x0
+            
+            if (x1 < FindMin) then
+                FindMin = x1
+            endif 
+            if (x2 < FindMin) then
+                FindMin = x2
+            endif
+        end function FindMin
+       Real(R8) function FindMax(x0,x1,x2)
+            use ModPrecision
+            implicit none
+            real(R8),INTENT(IN)  ::x0,x1,x2
+            
+            FindMax = x0
+            if (x1 > FindMax) then
+                FindMax = x1
+            endif 
+            if (x2 > FindMax) then
+                FindMax = x2
+            endif
+        end function FindMax
+        
 !----------------------------------------------------------------------
         integer function MollerTrumbore(Point,D,tri)
         use ModTools
@@ -626,7 +1043,7 @@
         contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
-        implicit none
+    implicit none
         type(typCell),pointer :: c
         integer :: ii
 

@@ -82,12 +82,12 @@
     print*,'Generating mesh......'
     call CPU_TIME(tStart)
     if (Restart) return
-    call GenerateBGMesh
+        call GenerateBGMesh
     call CPU_TIME(tEnd)
     print*,"Subroutine-BGMeshCross time: ", tEnd-tStart
 
     call CPU_TIME(tStart)
-    call initSurfaceAdapt
+        call initSurfaceAdapt
     call CPU_TIME(tEnd)
     print*,"Subroutine-SurfaceAdapt time: ", tEnd-tStart
     print*,'Done'

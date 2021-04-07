@@ -7,9 +7,9 @@ $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
     Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/380A',
+    GeometryName  = './Data/body',
     OutputNameStr = './Data/test',
-    OutputFormat  = '.plt'
+    OutputFormat  = '.dat'
 $END
 
 ! nCell
@@ -17,13 +17,14 @@ $END
 !        2          maxSize
 ! InitRefineLVL     It is also the maximum LVL
 ! AdaptRefineLVL
-! cIntersectMethod  = 1 Ray-cast intersect
+! cIntersectMethod  = 1 Ray-cast intersect 2 AABB
 $Mesh
-    nCell = 81, 20, 15,
-    Domain1 = -35000., -2000., 3000.,
-    Domain2 =  -26900.,  2000.,  6000.0,
-    InitRefineLVL = 4, AdaptRefineLVL  =  2,
-    cIntersectMethod = 1
+    !nCell = 2, 2, 2, 
+    nCell = 20, 20, 20,
+    Domain1 = -2000.0, -2000.0, -2000.0,
+    Domain2 =  2000.0,  2000.0,  2000.0,
+    InitRefineLVL = 3, AdaptRefineLVL  =  2,
+    cIntersectMethod = 2
     PaintingAlgorithmMethod = .False.
 $END
 
