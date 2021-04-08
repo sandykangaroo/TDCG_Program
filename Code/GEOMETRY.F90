@@ -79,9 +79,10 @@
                 td%right => build_tree(resB, pt, b, depth2)
             end if
         else
-!       find the most_spread_direction and define it as split direction 
-!            call find_split_direction(res, td%splitaxis)
-!       define the split direction alternative
+!KDT find the most_spread_direction and define it as split direction 
+        !call find_split_direction(res, td%splitaxis)
+       
+!ADT define the split direction alternative     
         if ( mod(td%level,3) == 1 ) then
             td%splitaxis = 1
         else if ( mod(td%level,3) == 2 ) then
@@ -478,6 +479,7 @@
     real(R8), allocatable       :: dis(:, :, :)
     type(typPoint), allocatable :: att(:, :, :), att2
     type(KDT_node), pointer     :: nearest
+    real(R8)                    :: tstart,tend
 
     ! write(*,"(a, I3)") ' Number of seperated objects in this simulation is: ', nGeometry
     ! write(*,*)'-----------------------------------------------------------------------------'    
@@ -579,7 +581,13 @@
 
 
     tp => kdtree(1)
+    call CPU_TIME(tStart)
     call create_KDT_tree_for_body_i(tp, 1)
-    call KDTree_out(tp%root)
+    call CPU_TIME(tEnd)
+    write(*,*)"creat tree time:",tEnd-tStart
+    !call CPU_TIME(tStart)
+    !call KDTree_out(tp%root)
+    !call CPU_TIME(tEnd)
+    !write(*,*)"output tree time:",tEnd-tStart
     return
     end subroutine ReadGeometry

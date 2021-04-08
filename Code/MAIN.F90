@@ -86,7 +86,8 @@
         call GenerateBGMesh
     call CPU_TIME(tEnd)
     print*,"Subroutine-BGMeshCross time: ", tEnd-tStart
-
+    call GetMinDistance
+    
     call CPU_TIME(tStart)
         call initSurfaceAdapt
     call CPU_TIME(tEnd)
@@ -103,7 +104,7 @@
     use ModMesh
     use ModInpMesh
     implicit none
-    !call GetMinDistance
+    call GetMinDistance
     TimeStep=CFL*(BGStep(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
