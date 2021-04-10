@@ -1,0 +1,7 @@
+{
+  "lowercase_intrinsics": false,
+  "debug_log": false,
+  "disable_diagnostics": false,
+  "max_line_length": 75,
+  "max_comment_line_length": 80
+}

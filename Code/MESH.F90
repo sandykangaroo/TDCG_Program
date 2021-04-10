@@ -5,14 +5,14 @@
         ! Mesh
         integer :: nBGCells     ! Number of the background Cells.
         integer :: nCells     ! Number of total Cells.
-        real(R8):: BGStep(3)    ! Step size for background cell.
-        type(typCell),pointer :: Cell(:,:,:)
+        real(R8):: BGCellSize(3)    ! Step size for background cell.
+        type(octCell),pointer :: Cell(:,:,:)
         ! Geometry
-        integer :: nGeoPoints   ! Number of the geometry points.
-        integer :: nGeoFaces    ! Number of the geometry faces.
-        real(R8),ALLOCATABLE :: Geometry(:,:)
-        integer ,ALLOCATABLE :: GeoFace(:,:)
-        type(typPoint)       :: GeoBBOX(2) ! Bounding box of geometry.
+        ! integer :: nGeoPoints   ! Number of the geometry points.
+        ! integer :: nGeoFaces    ! Number of the geometry faces.
+        ! real(R8),ALLOCATABLE :: Geometry(:,:)
+        ! integer ,ALLOCATABLE :: GeoFace(:,:)
+        ! type(typPoint)       :: GeoBBOX(2) ! Bounding box of geometry.
     endmodule ModMesh
 !======================================================================
     module ModMeshTools
@@ -25,7 +25,7 @@
         use ModKDTree
         use ModInpGlobal, only: nGeometry
         implicit none
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         integer ::i
 
         select case (cIntersectMethod)
@@ -34,13 +34,19 @@
         case(2)
             if (AABB(c)) then
                 do i = 1,nGeometry
-                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=2
-                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=1
+                    if (RayCast(c%Center,KDTree(i)%root)==1)then
+                        initCellIntersect=2
+                    else
+                        initCellIntersect=1
+                    endif
                 enddo
             else
                 do i = 1,nGeometry
-                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=3
-                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=0
+                    if (RayCast(c%Center,KDTree(i)%root)==1)then
+                        initCellIntersect=3
+                    else
+                        initCellIntersect=0
+                    endif
                 enddo
             endif
         end select
@@ -67,16 +73,16 @@
         use ModKDTree
         use ModInpGlobal
         implicit none
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         type(typPoint)        :: p(8)
         real(R8):: x, y, z, dx, dy, dz
         real(R8):: box(6)
         integer :: i, ii, Pintersect
 
         x=c%Center(1); y=c%Center(2); z=c%Center(3)
-        dx=BGStep(1)/2**(c%lvl(1)+1)
-        dy=BGStep(2)/2**(c%lvl(2)+1)
-        dz=BGStep(3)/2**(c%lvl(3)+1)
+        dx=BGCellSize(1)/2**(c%lvl(1)+1)
+        dy=BGCellSize(2)/2**(c%lvl(2)+1)
+        dz=BGCellSize(3)/2**(c%lvl(3)+1)
         p(1)%P=(/x-dx,y-dy,z-dz/)
         p(2)%P=(/x+dx,y-dy,z-dz/)
         p(3)%P=(/x+dx,y+dy,z-dz/)
@@ -205,7 +211,7 @@
             use ModInpGlobal
             use ModGeometry
             implicit none
-            type(typCell),pointer :: c
+            type(octCell),pointer :: c
             type(triangle)        :: tri
             integer               :: i,ii,ng
             real(R8)              :: boxCell(6)
@@ -214,12 +220,12 @@
             type(typKDTtree), pointer   :: tp => null()
             
             aaa=.false.
-            boxCell(1)=c%center(1)-BGStep(1)/2**(c%lvl(1)+1)
-            boxCell(2)=c%center(2)-BGStep(2)/2**(c%lvl(2)+1)
-            boxCell(3)=c%center(3)-BGStep(3)/2**(c%lvl(3)+1)
-            boxCell(4)=c%center(1)+BGStep(1)/2**(c%lvl(1)+1)
-            boxCell(5)=c%center(2)+BGStep(2)/2**(c%lvl(2)+1)
-            boxCell(6)=c%center(3)+BGStep(3)/2**(c%lvl(3)+1)
+            boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
+            boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
+            boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
+            boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
+            boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
+            boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
             
             tp => kdtree(1)
             node=>tp%root
@@ -257,7 +263,7 @@
             type(KDT_node), pointer                 :: leftside,rightside
             type(triangle)                          :: triright,trileft,tri
             logical, INTENT(OUT)                    :: aaa
-            type(typCell),pointer                   :: c
+            type(octCell),pointer                   :: c
             
             tri = node%the_data
             aaa = TriBoxOverlap(c,tri)
@@ -311,7 +317,7 @@
             use ModTools
             implicit none
             
-            type(typCell),pointer :: c
+            type(octCell),pointer :: c
             type(triangle)        :: tri
             real(R8)              :: v0(3), v1(3), v2(3), boxcenter(3), normal(3), e0(3), e1(3), e2(3),boxhalfsize(3)
             real(R8)              :: min, max, rad, d, dd, fex, fey, fez,a
@@ -320,9 +326,9 @@
             boxcenter(1)=c%center(1)
             boxcenter(2)=c%center(2)
             boxcenter(3)=c%center(3)
-            boxhalfsize(1)= BGStep(1)/2**(c%lvl(1)+1)
-            boxhalfsize(2)= BGStep(2)/2**(c%lvl(2)+1)
-            boxhalfsize(3)= BGStep(3)/2**(c%lvl(3)+1)
+            boxhalfsize(1)= BGCellSize(1)/2**(c%lvl(1)+1)
+            boxhalfsize(2)= BGCellSize(2)/2**(c%lvl(2)+1)
+            boxhalfsize(3)= BGCellSize(3)/2**(c%lvl(3)+1)
             
             
             v0(:)=Sub(tri%p(1)%P(:),boxcenter(:))
@@ -645,7 +651,7 @@
         ! Calls    : initNeighbor
         implicit none
         integer(I4),INTENT(IN):: split
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         real(R8)              :: x, y, z, dx, dy, dz
 
         select case (split)
@@ -702,9 +708,9 @@
             c%son7%Node=0
             c%son8%Node=0
             x=c%Center(1); y=c%Center(2); z=c%Center(3)
-            dx=BGStep(1)/2**(c%lvl(1)+2)
-            dy=BGStep(2)/2**(c%lvl(2)+2)
-            dz=BGStep(3)/2**(c%lvl(3)+2)
+            dx=BGCellSize(1)/2**(c%lvl(1)+2)
+            dy=BGCellSize(2)/2**(c%lvl(2)+2)
+            dz=BGCellSize(3)/2**(c%lvl(3)+2)
             c%son1%Center=(/x-dx,y-dy,z-dz/)
             c%son2%Center=(/x+dx,y-dy,z-dz/)
             c%son3%Center=(/x+dx,y+dy,z-dz/)
@@ -771,9 +777,9 @@
             c%son1%Node=0
             c%son2%Node=0
             x=c%Center(1); y=c%Center(2); z=c%Center(3)
-            dx=BGStep(1)/2**(c%lvl(1)+2)
-            dy=BGStep(2)/2**(c%lvl(2)+2)
-            dz=BGStep(3)/2**(c%lvl(3)+2)
+            dx=BGCellSize(1)/2**(c%lvl(1)+2)
+            dy=BGCellSize(2)/2**(c%lvl(2)+2)
+            dz=BGCellSize(3)/2**(c%lvl(3)+2)
             select case (split)
             case(1)
                 c%son1%lvl=c%lvl+(/1,0,0/)
@@ -829,9 +835,9 @@
             c%son3%Node=0
             c%son4%Node=0
             x=c%Center(1); y=c%Center(2); z=c%Center(3)
-            dx=BGStep(1)/2**(c%lvl(1)+2)
-            dy=BGStep(2)/2**(c%lvl(2)+2)
-            dz=BGStep(3)/2**(c%lvl(3)+2)
+            dx=BGCellSize(1)/2**(c%lvl(1)+2)
+            dy=BGCellSize(2)/2**(c%lvl(2)+2)
+            dz=BGCellSize(3)/2**(c%lvl(3)+2)
             select case (split)
             case (4)
                 c%son1%lvl=c%lvl+(/1,1,0/)
@@ -890,12 +896,12 @@
 !----------------------------------------------------------------------
         subroutine DeletCell(c)
         implicit none
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         endsubroutine DeletCell
 !----------------------------------------------------------------------
         subroutine NullifyCell(c)
         implicit none
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         NULLIFY(c%Father,                                       &
                 c%son1, c%son2, c%son3, c%son4,                 &
                 c%son5, c%son6, c%son7, c%son8,                 &
@@ -913,9 +919,9 @@
     use ModMeshTools
     implicit none
     integer :: i, j, k
-    type(typCell),pointer :: t
+    type(octCell),pointer :: t
 
-    BGStep=abs(Domain1-Domain2)/nCell
+    BGCellSize=abs(DomainMin-DomainMax)/nCell
     nBGCells=nCell(1)*nCell(2)*nCell(3)
     nCells=0
     ALLOCATE(Cell(nCell(1),nCell(2),nCell(3)))
@@ -930,9 +936,9 @@
             t%fSplitType  = 0
             t%Location    = 0
             t%Node        = 0
-            t%Center      = (/Domain1(1)+(i-0.5)*BGStep(1),         &
-                              Domain1(2)+(j-0.5)*BGStep(2),         &
-                              Domain1(3)+(k-0.5)*BGStep(3)/)
+            t%Center      = (/DomainMin(1)+(i-0.5)*BGCellSize(1),         &
+                              DomainMin(2)+(j-0.5)*BGCellSize(2),         &
+                              DomainMin(3)+(k-0.5)*BGCellSize(3)/)
             t%U           = 0
             t%cross       = -5
             NULLIFY(t%Father,                                       &
@@ -976,7 +982,7 @@
 !----------------------------------------------------------------------
         recursive subroutine PaintingAlgorithm(c,dirct)
         implicit none
-        type(typCell),pointer :: c, cc
+        type(octCell),pointer :: c, cc
         integer               :: dirct
 
         if (dirct /= 0) then
@@ -1029,7 +1035,7 @@
     use ModMeshTools
     use ModInpMesh
     implicit none
-    type(typCell),pointer :: t
+    type(octCell),pointer :: t
     integer :: i, j, k
 
     do i = 1, nCell(1)
@@ -1044,7 +1050,7 @@
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
     implicit none
-        type(typCell),pointer :: c
+        type(octCell),pointer :: c
         integer :: ii
 
         do ii=1,3

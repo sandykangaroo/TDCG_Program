@@ -6,8 +6,8 @@
         "./Code/*.F90",
         "./lib/*.lib",
         "-o",
-        "main.exe"
-        "-J"
+        "main.exe",
+        "-J",
         "./Release/"
     ]
 }

@@ -87,7 +87,7 @@
     call CPU_TIME(tEnd)
     print*,"Subroutine-BGMeshCross time: ", tEnd-tStart
     call GetMinDistance
-    
+
     call CPU_TIME(tStart)
         call initSurfaceAdapt
     call CPU_TIME(tEnd)
@@ -104,8 +104,8 @@
     use ModMesh
     use ModInpMesh
     implicit none
-    call GetMinDistance
-    TimeStep=CFL*(BGStep(1)/2**InitRefineLVL)
+    !call GetMinDistance
+    TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
     subroutine AABBtime
@@ -117,7 +117,7 @@
     implicit none
     
     integer :: i, j, k
-    type(typCell),pointer :: t
+    type(octCell),pointer :: t
     
     call CPU_TIME(tStart)
     do i = 1, nCell(1)

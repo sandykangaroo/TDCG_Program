@@ -11,11 +11,11 @@
     NAMELIST /Global/   Aniso, nStep, nSave, nAdaptStep, Debug, CFL,  &
                         NRR, Chimera, Limiter, Restart, nGeometry,    &
                         OutputNameStr, GeometryName, OutputFormat
-    NAMELIST /Mesh/     nCell, Domain1, Domain2, InitRefineLVL,       &
+    NAMELIST /Mesh/     nCell, DomainMin, DomainMax, InitRefineLVL,       &
                         AdaptRefineLVL, cIntersectMethod,             &
                         PaintingAlgorithmMethod
     NAMELIST /NRRset/   NRRSeed, NRRLength, NRRTheta
-    NAMELIST /Inflow/   Alpha, Beta, ReyNum, T00, Mach00, Gama00, Rgas
+    NAMELIST /Inflow/   Alpha, Beta, Re, T00, Ma00, Gama00, Rgas
 
     INQUIRE(file='NameList.inp', exist=exist)
         if (.NOT.exist) stop 'Error====> Not found file NameList.inp'

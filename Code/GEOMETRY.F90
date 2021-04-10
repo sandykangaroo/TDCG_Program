@@ -585,9 +585,9 @@
     call create_KDT_tree_for_body_i(tp, 1)
     call CPU_TIME(tEnd)
     write(*,*)"creat tree time:",tEnd-tStart
-    !call CPU_TIME(tStart)
-    !call KDTree_out(tp%root)
-    !call CPU_TIME(tEnd)
-    !write(*,*)"output tree time:",tEnd-tStart
+    call CPU_TIME(tStart)
+    call KDTree_out(tp%root)
+    call CPU_TIME(tEnd)
+    write(*,*)"output tree time:",tEnd-tStart
     return
     end subroutine ReadGeometry
