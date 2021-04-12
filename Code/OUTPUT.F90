@@ -146,9 +146,9 @@
     type(octCell),pointer :: t
     integer :: i, j, k
 
-    do i = 1, nCell(1)
-    do j = 1, nCell(2)
     do k = 1, nCell(3)
+    do j = 1, nCell(2)
+    do i = 1, nCell(1)
         t=>Cell(i, j, k)
         call NodeInfo(t)
     enddo
@@ -303,9 +303,9 @@
     type(octCell),pointer :: t
     integer :: i, j, k
 
-    do i = 1, nCell(1)
-    do j = 1, nCell(2)
     do k = 1, nCell(3)
+    do j = 1, nCell(2)
+    do i = 1, nCell(1)
         t=>Cell(i, j, k)
         call TmpStorageVar(t)
     enddo

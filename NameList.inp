@@ -20,9 +20,9 @@ $END
 ! cIntersectMethod  = 1 Ray-cast intersect 2 AABB
 $Mesh
     nCell = 20, 20, 20,
-    DomainMin = -2000.0, -2000.0, -2000.0,
-    DomainMax =  2000.0,  2000.0,  2000.0,
-    InitRefineLVL = 3, AdaptRefineLVL  =  2,
+    DomainMin = -1000.0, -100.0, 70.0,
+    DomainMax =  -350.0,  100.0,  280.0,
+    InitRefineLVL = 5, AdaptRefineLVL  =  2,
     cIntersectMethod = 2
     PaintingAlgorithmMethod = .False.
 $END

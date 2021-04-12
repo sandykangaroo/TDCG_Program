@@ -87,6 +87,7 @@
     call GenerateBGMesh
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
+    call GetMinDistance
 
     print*,'Done'
     print*,"Mesh generation time: ", tEnd-tStart
@@ -118,9 +119,9 @@
     type(octCell),pointer :: t
     
     call CPU_TIME(tStart)
-    do i = 1, nCell(1)
-    do j = 1, nCell(2)
     do k = 1, nCell(3)
+    do j = 1, nCell(2)
+    do i = 1, nCell(1)
         t=>Cell(i, j, k)
         call initCellCross(t)
     enddo

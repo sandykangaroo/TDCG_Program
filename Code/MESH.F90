@@ -247,16 +247,39 @@
             type(KDT_node),pointer:: node
             logical               :: aaa
             type(typKDTtree), pointer   :: tp => null()
+            
+            aaa=.false.
+            boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
+            boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
+            boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
+            boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
+            boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
+            boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
+            
+            tp => kdtree(1)
+            node=>tp%root
+            if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
+                &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
+                 AABB=.false.
+            else
+                call KdFindTri(c,boxCell,node,aaa)
+                if(aaa)then
+                    AABB=.true.
+                else
+                    AABB=.false.
+                endif        
+            endif
+            return
 
-            !Traverse
-            Loop1:do ng=1,nGeometry
-                do i=1, body(ng)%nse
-                    tri= body(ng)%se3d(i)
-                    AABB=TriBoxOverlap (c,tri)
-                    if(AABB) exit Loop1
-                enddo
-            enddo Loop1
-            return         
+!Traverse            
+            !Loop1:do ng=1,nGeometry
+            !    do i=1, body(ng)%nse
+            !        tri= body(ng)%se3d(i)
+            !        AABB=TriBoxOverlap (c,tri)
+            !        if(AABB) exit Loop1
+            !    enddo
+            !enddo Loop1
+            !return         
         end function AABB
 !----------------------------------------------------------------------
         recursive subroutine KdFindTri(c,boxCell,node,aaa)
@@ -940,9 +963,9 @@
     nBGCells=nCell(1)*nCell(2)*nCell(3)
     nCells=0
     ALLOCATE(Cell(nCell(1),nCell(2),nCell(3)))
-    do i = 1, nCell(1)
-    do j = 1, nCell(2)
     do k = 1, nCell(3)
+    do j = 1, nCell(2)
+    do i = 1, nCell(1)
         t=>Cell(i, j, k)
         nCells=nCells+1
             t%nBGCell     = [i, j, k]
@@ -977,9 +1000,9 @@
 
     select case (cIntersectMethod)
     case (1)    ! Ray-cast with Painting Algorithm Method
-        do i = 1, nCell(1)
-        do j = 1, nCell(2)
         do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
             t       =>Cell(i,j,k)
             if (CellCast(t)) then
                 t%cross = -3
@@ -991,9 +1014,9 @@
         enddo
         enddo
         ! Painting Algorithm Method
-        loop1:  do i = 1, nCell(1)
+        loop1:  do k = 1, nCell(3)
                 do j = 1, nCell(2)
-                do k = 1, nCell(3)
+                do i = 1, nCell(1)
                     t=>Cell(i,j,k)
                     t%cross = CellInout(t)  ! return all
                     if (t%cross==0) then
@@ -1011,9 +1034,9 @@
         ! Close the Painting Algorithm Method
         cIntersectMethod = 2
     case (2)    ! Ray-cast only
-        do i = 1, nCell(1)
-        do j = 1, nCell(2)
         do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
             t       =>Cell(i,j,k)
             if (CellCast(t)) then
                 t%cross = -3
@@ -1027,9 +1050,9 @@
         enddo
         enddo
     case (3)    ! AABB with Painting Algorithm Method
-        do i = 1, nCell(1)
-        do j = 1, nCell(2)
         do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
             t       =>Cell(i,j,k)
             if (AABB(t)) then
                 t%cross = -3
@@ -1041,9 +1064,9 @@
         enddo
         enddo
         ! Painting Algorithm Method
-        loop2:  do i = 1, nCell(1)
+        loop2:  do k = 1, nCell(3)
                 do j = 1, nCell(2)
-                do k = 1, nCell(3)
+                do i = 1, nCell(1)
                     t=>Cell(i,j,k)
                     t%cross = CellInout(t)
                     if (t%cross==0) then
@@ -1061,9 +1084,9 @@
         ! Close the Painting Algorithm Method
         cIntersectMethod = 4
     case (4)    ! AABB only
-        do i = 1, nCell(1)
-        do j = 1, nCell(2)
         do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
             t       =>Cell(i,j,k)
             if (AABB(t)) then
                 t%cross = -3
@@ -1160,6 +1183,127 @@
         endsubroutine PaintingAlgorithm
     endsubroutine initSurfaceAdapt
 !======================================================================
+    subroutine initSmoothMesh
+    use ModMesh
+    use ModTypDef
+    use ModMeshTools
+    implicit none
+    type(octCell),POINTER :: t
+    integer               :: i, j, k
+
+    do k = 1, nCell(3)
+    do j = 1, nCell(2)
+    do i = 1, nCell(1)
+        t=>Cell(i, j, k)
+        call SmoothMesh(t)
+    enddo
+    enddo
+    enddo
+    contains
+!----------------------------------------------------------------------
+        recursive subroutine SmoothMesh(c)
+        implicit none
+        type(octCell),POINTER :: c
+        logical               :: mark(6)
+        ! mark(6)  1 x refine; 2 y refine; 3 z refine; 
+        !          4 x coarse; 5 y coarse; 6 z coarse; 
+        if(ASSOCIATED(c%son8))then
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            call SmoothMesh(c%son3)
+            call SmoothMesh(c%son4)
+            call SmoothMesh(c%son5)
+            call SmoothMesh(c%son6)
+            call SmoothMesh(c%son7)
+            call SmoothMesh(c%son8)
+            return
+        elseif(ASSOCIATED(c%son4))then
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            call SmoothMesh(c%son3)
+            call SmoothMesh(c%son4)
+            return
+        elseif(ASSOCIATED(c%son2))then
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            return
+        endif
+
+        ! Cell LVL > 1
+        if (ASSOCIATED(c%NeighborX1)) then
+            if (c%lvl(1)+1<c%NeighborX1%lvl(1)) mark(1)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborX2)) then
+            if (c%lvl(1)+1<c%NeighborX2%lvl(1)) mark(2)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborY1)) then
+            if (c%lvl(2)+1<c%NeighborY1%lvl(2)) mark(3)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborY2)) then
+            if (c%lvl(2)+1<c%NeighborY2%lvl(2)) mark(1)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborZ1)) then
+            if (c%lvl(3)+1<c%NeighborZ1%lvl(3)) mark(2)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborZ2)) then
+            if (c%lvl(3)+1<c%NeighborZ2%lvl(3)) mark(3)=.true.
+        endif
+
+        ! Hole Cell
+        ! if (.not.mark(1)) then
+        !     if (ASSOCIATED(c%NeighborX1).and.ASSOCIATED(c%NeighborX2))then
+        !         if (c%NeighborX1%lvl(1)>c%lvl(1) .and. &
+        !             c%NeighborX2%lvl(1)>c%lvl(1)) then
+        !             mark(1)=.true.
+        !         elseif (c%NeighborX1%lvl(1)<c%lvl(1) .and. &
+        !             c%NeighborX2%lvl(1)<c%lvl(1)) then
+        !             mark(4)=.true.
+        !         endif
+        !     endif
+        ! endif
+        if     ( mark(1) .and. mark(2) .and. mark(3) ) then
+            call NewCell(c,0)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            call SmoothMesh(c%son3)
+            call SmoothMesh(c%son4)
+            call SmoothMesh(c%son5)
+            call SmoothMesh(c%son6)
+            call SmoothMesh(c%son7)
+            call SmoothMesh(c%son8)
+        elseif ( mark(1) .and. .not.mark(2) .and. .not.mark(3) ) then
+            call NewCell(c,1)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+        elseif ( .not.mark(1) .and. mark(2) .and. .not.mark(3) ) then
+            call NewCell(c,2)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+        elseif ( .not.mark(1) .and. .not.mark(2) .and. mark(3) ) then
+            call NewCell(c,3)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+        elseif ( mark(1) .and. mark(2) .and. .not.mark(3) ) then
+            call NewCell(c,4)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            call SmoothMesh(c%son3)
+            call SmoothMesh(c%son4)
+        elseif ( mark(1) .and. .not.mark(2) .and. mark(3) ) then
+            call NewCell(c,5)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            call SmoothMesh(c%son3)
+            call SmoothMesh(c%son4)
+        elseif ( .not.mark(1) .and. mark(2) .and. mark(3) ) then
+            call NewCell(c,6)
+            call SmoothMesh(c%son1)
+            call SmoothMesh(c%son2)
+            call SmoothMesh(c%son3)
+            call SmoothMesh(c%son4)
+        endif
+        endsubroutine SmoothMesh
+    endsubroutine initSmoothMesh
 !======================================================================
 !======================================================================
 !----------------------------------------------------------------------
