@@ -81,17 +81,16 @@
     implicit none
 
     print*,'Generating mesh......'
-    call CPU_TIME(tStart)
-    if (Restart) return
-        call GenerateBGMesh
-    call CPU_TIME(tEnd)
-    print*,"Subroutine-BGMeshCross time: ", tEnd-tStart
 
     call CPU_TIME(tStart)
-        call initSurfaceAdapt
+    if (Restart) return
+    call GenerateBGMesh
+    call initSurfaceAdapt
     call CPU_TIME(tEnd)
-    print*,"Subroutine-SurfaceAdapt time: ", tEnd-tStart
+
     print*,'Done'
+    print*,"Mesh generation time: ", tEnd-tStart
+
     end subroutine TDCGMesh
 !======================================================================
     subroutine TDCGInitAll
@@ -123,7 +122,7 @@
     do j = 1, nCell(2)
     do k = 1, nCell(3)
         t=>Cell(i, j, k)
-        t%cross=initCellIntersect(t)
+        call initCellCross(t)
     enddo
     enddo
     enddo

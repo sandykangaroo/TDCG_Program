@@ -1,6 +1,4 @@
 !======================================================================
-!
-!======================================================================
     module ModPrecision
         implicit none
         integer,parameter::R4=4
@@ -39,7 +37,6 @@
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
-        logical :: PaintingAlgorithmMethod
     end module ModInpMesh
 !----------------------------------------------------------------------
     module ModInpInflow
@@ -61,6 +58,12 @@
         real(R8):: NRRLength
         real(R8):: NRRTheta
     end module ModInpNRRset
+!======================================================================
+    module ModGlobal
+        use ModPrecision
+        implicit none
+        integer :: ProcessLocation
+    end module ModGlobal
 !======================================================================
 ! Define dynamic data structure
     module ModTypDef
@@ -112,7 +115,9 @@
 ! levely     = y-direct level
 ! levelz     = z-direct level
 ! cross      relationship between cell and the object surface.
-!            = -5 Initial or inside.
+!            = -5 Initial
+!            = -4 Not intersect cell.
+!            = -3 Intersect cell.
 !            =  0 Cell outside the object surface.
 !            =  1 Intersect while cell center outside the object surface
 !            =  2 Intersect while cell center inside the object surface

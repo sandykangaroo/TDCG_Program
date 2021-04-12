@@ -20,7 +20,8 @@
     use ModTypDef
     implicit none
     contains
-        integer function initCellIntersect(c)
+!----------------------------------------------------------------------
+        subroutine initCellCross(c)
         use ModInpMesh
         use ModKDTree
         use ModInpGlobal, only: nGeometry
@@ -29,22 +30,36 @@
         integer ::i
 
         select case (cIntersectMethod)
-        case(1)
-            initCellIntersect=CellCast(c)
-        case(2)
-            if (AABB(c)) then
-                do i = 1,nGeometry
-                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=2
-                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=1
-                enddo
+        case (1)
+            if (CellCast(c)) then
+                c%cross = -3
             else
-                do i = 1,nGeometry
-                    if (RayCast(c%Center,KDTree(i)%root)==1) initCellIntersect=3
-                    if (RayCast(c%Center,KDTree(i)%root)==0) initCellIntersect=0
-                enddo
+                c%cross = -4
+            endif
+        case (2)
+            if (CellCast(c)) then
+                c%cross = -3
+                c%cross = CellInout(c)
+            else
+                c%cross = -4
+                c%cross = CellInout(c)
+            endif
+        case (3)
+            if (AABB(c)) then
+                c%cross = -3
+            else
+                c%cross = -4
+            endif
+        case (4)
+            if (AABB(c)) then
+                c%cross = -3
+                c%cross = CellInout(c)
+            else
+                c%cross = -4
+                c%cross = CellInout(c)
             endif
         end select
-        endfunction initCellIntersect
+        endsubroutine initCellCross
 !----------------------------------------------------------------------
         logical function BBOX(p,box)
         implicit none
@@ -63,7 +78,7 @@
         endif
         endfunction BBOX
 !----------------------------------------------------------------------
-        integer function CellCast(c)
+        logical function CellCast(c)    ! return -3, 0, 3
         use ModKDTree
         use ModInpGlobal
         implicit none
@@ -94,24 +109,44 @@
                 Pintersect=Pintersect+RayCast(p(i)%P,KDTree(ii)%root)
             endif
             enddo
+            if (Pintersect/=0.and.Pintersect<i) then
+                CellCast = .true.  ! Intersect
+                return
+            endif
         enddo
+                CellCast = .false.  ! Not intersect
+        endfunction CellCast
+!----------------------------------------------------------------------
+        integer function CellInout(c)
+        use ModKDTree
+        use ModInpGlobal
+        implicit none
+        type(octCell),pointer :: c
+        type(typPoint)        :: point
+        integer :: ii, Pintersect
 
-        if (Pintersect==0) then
-            CellCast = 0    ! outside
-        elseif (Pintersect==8) then
-            CellCast = 3    ! inside
-        else
-            Pintersect=0
-            do ii = 1,nGeometry
-                Pintersect=Pintersect+RayCast(c%Center,KDTree(ii)%root)
-            enddo
-            if (Pintersect==0) then
-                CellCast=1  ! intersect but outside
+        Pintersect=0
+        point%P=(/c%Center(1),c%Center(2),c%Center(3)/)
+        do ii = 1,nGeometry
+            ! Quick Bounding-BOX identify
+            if (BBOX(point%P,KDTree(ii)%root%box)) then
+            Pintersect=Pintersect+RayCast(point%P,KDTree(ii)%root)
+            endif
+        enddo
+        if (Pintersect == 0) then ! inside
+            if (c%cross == -4) then
+                CellInout = 0 ; return
             else
-                CellCast=2  ! intersect but inside
+                CellInout = 1 ; return
+            endif
+        else
+            if (c%cross == -4) then
+                CellInout = 3 ; return
+            else
+                CellInout = 2 ; return
             endif
         endif
-        endfunction CellCast
+        endfunction CellInout
 !----------------------------------------------------------------------
         integer function RayCast(point,tree)
         use ModGeometry
@@ -194,9 +229,9 @@
         enddo
         
         if (nRayCast > nRays/2)then ! nRays/2=INT(real.nRays/2.0)
-            RayCast=1; return
+            RayCast=1; return   ! inside
         else
-            RayCast=0; return
+            RayCast=0; return   ! outside
         endif
         endfunction RayCast
 !----------------------------------------------------------------------
@@ -212,31 +247,8 @@
             type(KDT_node),pointer:: node
             logical               :: aaa
             type(typKDTtree), pointer   :: tp => null()
-            
-            !aaa=.false.
-            !boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
-            !boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
-            !boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
-            !boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
-            !boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
-            !boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
-            !
-            !tp => kdtree(1)
-            !node=>tp%root
-            !if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
-            !    &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
-            !     AABB=.false.
-            !else
-            !    call KdFindTri(c,boxCell,node,aaa)
-            !    if(aaa)then
-            !        AABB=.true.
-            !    else
-            !        AABB=.false.
-            !    endif        
-            !endif
-            !return
 
-!Traverse            
+            !Traverse
             Loop1:do ng=1,nGeometry
                 do i=1, body(ng)%nse
                     tri= body(ng)%se3d(i)
@@ -297,13 +309,13 @@
             endif
         end subroutine KdFindTri    
 !----------------------------------------------------------------------
-!/* use separating axis theorem to test overlap between triangle and box */
-!/* need to test for overlap in these directions: */
-!/* 1) the {x,y,z}-directions (actually, since we use the AABB of the triangle */
-!/* we do not even need to test these) */
-!/* 2) normal of the triangle */
-!/* 3) crossproduct(edge from tri, {x,y,z}-directin) */
-!/* this gives 3x3=9 more tests */
+    ! use separating axis theorem to test overlap between triangle and box
+    ! need to test for overlap in these directions:
+    ! 1) the {x,y,z}-directions (actually, since we use the AABB of
+    !    the triangle we do not even need to test these)
+    ! 2) normal of the triangle
+    ! 3) crossproduct(edge from tri, {x,y,z}-directin)
+    ! this gives 3x3=9 more tests
         Logical function TriBoxOverlap (c,tri)
             use ModKDTree
             use ModInpGlobal
@@ -313,9 +325,18 @@
             
             type(octCell),pointer :: c
             type(triangle)        :: tri
-            real(R8)              :: v0(3), v1(3), v2(3), boxcenter(3), normal(3), e0(3), e1(3), e2(3),boxhalfsize(3)
-            real(R8)              :: min, max, rad, d, dd, fex, fey, fez,a
-            real(R8)              :: X01P0, X01P2,Y02P0,Y02P2,Z12P2,Z12P1,Z0P0,Z0P1,X2P0,X2P1,Y1P0,Y1P1
+            real(R8)              :: v0(3), v1(3), v2(3)
+            real(R8)              :: boxcenter(3), normal(3)
+            real(R8)              :: e0(3), e1(3), e2(3)
+            real(R8)              :: boxhalfsize(3)
+            real(R8)              :: min, max
+            real(R8)              :: rad, d, dd, fex, fey, fez, a
+            real(R8)              :: X01P0, X01P2
+            real(R8)              :: Y02P0, Y02P2
+            real(R8)              :: Z12P2,Z12P1
+            real(R8)              :: Z0P0, Z0P1
+            real(R8)              :: X2P0, X2P1
+            real(R8)              :: Y1P0, Y1P1
         
             boxcenter(1)=c%center(1)
             boxcenter(2)=c%center(2)
@@ -721,15 +742,15 @@
             c%son6%U=c%U
             c%son7%U=c%U
             c%son8%U=c%U
-            if (c%cross == 1 .or. c%cross == 2) then
-                c%son1%cross=initCellIntersect(c%son1)
-                c%son2%cross=initCellIntersect(c%son2)
-                c%son3%cross=initCellIntersect(c%son3)
-                c%son4%cross=initCellIntersect(c%son4)
-                c%son5%cross=initCellIntersect(c%son5)
-                c%son6%cross=initCellIntersect(c%son6)
-                c%son7%cross=initCellIntersect(c%son7)
-                c%son8%cross=initCellIntersect(c%son8)
+            if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3) then
+                call initCellCross(c%son1)
+                call initCellCross(c%son2)
+                call initCellCross(c%son3)
+                call initCellCross(c%son4)
+                call initCellCross(c%son5)
+                call initCellCross(c%son6)
+                call initCellCross(c%son7)
+                call initCellCross(c%son8)
             else
                 c%son1%cross=c%cross
                 c%son2%cross=c%cross
@@ -793,9 +814,9 @@
             end select
             c%son1%U=c%U
             c%son2%U=c%U
-            if (c%cross == 1 .or. c%cross == 2) then
-                c%son1%cross=initCellIntersect(c%son1)
-                c%son2%cross=initCellIntersect(c%son2)
+            if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3) then
+                call initCellCross(c%son1)
+                call initCellCross(c%son2)
             else
                 c%son1%cross=c%cross
                 c%son2%cross=c%cross
@@ -865,11 +886,11 @@
             c%son2%U=c%U
             c%son3%U=c%U
             c%son4%U=c%U
-            if (c%cross == 1 .or. c%cross == 2) then
-                c%son1%cross=initCellIntersect(c%son1)
-                c%son2%cross=initCellIntersect(c%son2)
-                c%son3%cross=initCellIntersect(c%son3)
-                c%son4%cross=initCellIntersect(c%son4)
+            if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3) then
+                call initCellCross(c%son1)
+                call initCellCross(c%son2)
+                call initCellCross(c%son3)
+                call initCellCross(c%son4)
             else
                 c%son1%cross=c%cross
                 c%son2%cross=c%cross
@@ -930,8 +951,8 @@
             t%fSplitType  = 0
             t%Location    = 0
             t%Node        = 0
-            t%Center      = (/DomainMin(1)+(i-0.5)*BGCellSize(1),         &
-                              DomainMin(2)+(j-0.5)*BGCellSize(2),         &
+            t%Center      = (/DomainMin(1)+(i-0.5)*BGCellSize(1),   &
+                              DomainMin(2)+(j-0.5)*BGCellSize(2),   &
                               DomainMin(3)+(k-0.5)*BGCellSize(3)/)
             t%U           = 0
             t%cross       = -5
@@ -943,114 +964,132 @@
     enddo
     enddo
     enddo
-    call BGMeshCross
-    contains
-!----------------------------------------------------------------------
-        subroutine BGMeshCross
-        implicit none
-
-        if (PaintingAlgorithmMethod) then
-            loop1: do i = 1, nCell(1)
-                    do j = 1, nCell(2)
-                    do k = 1, nCell(3)
-                        t=>Cell(i,j,k)
-                        t%cross=initCellIntersect(t)
-                        if (t%cross==0) then
-                            call PaintingAlgorithm(t,0)
-                            exit loop1
-                        endif
-                    enddo
-                    enddo
-            enddo loop1
-        else
-            do i = 1, nCell(1)
-            do j = 1, nCell(2)
-            do k = 1, nCell(3)
-                t=>Cell(i,j,k)
-                t%cross=initCellIntersect(t)
-            enddo
-            enddo
-            enddo
-        endif
-        endsubroutine BGMeshCross
-!----------------------------------------------------------------------
-        recursive subroutine PaintingAlgorithm(c,dirct)
-        implicit none
-        type(octCell),pointer :: c, cc
-        integer               :: dirct
-
-        if (dirct /= 0) then
-            if (c%cross /=-5) return    ! Cell has been paintted, return.
-            c%cross = initCellIntersect(c)
-            if (c%cross == 3) return    ! Inside cell, return.
-        endif
-
-        if (dirct /= 4) then
-            if (c%nBGCell(1)<nCell(1)) then
-                cc=>Cell(c%nBGCell(1)+1,c%nBGCell(2),c%nBGCell(3))
-                call PaintingAlgorithm(cc,1)
-            endif
-        endif
-        if (dirct /= 1) then
-            if (c%nBGCell(1)>1) then
-                cc=>Cell(c%nBGCell(1)-1,c%nBGCell(2),c%nBGCell(3))
-                call PaintingAlgorithm(cc,4)
-            endif
-        endif
-        if (dirct /= 5) then
-            if (c%nBGCell(2)<nCell(2)) then
-                cc=>Cell(c%nBGCell(1),c%nBGCell(2)+1,c%nBGCell(3))
-                call PaintingAlgorithm(cc,2)
-            endif
-        endif
-        if (dirct /= 2) then
-            if (c%nBGCell(2)>1) then
-                cc=>Cell(c%nBGCell(1),c%nBGCell(2)-1,c%nBGCell(3))
-                call PaintingAlgorithm(cc,5)
-            endif
-        endif
-        if (dirct /= 6) then
-            if (c%nBGCell(3)<nCell(3)) then
-                cc=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)+1)
-                call PaintingAlgorithm(cc,3)
-            endif
-        endif
-        if (dirct /= 3) then
-            if (c%nBGCell(3)>1) then
-                cc=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)-1)
-                call PaintingAlgorithm(cc,6)
-            endif
-        endif
-        endsubroutine PaintingAlgorithm
     endsubroutine GenerateBGMesh
 !======================================================================
     subroutine initSurfaceAdapt
     use ModMesh
     use ModMeshTools
     use ModInpMesh
+    use ModNeighbor
     implicit none
     type(octCell),pointer :: t
     integer :: i, j, k
 
-    do i = 1, nCell(1)
-    do j = 1, nCell(2)
-    do k = 1, nCell(3)
-        t=>Cell(i, j, k)
-        call SurfaceAdapt(t)
-    enddo
-    enddo
-    enddo
-        contains
+    select case (cIntersectMethod)
+    case (1)    ! Ray-cast with Painting Algorithm Method
+        do i = 1, nCell(1)
+        do j = 1, nCell(2)
+        do k = 1, nCell(3)
+            t       =>Cell(i,j,k)
+            if (CellCast(t)) then
+                t%cross = -3
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+            endif
+        enddo
+        enddo
+        enddo
+        ! Painting Algorithm Method
+        loop1:  do i = 1, nCell(1)
+                do j = 1, nCell(2)
+                do k = 1, nCell(3)
+                    t=>Cell(i,j,k)
+                    t%cross = CellInout(t)  ! return all
+                    if (t%cross==0) then
+                        call PaintingAlgorithm(NeighborX1(t),1)
+                        call PaintingAlgorithm(NeighborX2(t),4)
+                        call PaintingAlgorithm(NeighborY1(t),2)
+                        call PaintingAlgorithm(NeighborY2(t),5)
+                        call PaintingAlgorithm(NeighborZ1(t),3)
+                        call PaintingAlgorithm(NeighborZ2(t),6)
+                        exit loop1
+                    endif
+                enddo
+                enddo
+        enddo loop1
+        ! Close the Painting Algorithm Method
+        cIntersectMethod = 2
+    case (2)    ! Ray-cast only
+        do i = 1, nCell(1)
+        do j = 1, nCell(2)
+        do k = 1, nCell(3)
+            t       =>Cell(i,j,k)
+            if (CellCast(t)) then
+                t%cross = -3
+                t%cross = CellInout(t)
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+                t%cross = CellInout(t)
+            endif
+        enddo
+        enddo
+        enddo
+    case (3)    ! AABB with Painting Algorithm Method
+        do i = 1, nCell(1)
+        do j = 1, nCell(2)
+        do k = 1, nCell(3)
+            t       =>Cell(i,j,k)
+            if (AABB(t)) then
+                t%cross = -3
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+            endif
+        enddo
+        enddo
+        enddo
+        ! Painting Algorithm Method
+        loop2:  do i = 1, nCell(1)
+                do j = 1, nCell(2)
+                do k = 1, nCell(3)
+                    t=>Cell(i,j,k)
+                    t%cross = CellInout(t)
+                    if (t%cross==0) then
+                        call PaintingAlgorithm(NeighborX1(t),1)
+                        call PaintingAlgorithm(NeighborX2(t),4)
+                        call PaintingAlgorithm(NeighborY1(t),2)
+                        call PaintingAlgorithm(NeighborY2(t),5)
+                        call PaintingAlgorithm(NeighborZ1(t),3)
+                        call PaintingAlgorithm(NeighborZ2(t),6)
+                        exit loop2
+                    endif
+                enddo
+                enddo
+        enddo loop2
+        ! Close the Painting Algorithm Method
+        cIntersectMethod = 4
+    case (4)    ! AABB only
+        do i = 1, nCell(1)
+        do j = 1, nCell(2)
+        do k = 1, nCell(3)
+            t       =>Cell(i,j,k)
+            if (AABB(t)) then
+                t%cross = -3
+                t%cross = CellInout(t)
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+                t%cross = CellInout(t)
+            endif
+        enddo
+        enddo
+        enddo
+    end select
+
+
+    contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
-    implicit none
+        implicit none
         type(octCell),pointer :: c
         integer :: ii
 
         do ii=1,3
             if (c%lvl(ii) >= InitRefineLVL) return
         enddo
-        if (c%cross == 1 .or. c%cross ==2)then
+        if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3)then
             call NewCell(c,0)
             call SurfaceAdapt(c%son1)
             call SurfaceAdapt(c%son2)
@@ -1061,7 +1100,64 @@
             call SurfaceAdapt(c%son7)
             call SurfaceAdapt(c%son8)
         endif
-    endsubroutine SurfaceAdapt
+        endsubroutine SurfaceAdapt
+!----------------------------------------------------------------------
+        recursive subroutine PaintingAlgorithm(c,dirct)
+        implicit none
+        type(octCell),pointer :: c, cc ! c%cross=0, 
+        integer               :: dirct
+
+        if(ASSOCIATED(c%son8))then
+            call PaintingAlgorithm(c%son1,dirct)
+            call PaintingAlgorithm(c%son2,dirct)
+            call PaintingAlgorithm(c%son3,dirct)
+            call PaintingAlgorithm(c%son4,dirct)
+            call PaintingAlgorithm(c%son5,dirct)
+            call PaintingAlgorithm(c%son6,dirct)
+            call PaintingAlgorithm(c%son7,dirct)
+            call PaintingAlgorithm(c%son8,dirct)
+            return
+        elseif(ASSOCIATED(c%son4))then
+            call PaintingAlgorithm(c%son1,dirct)
+            call PaintingAlgorithm(c%son2,dirct)
+            call PaintingAlgorithm(c%son3,dirct)
+            call PaintingAlgorithm(c%son4,dirct)
+            return
+        elseif(ASSOCIATED(c%son2))then
+            call PaintingAlgorithm(c%son1,dirct)
+            call PaintingAlgorithm(c%son2,dirct)
+            return
+        endif
+
+        if (c%cross /=-3 .or. c%cross /=-4) return ! Cell has been paintted.
+        c%cross = CellInout(c)
+        if (c%cross == 3) return    ! Inside cell, return.
+
+        if (dirct /= 4) then
+            cc => NeighborX1(c)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,1)
+        endif
+        if (dirct /= 1) then
+            cc => NeighborX2(c)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,4)
+        endif
+        if (dirct /= 5) then
+            cc => NeighborY1(c)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,2)
+        endif
+        if (dirct /= 2) then
+            cc => NeighborY2(c)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,5)
+        endif
+        if (dirct /= 6) then
+            cc => NeighborZ1(c)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,3)
+        endif
+        if (dirct /= 3) then
+            cc => NeighborZ2(c)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6)
+        endif
+        endsubroutine PaintingAlgorithm
     endsubroutine initSurfaceAdapt
 !======================================================================
 !======================================================================

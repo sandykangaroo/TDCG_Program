@@ -120,7 +120,7 @@
                     0)          ! ShareConnectivityFromZone
         if (ios/=0) stop "Error value returned in TecZne142"
     do i=1,3
-    ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),1)
+    ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
         if (ios/=0) stop "Error value returned in TecDat142"
     enddo
     do i=1,nVars
@@ -163,7 +163,7 @@
     use ModOutput
     implicit none
     type(octCell),pointer :: c
-    real(R8):: step(3), tN(6) ! Temp-Nodes
+    real(R8):: dx, dy, dz, tN(6) ! Temp-Nodes
     logical :: Mark(8)
     integer :: ii
 
@@ -176,116 +176,119 @@
         call NodeInfo(c%son6)
         call NodeInfo(c%son7)
         call NodeInfo(c%son8)
+        return
     elseif(ASSOCIATED(c%son4))then
         call NodeInfo(c%son1)
         call NodeInfo(c%son2)
         call NodeInfo(c%son3)
         call NodeInfo(c%son4)
+        return
     elseif(ASSOCIATED(c%son2))then
         call NodeInfo(c%son1)
         call NodeInfo(c%son2)
-    else
-        Mark=.true.
-        do ii=1,3
-            step(ii)=BGCellSize(ii)/(2**(c%lvl(ii)+1))
-        enddo
-        ! Initial node number.
-        tN(1)=c%Center(1)-step(1)   ! x -
-        tN(2)=c%Center(2)-step(2)   ! y -
-        tN(3)=c%Center(3)-step(3)   ! z -
-        tN(4)=c%Center(1)+step(1)   ! x +
-        tN(5)=c%Center(2)+step(2)   ! y +
-        tN(6)=c%Center(3)+step(3)   ! z +
-        ! Nodes array in xyz:
-        ! 1 --- 2 +-- 3 ++- 4 -+- 5 --+ 6 +-+ 7 +++ 8 -++
-        ! do ii=1,nNodes
-        !     if (Nodes(ii,1)==tN(1)) then     ! x -
-        !         if (Nodes(ii,2)==tN(2)) then     ! y -
-        !             if (Nodes(ii,3)==tN(3)) then     ! z -
-        !                 c%Node(1)=ii; mark(1)=.false.          ! 1 ---
-        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
-        !                 c%Node(5)=ii; mark(5)=.false.          ! 5 --+
-        !             endif
-        !         elseif (Nodes(ii,2)==tN(5)) then ! y +
-        !             if (Nodes(ii,3)==tN(3)) then     ! z -
-        !                 c%Node(4)=ii; mark(4)=.false.          ! 4 -+-
-        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
-        !                 c%Node(8)=ii; mark(8)=.false.          ! 8 -++
-        !             endif
-        !         endif
-        !     elseif (Nodes(ii,1)==tN(4)) then ! x +
-        !         if (Nodes(ii,2)==tN(2)) then     ! y -
-        !             if (Nodes(ii,3)==tN(3)) then     ! z -
-        !                 c%Node(2)=ii; mark(2)=.false.          ! 2 +--
-        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
-        !                 c%Node(6)=ii; mark(6)=.false.          ! 6 +-+
-        !             endif
-        !         elseif (Nodes(ii,2)==tN(5)) then ! y +
-        !             if (Nodes(ii,3)==tN(3)) then     ! z -
-        !                 c%Node(3)=ii; mark(3)=.false.          ! 3 ++-
-        !             elseif (Nodes(ii,3)==tN(6)) then ! z +
-        !                 c%Node(7)=ii; mark(7)=.false.          ! 7 +++
-        !             endif
-        !         endif
-        !     endif
-        ! enddo
+        return
+    endif
 
-        if (mark(1)) then   ! Node 1 ---
-            nNodes=nNodes+1
-            c%Node(1)=nNodes
-            Nodes(nNodes,1)=tN(1)
-            Nodes(nNodes,2)=tN(2)
-            Nodes(nNodes,3)=tN(3)
-        endif
-        if (mark(2)) then   ! Node 2 +--
-            nNodes=nNodes+1
-            c%Node(2)=nNodes
-            Nodes(nNodes,1)=tN(4)
-            Nodes(nNodes,2)=tN(2)
-            Nodes(nNodes,3)=tN(3)
-        endif
-        if (mark(3)) then   ! Node 3 ++-
-            nNodes=nNodes+1
-            c%Node(3)=nNodes
-            Nodes(nNodes,1)=tN(4)
-            Nodes(nNodes,2)=tN(5)
-            Nodes(nNodes,3)=tN(3)
-        endif
-        if (mark(4)) then   ! Node 4 -+-
-            nNodes=nNodes+1
-            c%Node(4)=nNodes
-            Nodes(nNodes,1)=tN(1)
-            Nodes(nNodes,2)=tN(5)
-            Nodes(nNodes,3)=tN(3)
-        endif
-        if (mark(5)) then   ! Node 5 --+
-            nNodes=nNodes+1
-            c%Node(5)=nNodes
-            Nodes(nNodes,1)=tN(1)
-            Nodes(nNodes,2)=tN(2)
-            Nodes(nNodes,3)=tN(6)
-        endif
-        if (mark(6)) then   ! Node 6 +-+
-            nNodes=nNodes+1
-            c%Node(6)=nNodes
-            Nodes(nNodes,1)=tN(4)
-            Nodes(nNodes,2)=tN(2)
-            Nodes(nNodes,3)=tN(6)
-        endif
-        if (mark(7)) then   ! Node 7 +++
-            nNodes=nNodes+1
-            c%Node(7)=nNodes
-            Nodes(nNodes,1)=tN(4)
-            Nodes(nNodes,2)=tN(5)
-            Nodes(nNodes,3)=tN(6)
-        endif
-        if (mark(8)) then   ! Node 8 -++
-            nNodes=nNodes+1
-            c%Node(8)=nNodes
-            Nodes(nNodes,1)=tN(1)
-            Nodes(nNodes,2)=tN(5)
-            Nodes(nNodes,3)=tN(6)
-        endif
+    Mark=.true.
+    dx=BGCellSize(1)/2**(c%lvl(1)+1)
+    dy=BGCellSize(2)/2**(c%lvl(2)+1)
+    dz=BGCellSize(3)/2**(c%lvl(3)+1)
+    ! Initial node number.
+    tN(1)=c%Center(1)-dx   ! x -
+    tN(2)=c%Center(2)-dy   ! y -
+    tN(3)=c%Center(3)-dz   ! z -
+    tN(4)=c%Center(1)+dx   ! x +
+    tN(5)=c%Center(2)+dy   ! y +
+    tN(6)=c%Center(3)+dz   ! z +
+    ! Nodes array in xyz:
+    ! 1 --- 2 +-- 3 ++- 4 -+- 5 --+ 6 +-+ 7 +++ 8 -++
+    ! do ii=1,nNodes
+    !     if (Nodes(ii,1)==tN(1)) then     ! x -
+    !         if (Nodes(ii,2)==tN(2)) then     ! y -
+    !             if (Nodes(ii,3)==tN(3)) then     ! z -
+    !                 c%Node(1)=ii; mark(1)=.false.          ! 1 ---
+    !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+    !                 c%Node(5)=ii; mark(5)=.false.          ! 5 --+
+    !             endif
+    !         elseif (Nodes(ii,2)==tN(5)) then ! y +
+    !             if (Nodes(ii,3)==tN(3)) then     ! z -
+    !                 c%Node(4)=ii; mark(4)=.false.          ! 4 -+-
+    !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+    !                 c%Node(8)=ii; mark(8)=.false.          ! 8 -++
+    !             endif
+    !         endif
+    !     elseif (Nodes(ii,1)==tN(4)) then ! x +
+    !         if (Nodes(ii,2)==tN(2)) then     ! y -
+    !             if (Nodes(ii,3)==tN(3)) then     ! z -
+    !                 c%Node(2)=ii; mark(2)=.false.          ! 2 +--
+    !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+    !                 c%Node(6)=ii; mark(6)=.false.          ! 6 +-+
+    !             endif
+    !         elseif (Nodes(ii,2)==tN(5)) then ! y +
+    !             if (Nodes(ii,3)==tN(3)) then     ! z -
+    !                 c%Node(3)=ii; mark(3)=.false.          ! 3 ++-
+    !             elseif (Nodes(ii,3)==tN(6)) then ! z +
+    !                 c%Node(7)=ii; mark(7)=.false.          ! 7 +++
+    !             endif
+    !         endif
+    !     endif
+    ! enddo
+
+    if (mark(1)) then   ! Node 1 ---
+        nNodes=nNodes+1
+        c%Node(1)=nNodes
+        Nodes(nNodes,1)=tN(1)
+        Nodes(nNodes,2)=tN(2)
+        Nodes(nNodes,3)=tN(3)
+    endif
+    if (mark(2)) then   ! Node 2 +--
+        nNodes=nNodes+1
+        c%Node(2)=nNodes
+        Nodes(nNodes,1)=tN(4)
+        Nodes(nNodes,2)=tN(2)
+        Nodes(nNodes,3)=tN(3)
+    endif
+    if (mark(3)) then   ! Node 3 ++-
+        nNodes=nNodes+1
+        c%Node(3)=nNodes
+        Nodes(nNodes,1)=tN(4)
+        Nodes(nNodes,2)=tN(5)
+        Nodes(nNodes,3)=tN(3)
+    endif
+    if (mark(4)) then   ! Node 4 -+-
+        nNodes=nNodes+1
+        c%Node(4)=nNodes
+        Nodes(nNodes,1)=tN(1)
+        Nodes(nNodes,2)=tN(5)
+        Nodes(nNodes,3)=tN(3)
+    endif
+    if (mark(5)) then   ! Node 5 --+
+        nNodes=nNodes+1
+        c%Node(5)=nNodes
+        Nodes(nNodes,1)=tN(1)
+        Nodes(nNodes,2)=tN(2)
+        Nodes(nNodes,3)=tN(6)
+    endif
+    if (mark(6)) then   ! Node 6 +-+
+        nNodes=nNodes+1
+        c%Node(6)=nNodes
+        Nodes(nNodes,1)=tN(4)
+        Nodes(nNodes,2)=tN(2)
+        Nodes(nNodes,3)=tN(6)
+    endif
+    if (mark(7)) then   ! Node 7 +++
+        nNodes=nNodes+1
+        c%Node(7)=nNodes
+        Nodes(nNodes,1)=tN(4)
+        Nodes(nNodes,2)=tN(5)
+        Nodes(nNodes,3)=tN(6)
+    endif
+    if (mark(8)) then   ! Node 8 -++
+        nNodes=nNodes+1
+        c%Node(8)=nNodes
+        Nodes(nNodes,1)=tN(1)
+        Nodes(nNodes,2)=tN(5)
+        Nodes(nNodes,3)=tN(6)
     endif
     endsubroutine NodeInfo
 !----------------------------------------------------------------------
