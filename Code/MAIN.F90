@@ -85,6 +85,7 @@
     call CPU_TIME(tStart)
     if (Restart) return
     call GenerateBGMesh
+    call initFindNeighbor
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
     call GetMinDistance

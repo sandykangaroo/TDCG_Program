@@ -109,7 +109,7 @@
 !         end type triangle
     
 ! Cartesian grid data structure
-! nBGCell    = number of the back-ground cells (root node) 
+! nBGCell    = number of the back-ground cells (root node)
 ! nCell      = number of the cells (leaf node) 
 ! levelx     = x-direct level
 ! levely     = y-direct level
