@@ -15,7 +15,7 @@
         cf=>c%father
         
         if(.not.associated(cf))then
-            if(c%nBGCell(1)==0)then
+            if(c%nBGCell(1)==1)then
                 Neighbor=>null()
             else
                 Neighbor=>Cell(c%nBGCell(1)-1,c%nBGCell(2),c%nBGCell(3))
@@ -552,7 +552,7 @@
         cf=>c%father
         
         if(.not.associated(cf))then
-            if(c%nBGCell(2)==0)then
+            if(c%nBGCell(2)==1)then
                 Neighbor=>null()
             else
                 Neighbor=>Cell(c%nBGCell(1),c%nBGCell(2)-1,c%nBGCell(3))
@@ -1090,7 +1090,7 @@
         cf=>c%father
         
         if(.not.associated(cf))then
-            if(c%nBGCell(3)==0)then
+            if(c%nBGCell(3)==1)then
                 Neighbor=>null()
             else
                 Neighbor=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)-1)

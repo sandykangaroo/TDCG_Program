@@ -244,6 +244,7 @@
             type(KDT_node),pointer:: node
             logical               :: aaa
             type(typKDTtree), pointer   :: tp => null()
+            integer                     :: ng, i
             
             aaa=.false.
             boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
