@@ -25,7 +25,7 @@ $Mesh
     nCell = 10, 10, 10,
     DomainMin = -200.0, -200.0, -200.0,
     DomainMax =  200.0,  200.0,  200.0,
-    InitRefineLVL = 5, AdaptRefineLVL  =  2,
+    InitRefineLVL = 2, AdaptRefineLVL  =  2,
     cIntersectMethod = 4
 $END
 
