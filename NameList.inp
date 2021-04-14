@@ -7,7 +7,7 @@ $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
     Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/body',
+    GeometryName  = './Data/sphere_408394_',
     OutputNameStr = './Data/test',
     OutputFormat  = '.dat'
 $END
@@ -20,9 +20,12 @@ $END
 ! cIntersectMethod  = 1 Ray-cast intersect 2 AABB
 $Mesh
     nCell = 20, 20, 20,
-    DomainMin = -1000.0, -100.0, 70.0,
-    DomainMax =  -350.0,  100.0,  280.0,
-    InitRefineLVL = 5, AdaptRefineLVL  =  2,
+!   DomainMin = -1000.0, -100.0, 70.0,
+!   DomainMax =  -350.0,  100.0,  280.0,
+	DomainMin = -2000.0, -2000.0, -2000.0,
+    DomainMax = 2000.0,  2000.0,  2000.0,
+	
+    InitRefineLVL = 3, AdaptRefineLVL  =  2,
     cIntersectMethod = 2
     PaintingAlgorithmMethod = .False.
 $END

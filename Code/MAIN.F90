@@ -50,7 +50,6 @@
     call TDCGRead
     call TDCGPerporcessing
     call TDCGMesh
-    call AABBtime
     call TDCGInitAll
     call TDCGSolver
         call TDCGOutput('OK')
@@ -108,31 +107,6 @@
     TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
-    subroutine AABBtime
-    use ModMesh
-    use ModInpGlobal
-    use ModTime
-    use ModMeshTools
-    use ModInpMesh
-    implicit none
-    
-    integer :: i, j, k
-    type(octCell),pointer :: t
-    
-    call CPU_TIME(tStart)
-    do i = 1, nCell(1)
-    do j = 1, nCell(2)
-    do k = 1, nCell(3)
-        t=>Cell(i, j, k)
-        t%cross=initCellIntersect(t)
-    enddo
-    enddo
-    enddo
-    call CPU_TIME(tEnd)
-    print*,"AABB time: ", tEnd-tStart
-    
-    end subroutine AABBtime
-    
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
     use ModInpGlobal

@@ -49,8 +49,7 @@
         real(R8)                           :: aa
 
         n = size(res)
-        allocate(td)
-        allocate(td%the_data)
+        allocate(td,td%the_data)
         mid = (1+n)/2
         td%level = depth
         td%parent => p
@@ -79,20 +78,22 @@
                 td%right => build_tree(resB, pt, b, depth2)
             end if
         else
-!KDT find the most_spread_direction and define it as split direction 
-        !call find_split_direction(res, td%splitaxis)
-       
-!ADT define the split direction alternative     
-        if ( mod(td%level,3) == 1 ) then
-            td%splitaxis = 1
-        else if ( mod(td%level,3) == 2 ) then
-            td%splitaxis = 2
-        else if ( mod(td%level,3) == 0 ) then
-             td%splitaxis = 3
-        end if
-  !     re-sort
-            call sort_under_split_direction(res, td%splitaxis)
-            td%the_data = res(mid)
+!-------------------------------------------------------------------------------
+!find the most_spread_direction and define it as split direction 
+        call find_split_direction(res, td%splitaxis)
+        
+!-------------------------------------------------------------------------------        
+!define the split direction alternative     
+        !if ( mod(td%level,3) == 1 ) then
+        !    td%splitaxis = 1
+        !else if ( mod(td%level,3) == 2 ) then
+        !    td%splitaxis = 2
+        !else if ( mod(td%level,3) == 0 ) then
+        !     td%splitaxis = 3
+        !end if
+!-------------------------------------------------------------------------------            
+        call sort_under_split_direction(res, td%splitaxis)
+        td%the_data = res(mid)
 !       build left child 
             resB => res(1:mid - 1)
             if ( td%splitaxis == 1 ) then       
@@ -152,12 +153,12 @@
     end function build_tree
 !----------------------------------------------------------------------
 
-    subroutine  find_split_direction(res, split)
+    subroutine  find_split_direction(res, splitdirection)
     ! find the most_spread_direction and define it as split direction
     ! .. Input Arguments .. 
         type(triangle), pointer                :: res(:)  ! 
     ! .. Output Arguments .. 
-        integer                                :: split    ! split direction, =1, x; =2, y; =3, z. 
+        integer                                :: splitdirection    ! split direction, =1, x; =2, y; =3, z. 
     ! .. Local Arguments ..        
         integer                                :: n, j
         real(R8)                             :: summ(3), average(3), variance(3), var
@@ -179,7 +180,7 @@
         do j = 1, 3
             if (variance(j) > var) then
                 var = variance(j)
-                split = j
+                splitdirection = j
             end if
         end do
 !        write(*,*) variance, split
