@@ -659,14 +659,20 @@
         V2 = tri(3)%P-tri(1)%P
 
         ! Parallel identify
-        P = CROSS_PRODUCT_3(V1,V2)
+        P(1) = V1(2)*V2(3)-V1(3)*V2(2)
+        P(2) = V1(3)*V2(1)-V1(1)*V2(3)
+        P(3) = V1(1)*V2(2)-V1(2)*V2(1)
         t = DOT_PRODUCT(D,P)
         if (t==0) then  ! Parallel
             MollerTrumbore=0; return
         endif
 
-        P = CROSS_PRODUCT_3(D,V2)
-        Q = CROSS_PRODUCT_3(V0,V1)
+        P(1) = D(2)*V2(3)-D(3)*V2(2)
+        P(2) = D(3)*V2(1)-D(1)*V2(3)
+        P(3) = D(1)*V2(2)-D(2)*V2(1)
+        Q(1) = V0(2)*V1(3)-V0(3)*V1(2)
+         Q(1) = V0(3)*V1(1)-V0(1)*V1(3)
+        Q(1) = V0(1)*V1(2)-V0(2)*V1(1)
         A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
         t = DOT_PRODUCT(Q,V2)
         u = DOT_PRODUCT(P,V0)
@@ -682,6 +688,7 @@
         endfunction MollerTrumbore
 !----------------------------------------------------------------------
         subroutine NewCell(c,split)
+        use ModInpGlobal
         use ModNeighbor
         ! Called by: many
         ! Calls    : initNeighbor
@@ -690,10 +697,12 @@
         type(octCell),pointer :: c
         real(R8)              :: x, y, z, dx, dy, dz
 
+        if (.not.Aniso) goto 10
         select case (split)
         case (0)
+10          continue
             ALLOCATE( c%son1, c%son2, c%son3, c%son4,   &
-                      c%son5, c%son6, c%son7, c%son8 )
+                    c%son5, c%son6, c%son7, c%son8 )
             c%son1%nBGCell=c%nBGCell
             c%son2%nBGCell=c%nBGCell
             c%son3%nBGCell=c%nBGCell
@@ -743,6 +752,14 @@
             c%son6%Node=0
             c%son7%Node=0
             c%son8%Node=0
+            c%son1%Mark        = .false.
+            c%son2%Mark        = .false.
+            c%son3%Mark        = .false.
+            c%son4%Mark        = .false.
+            c%son5%Mark        = .false.
+            c%son6%Mark        = .false.
+            c%son7%Mark        = .false.
+            c%son8%Mark        = .false.
             x=c%Center(1); y=c%Center(2); z=c%Center(3)
             dx=BGCellSize(1)/2**(c%lvl(1)+2)
             dy=BGCellSize(2)/2**(c%lvl(2)+2)
@@ -763,7 +780,7 @@
             c%son6%U=c%U
             c%son7%U=c%U
             c%son8%U=c%U
-            if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3) then
+            if (c%cross==1 .or. c%cross==2 .or. c%cross==-3) then
                 call initCellCross(c%son1)
                 call initCellCross(c%son2)
                 call initCellCross(c%son3)
@@ -798,6 +815,7 @@
             call NullifyCell(c%son6)
             call NullifyCell(c%son7)
             call NullifyCell(c%son8)
+            return
         case (1:3)
             ALLOCATE(c%son1,c%son2)
             c%son1%nBGCell=c%nBGCell
@@ -811,6 +829,8 @@
             c%son2%Location=2
             c%son1%Node=0
             c%son2%Node=0
+            c%son1%Mark        = .false.
+            c%son2%Mark        = .false.
             x=c%Center(1); y=c%Center(2); z=c%Center(3)
             dx=BGCellSize(1)/2**(c%lvl(1)+2)
             dy=BGCellSize(2)/2**(c%lvl(2)+2)
@@ -834,7 +854,7 @@
             end select
             c%son1%U=c%U
             c%son2%U=c%U
-            if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3) then
+            if (c%cross==1 .or. c%cross==2 .or. c%cross==-3) then
                 call initCellCross(c%son1)
                 call initCellCross(c%son2)
             else
@@ -845,6 +865,7 @@
             c%son2%Father=>c
             call NullifyCell(c%son1)
             call NullifyCell(c%son2)
+            return
         case (4:6)
             ALLOCATE(c%son1,c%son2,c%son3,c%son4)
             c%son1%nBGCell=c%nBGCell
@@ -868,6 +889,10 @@
             c%son2%Node=0
             c%son3%Node=0
             c%son4%Node=0
+            c%son1%Mark        = .false.
+            c%son2%Mark        = .false.
+            c%son3%Mark        = .false.
+            c%son4%Mark        = .false.
             x=c%Center(1); y=c%Center(2); z=c%Center(3)
             dx=BGCellSize(1)/2**(c%lvl(1)+2)
             dy=BGCellSize(2)/2**(c%lvl(2)+2)
@@ -905,7 +930,7 @@
             c%son2%U=c%U
             c%son3%U=c%U
             c%son4%U=c%U
-            if (c%cross == 1 .or. c%cross == 2 .or. c%cross == -3) then
+            if (c%cross==1 .or. c%cross==2 .or. c%cross==-3) then
                 call initCellCross(c%son1)
                 call initCellCross(c%son2)
                 call initCellCross(c%son3)
@@ -924,12 +949,14 @@
             call NullifyCell(c%son2)
             call NullifyCell(c%son3)
             call NullifyCell(c%son4)
+            return
         end select
         endsubroutine NewCell
 !----------------------------------------------------------------------
-        subroutine DeletCell(c)
+        subroutine DeletCell(c,split)
         implicit none
         type(octCell),pointer :: c
+        integer(I4),INTENT(IN):: split
         endsubroutine DeletCell
 !----------------------------------------------------------------------
         subroutine NullifyCell(c)
@@ -941,6 +968,33 @@
                 c%NeighborX1, c%NeighborX2, c%NeighborY1,       &
                 c%NeighborY2, c%NeighborZ1, c%NeighborZ2)
         endsubroutine NullifyCell
+!----------------------------------------------------------------------
+        recursive subroutine InitialCellMark(c)
+        implicit none
+        type(octCell),pointer :: c
+        if(ASSOCIATED(c%son8))then
+            call InitialCellMark(c%son1)
+            call InitialCellMark(c%son2)
+            call InitialCellMark(c%son3)
+            call InitialCellMark(c%son4)
+            call InitialCellMark(c%son5)
+            call InitialCellMark(c%son6)
+            call InitialCellMark(c%son7)
+            call InitialCellMark(c%son8)
+            return
+        elseif(ASSOCIATED(c%son4))then
+            call InitialCellMark(c%son1)
+            call InitialCellMark(c%son2)
+            call InitialCellMark(c%son3)
+            call InitialCellMark(c%son4)
+            return
+        elseif(ASSOCIATED(c%son2))then
+            call InitialCellMark(c%son1)
+            call InitialCellMark(c%son2)
+            return
+        endif
+        c%mark=.false.
+        endsubroutine InitialCellMark
 !----------------------------------------------------------------------
     end module ModMeshTools
 !======================================================================
@@ -968,6 +1022,7 @@
             t%fSplitType  = 0
             t%Location    = 0
             t%Node        = 0
+            t%Mark        = .false.
             t%Center      = (/DomainMin(1)+(i-0.5)*BGCellSize(1),   &
                               DomainMin(2)+(j-0.5)*BGCellSize(2),   &
                               DomainMin(3)+(k-0.5)*BGCellSize(3)/)
@@ -1269,30 +1324,119 @@
     endsubroutine initSurfaceAdapt
 !======================================================================
     subroutine initSmoothMesh
+    use ModPrecision
     use ModMesh
     use ModTypDef
     use ModMeshTools
     use ModInpMesh
     implicit none
     type(octCell),POINTER :: t
-    integer               :: i, j, k
+    integer               :: i, j, k, ii
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
 
-    do k = 1, nCell(3)
-    do j = 1, nCell(2)
-    do i = 1, nCell(1)
-        t=>Cell(i, j, k)
-        call SmoothMesh(t)
+    call CPU_TIME(tStart)
+    do ii=1, InitRefineLVL+5
+
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t=>Cell(i, j, k)
+            call InitialCellMark(t)
+        enddo
+        enddo
+        enddo
+        
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t=>Cell(i, j, k)
+            call PreSmoothMesh(t)
+        enddo
+        enddo
+        enddo
+
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t=>Cell(i, j, k)
+            call SmoothMesh(t)
+        enddo
+        enddo
+        enddo
+
+        call initFindNeighbor
+
     enddo
-    enddo
-    enddo
+    call CPU_TIME(tEnd)
+    print*,"Smooth Mesh time: ", tEnd-tStart
     contains
+!----------------------------------------------------------------------
+        recursive subroutine PreSmoothMesh(c)
+        implicit none
+        type(octCell),POINTER :: c
+        ! mark(6)  1 x refine; 2 y refine; 3 z refine; 
+        !          4 x coarse; 5 y coarse; 6 z coarse; 
+        if(ASSOCIATED(c%son8))then
+            call PreSmoothMesh(c%son1)
+            call PreSmoothMesh(c%son2)
+            call PreSmoothMesh(c%son3)
+            call PreSmoothMesh(c%son4)
+            call PreSmoothMesh(c%son5)
+            call PreSmoothMesh(c%son6)
+            call PreSmoothMesh(c%son7)
+            call PreSmoothMesh(c%son8)
+            return
+        elseif(ASSOCIATED(c%son4))then
+            call PreSmoothMesh(c%son1)
+            call PreSmoothMesh(c%son2)
+            call PreSmoothMesh(c%son3)
+            call PreSmoothMesh(c%son4)
+            return
+        elseif(ASSOCIATED(c%son2))then
+            call PreSmoothMesh(c%son1)
+            call PreSmoothMesh(c%son2)
+            return
+        endif
+
+        if (ASSOCIATED(c%NeighborX1)) then
+            if (c%NeighborX1%lvl(1)+1<c%lvl(1)) c%NeighborX1%mark(1)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborX2)) then
+            if (c%NeighborX2%lvl(1)+1<c%lvl(1)) c%NeighborX2%mark(1)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborY1)) then
+            if (c%NeighborY1%lvl(2)+1<c%lvl(2)) c%NeighborY1%mark(2)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborY2)) then
+            if (c%NeighborY2%lvl(2)+1<c%lvl(2)) c%NeighborY2%mark(2)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborZ1)) then
+            if (c%NeighborZ1%lvl(3)+1<c%lvl(3)) c%NeighborZ1%mark(3)=.true.
+        endif
+        if (ASSOCIATED(c%NeighborZ2)) then
+            if (c%NeighborZ2%lvl(3)+1<c%lvl(3)) c%NeighborZ2%mark(3)=.true.
+        endif
+        ! Hole Cell
+        ! if (.not.mark(1)) then
+        !     if (ASSOCIATED(c%NeighborX1).and.ASSOCIATED(c%NeighborX2))then
+        !         if (c%NeighborX1%lvl(1)>c%lvl(1) .and. &
+        !             c%NeighborX2%lvl(1)>c%lvl(1)) then
+        !             mark(1)=.true.
+        !         elseif (c%NeighborX1%lvl(1)<c%lvl(1) .and. &
+        !             c%NeighborX2%lvl(1)<c%lvl(1)) then
+        !             mark(4)=.true.
+        !         endif
+        !     endif
+        ! endif
+        endsubroutine PreSmoothMesh
 !----------------------------------------------------------------------
         recursive subroutine SmoothMesh(c)
         implicit none
         type(octCell),POINTER :: c
-        logical               :: mark(6)
         ! mark(6)  1 x refine; 2 y refine; 3 z refine; 
         !          4 x coarse; 5 y coarse; 6 z coarse; 
+        if (maxval(c%lvl)>=InitRefineLVL) return
         if(ASSOCIATED(c%son8))then
             call SmoothMesh(c%son1)
             call SmoothMesh(c%son2)
@@ -1315,80 +1459,40 @@
             return
         endif
 
-        ! Cell LVL > 1
-        if (ASSOCIATED(c%NeighborX1)) then
-            if (c%lvl(1)+1<c%NeighborX1%lvl(1)) mark(1)=.true.
-        endif
-        if (ASSOCIATED(c%NeighborX2)) then
-            if (c%lvl(1)+1<c%NeighborX2%lvl(1)) mark(2)=.true.
-        endif
-        if (ASSOCIATED(c%NeighborY1)) then
-            if (c%lvl(2)+1<c%NeighborY1%lvl(2)) mark(3)=.true.
-        endif
-        if (ASSOCIATED(c%NeighborY2)) then
-            if (c%lvl(2)+1<c%NeighborY2%lvl(2)) mark(1)=.true.
-        endif
-        if (ASSOCIATED(c%NeighborZ1)) then
-            if (c%lvl(3)+1<c%NeighborZ1%lvl(3)) mark(2)=.true.
-        endif
-        if (ASSOCIATED(c%NeighborZ2)) then
-            if (c%lvl(3)+1<c%NeighborZ2%lvl(3)) mark(3)=.true.
-        endif
-
-        ! Hole Cell
-        ! if (.not.mark(1)) then
-        !     if (ASSOCIATED(c%NeighborX1).and.ASSOCIATED(c%NeighborX2))then
-        !         if (c%NeighborX1%lvl(1)>c%lvl(1) .and. &
-        !             c%NeighborX2%lvl(1)>c%lvl(1)) then
-        !             mark(1)=.true.
-        !         elseif (c%NeighborX1%lvl(1)<c%lvl(1) .and. &
-        !             c%NeighborX2%lvl(1)<c%lvl(1)) then
-        !             mark(4)=.true.
-        !         endif
-        !     endif
-        ! endif
-        if     ( mark(1) .and. mark(2) .and. mark(3) ) then
+        ! Refine
+        if     ( c%mark(1) .and. c%mark(2) .and. c%mark(3) ) then
             call NewCell(c,0)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-            call SmoothMesh(c%son3)
-            call SmoothMesh(c%son4)
-            call SmoothMesh(c%son5)
-            call SmoothMesh(c%son6)
-            call SmoothMesh(c%son7)
-            call SmoothMesh(c%son8)
-        elseif ( mark(1) .and. .not.mark(2) .and. .not.mark(3) ) then
+        elseif ( c%mark(1) .and. .not.c%mark(2) .and. .not.c%mark(3) ) then
             call NewCell(c,1)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-        elseif ( .not.mark(1) .and. mark(2) .and. .not.mark(3) ) then
+        elseif ( .not.c%mark(1) .and. c%mark(2) .and. .not.c%mark(3) ) then
             call NewCell(c,2)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-        elseif ( .not.mark(1) .and. .not.mark(2) .and. mark(3) ) then
+        elseif ( .not.c%mark(1) .and. .not.c%mark(2) .and. c%mark(3) ) then
             call NewCell(c,3)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-        elseif ( mark(1) .and. mark(2) .and. .not.mark(3) ) then
+        elseif ( c%mark(1) .and. c%mark(2) .and. .not.c%mark(3) ) then
             call NewCell(c,4)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-            call SmoothMesh(c%son3)
-            call SmoothMesh(c%son4)
-        elseif ( mark(1) .and. .not.mark(2) .and. mark(3) ) then
+        elseif ( c%mark(1) .and. .not.c%mark(2) .and. c%mark(3) ) then
             call NewCell(c,5)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-            call SmoothMesh(c%son3)
-            call SmoothMesh(c%son4)
-        elseif ( .not.mark(1) .and. mark(2) .and. mark(3) ) then
+        elseif ( .not.c%mark(1) .and. c%mark(2) .and. c%mark(3) ) then
             call NewCell(c,6)
-            call SmoothMesh(c%son1)
-            call SmoothMesh(c%son2)
-            call SmoothMesh(c%son3)
-            call SmoothMesh(c%son4)
+        ! Coarse
+        ! TODO
+        ! elseif ( c%mark(4) .and. c%mark(5) .and. c%mark(6) ) then
+        !     call DeletCell(c,0)
+        ! elseif ( c%mark(4) .and. .not.c%mark(5) .and. .not.c%mark(6) ) then
+        !     call DeletCell(c,1)
+        ! elseif ( .not.c%mark(4) .and. c%mark(5) .and. .not.c%mark(6) ) then
+        !     call DeletCell(c,2)
+        ! elseif ( .not.c%mark(4) .and. .not.c%mark(5) .and. c%mark(6) ) then
+        !     call DeletCell(c,3)
+        ! elseif ( c%mark(4) .and. c%mark(5) .and. .not.c%mark(6) ) then
+        !     call DeletCell(c,4)
+        ! elseif ( c%mark(4) .and. .not.c%mark(5) .and. c%mark(6) ) then
+        !     call DeletCell(c,5)
+        ! elseif ( .not.c%mark(4) .and. c%mark(5) .and. c%mark(6) ) then
+        !     call DeletCell(c,6)
         endif
         endsubroutine SmoothMesh
+!----------------------------------------------------------------------
     endsubroutine initSmoothMesh
 !======================================================================
 !======================================================================

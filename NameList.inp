@@ -22,11 +22,11 @@ $END
 !                     3 AABB Painting Algorithm
 !                     4 AABB
 $Mesh
-    nCell = 20, 20, 20,
+    nCell = 10, 10, 10,
     DomainMin = -200.0, -200.0, -200.0,
     DomainMax =  200.0,  200.0,  200.0,
-    InitRefineLVL = 2, AdaptRefineLVL  =  2,
-    cIntersectMethod = 3
+    InitRefineLVL = 5, AdaptRefineLVL  =  2,
+    cIntersectMethod = 4
 $END
 
 $NRRset

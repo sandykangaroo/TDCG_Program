@@ -39,7 +39,6 @@
 !======================================================================
 !======================================================================
     program TDCGmain
-    use ModTime
     use ModPrecision
     implicit none
     real(R8):: tProgramStart
@@ -76,9 +75,13 @@
     endsubroutine TDCGPerporcessing
 !======================================================================
     subroutine TDCGMesh
+    use ModPrecision
     use ModInpGlobal
-    use ModTime
+    use ModInpMesh
     implicit none
+    integer::i
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
 
     print*,'Generating mesh......'
 
@@ -87,11 +90,12 @@
     call GenerateBGMesh
     call initFindNeighbor
     call initSurfaceAdapt
+    call initSmoothMesh
     call CPU_TIME(tEnd)
     call GetMinDistance
 
     print*,'Done'
-    print*,"Mesh generation time: ", tEnd-tStart
+    print*,"Total Mesh generation time: ", tEnd-tStart
 
     end subroutine TDCGMesh
 !======================================================================
@@ -109,13 +113,14 @@
     end subroutine TDCGSolver
 !======================================================================
     subroutine AABBtime
+    use ModPrecision
     use ModMesh
     use ModInpGlobal
-    use ModTime
     use ModMeshTools
     use ModInpMesh
     implicit none
-    
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
     integer :: i, j, k
     type(octCell),pointer :: t
     
@@ -135,10 +140,12 @@
     
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
+    use ModPrecision
     use ModInpGlobal
-    use ModTime
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
     if (OutputFormat=='.plt') then
