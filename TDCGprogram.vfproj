@@ -60,7 +60,7 @@
 		<File RelativePath=".\Code\MAIN.F90"/>
 		<File RelativePath=".\Code\MESH.F90"/>
 		<File RelativePath=".\Code\MODULE.F90"/>
-		<File RelativePath=".\Code\Neighbor.f90"/>
+		<File RelativePath=".\Code\NEIGHBOR.F90"/>
 		<File RelativePath=".\Code\OUTPUT.F90"/>
 		<File RelativePath=".\Code\PERPORCESSING.F90"/>
 		<File RelativePath=".\Code\READ.F90"/>

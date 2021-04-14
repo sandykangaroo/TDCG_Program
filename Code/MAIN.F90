@@ -39,7 +39,6 @@
 !======================================================================
 !======================================================================
     program TDCGmain
-    use ModTime
     use ModPrecision
     implicit none
     real(R8):: tProgramStart
@@ -75,23 +74,28 @@
     endsubroutine TDCGPerporcessing
 !======================================================================
     subroutine TDCGMesh
+    use ModPrecision
     use ModInpGlobal
-    use ModTime
+    use ModInpMesh
     implicit none
+    integer::i
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
 
     print*,'Generating mesh......'
+
     call CPU_TIME(tStart)
     if (Restart) return
         call GenerateBGMesh
+    call initFindNeighbor
+    call initSurfaceAdapt
+    call initSmoothMesh
     call CPU_TIME(tEnd)
-    print*,"Subroutine-BGMeshCross time: ", tEnd-tStart
     call GetMinDistance
 
-    call CPU_TIME(tStart)
-        call initSurfaceAdapt
-    call CPU_TIME(tEnd)
-    print*,"Subroutine-SurfaceAdapt time: ", tEnd-tStart
     print*,'Done'
+    print*,"Total Mesh generation time: ", tEnd-tStart
+
     end subroutine TDCGMesh
 !======================================================================
     subroutine TDCGInitAll
@@ -107,12 +111,40 @@
     TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
+    subroutine AABBtime
+    use ModPrecision
+    use ModMesh
+    use ModInpGlobal
+    use ModMeshTools
+    use ModInpMesh
+    implicit none
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
+    integer :: i, j, k
+    type(octCell),pointer :: t
+    
+    call CPU_TIME(tStart)
+    do k = 1, nCell(3)
+    do j = 1, nCell(2)
+    do i = 1, nCell(1)
+        t=>Cell(i, j, k)
+        call initCellCross(t)
+    enddo
+    enddo
+    enddo
+    call CPU_TIME(tEnd)
+    print*,"AABB time: ", tEnd-tStart
+    
+    end subroutine AABBtime
+    
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
+    use ModPrecision
     use ModInpGlobal
-    use ModTime
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
     if (OutputFormat=='.plt') then

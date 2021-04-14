@@ -12,8 +12,7 @@
                         NRR, Chimera, Limiter, Restart, nGeometry,    &
                         OutputNameStr, GeometryName, OutputFormat
     NAMELIST /Mesh/     nCell, DomainMin, DomainMax, InitRefineLVL,       &
-                        AdaptRefineLVL, cIntersectMethod,             &
-                        PaintingAlgorithmMethod
+                        AdaptRefineLVL, cIntersectMethod
     NAMELIST /NRRset/   NRRSeed, NRRLength, NRRTheta
     NAMELIST /Inflow/   Alpha, Beta, Re, T00, Ma00, Gama00, Rgas
 

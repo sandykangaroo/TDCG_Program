@@ -9,7 +9,7 @@ $Global
     Limiter = 1, Restart = .f., nGeometry = 1,
     GeometryName  = './Data/sphere_408394_',
     OutputNameStr = './Data/test',
-    OutputFormat  = '.dat'
+    OutputFormat  = '.plt'
 $END
 
 ! nCell
@@ -17,7 +17,10 @@ $END
 ! DomainMax          maxSize
 ! InitRefineLVL     It is also the maximum LVL
 ! AdaptRefineLVL
-! cIntersectMethod  = 1 Ray-cast intersect 2 AABB
+! cIntersectMethod  = 1 Ray-cast Painting Algorithm
+!                     2 Ray-cast
+!                     3 AABB Painting Algorithm
+!                     4 AABB
 $Mesh
     nCell = 20, 20, 20,
 !   DomainMin = -1000.0, -100.0, 70.0,

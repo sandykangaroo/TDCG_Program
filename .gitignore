@@ -1,15 +1,15 @@
 .vs/
-Data/
 Release/
-doc/
 neighbor/
-test*/
 x64/
 Debug/
 .gitattributes
+*.u2d
 *.mod
 *.exe
-*.suo
+Data/*.*
+Data/*/
+~*.*
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
@@ -294,3 +294,4 @@ TSWLatexianTemp*
 # option is specified. Footnotes are the stored in a file with suffix Notes.bib.
 # Uncomment the next line to have this generated file ignored.
 #*Notes.bib
+.vs/TDCGprogram/v16/.suo

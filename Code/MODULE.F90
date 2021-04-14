@@ -1,6 +1,4 @@
 !======================================================================
-!
-!======================================================================
     module ModPrecision
         implicit none
         integer,parameter::R4=4
@@ -39,7 +37,6 @@
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
-        logical :: PaintingAlgorithmMethod
     end module ModInpMesh
 !----------------------------------------------------------------------
     module ModInpInflow
@@ -61,6 +58,12 @@
         real(R8):: NRRLength
         real(R8):: NRRTheta
     end module ModInpNRRset
+!======================================================================
+    module ModGlobal
+        use ModPrecision
+        implicit none
+        integer :: ProcessLocation
+    end module ModGlobal
 !======================================================================
 ! Define dynamic data structure
     module ModTypDef
@@ -106,13 +109,15 @@
 !         end type triangle
     
 ! Cartesian grid data structure
-! nBGCell    = number of the back-ground cells (root node) 
+! nBGCell    = number of the back-ground cells (root node)
 ! nCell      = number of the cells (leaf node) 
 ! levelx     = x-direct level
 ! levely     = y-direct level
 ! levelz     = z-direct level
 ! cross      relationship between cell and the object surface.
-!            = -5 Initial or inside.
+!            = -5 Initial
+!            = -4 Not intersect cell.
+!            = -3 Intersect cell.
 !            =  0 Cell outside the object surface.
 !            =  1 Intersect while cell center outside the object surface
 !            =  2 Intersect while cell center inside the object surface
@@ -134,6 +139,7 @@
 !            3 rou*w
 !            4 rou
 !            5 T
+! Mark       Mark in subroutine SmoothMesh
 ! Center     1 x
 !            2 y
 !            3 z
@@ -148,6 +154,7 @@
             integer :: Node(8)
             real(R8):: Center(3)
             real(R8):: U(5)
+            logical :: Mark(6)
             type(octCell),pointer :: Father
             type(octCell),pointer :: son1, son2, son3, son4,    &
                                      son5, son6, son7, son8
@@ -213,12 +220,4 @@
 
     endmodule ModKDTree
 !======================================================================
-    module ModTime
-    use ModPrecision
-    implicit none
-
-    real(R8):: tStart   ! Start time
-    real(R8):: tEnd     ! End time
-    real(R8):: tTmp
-    endmodule ModTime
 !======================================================================
