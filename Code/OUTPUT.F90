@@ -19,7 +19,7 @@
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
     character(80)           :: FileName
-    integer                 :: ios, i, j, k
+    integer                 :: ios, i, j
     integer,PARAMETER       :: nVars = 8 ! Number of cVariables for output
                                 ! node 1-8, U, V, W, Rou, T, P, Ma, Cross
 
@@ -97,7 +97,7 @@
                     FileFormat, &        ! FileFormat
                     0, &        ! FileType
                     Debug, &
-                    1)          ! VIsDouble     = 0 Single
+                    0)          ! VIsDouble     = 0 Single
                                 !               = 1 Double
         if (ios/=0) stop "Error value returned in TecIni142"
     ! Write the zone header information.
@@ -165,7 +165,6 @@
     type(octCell),pointer :: c
     real(R8):: dx, dy, dz, tN(6) ! Temp-Nodes
     logical :: Mark(8)
-    integer :: ii
 
     if(ASSOCIATED(c%son8))then
         call NodeInfo(c%son1)
