@@ -4,12 +4,18 @@ neighbor/
 x64/
 Debug/
 .gitattributes
+Data/*/
+Data/*
+~*.*
 *.u2d
 *.mod
 *.exe
-Data/*.*
-Data/*/
-~*.*
+*.mp4
+*.dat
+*.plt
+*.szplt
+## FACET except
+!/Data/body001.facet
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof

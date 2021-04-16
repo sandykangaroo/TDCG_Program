@@ -49,7 +49,8 @@
         real(R8)                           :: aa
 
         n = size(res)
-        allocate(td,td%the_data)
+        allocate(td)
+        allocate(td%the_data)
         mid = (1+n)/2
         td%level = depth
         td%parent => p
@@ -585,10 +586,10 @@
     call CPU_TIME(tStart)
     call create_KDT_tree_for_body_i(tp, 1)
     call CPU_TIME(tEnd)
-    write(*,*)"creat tree time:",tEnd-tStart
+    write(*,'(1X,A,F10.2)') "creat tree time:",tEnd-tStart
     call CPU_TIME(tStart)
     call KDTree_out(tp%root)
     call CPU_TIME(tEnd)
-    write(*,*)"output tree time:",tEnd-tStart
+    write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
     return
     end subroutine ReadGeometry
