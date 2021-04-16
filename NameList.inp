@@ -9,7 +9,7 @@ $Global
     Limiter = 1, Restart = .f., nGeometry = 1,
     GeometryName  = './Data/sphere_4982_',
     OutputNameStr = './Data/test',
-    OutputFormat  = '.dat'
+    OutputFormat  = '.plt'
 $END
 
 ! nCell
@@ -29,7 +29,7 @@ $Mesh
     DomainMax = 2000.0,  2000.0,  2000.0,
 	
     InitRefineLVL = 3, AdaptRefineLVL  =  2,
-    cIntersectMethod = 3
+    cIntersectMethod = 4
 $END
 
 $NRRset

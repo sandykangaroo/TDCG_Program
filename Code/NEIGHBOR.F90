@@ -30,11 +30,12 @@
                     if(.not.associated(cfn%son1))then
                         Neighbor=>cfn
                     elseif(associated(cfn%son1))then
-                        if(cfn%son1%fSplitType==1 .or. &
+                        if(cfn%son1%fSplitType==0 .or. &
+                           cfn%son1%fSplitType==1 .or. &
                            cfn%son1%fSplitType==4 .or. &
                            cfn%son1%fSplitType==5)then
                             Neighbor=>cfn%son2
-                        else !cfn%son1%fSplitType==0  2  3  6
+                        else !cfn%son1%fSplitType==2  3  6
                             Neighbor=>cfn%son1   
                         endif
                     endif
