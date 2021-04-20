@@ -1224,12 +1224,9 @@
         enddo
         write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
-<<<<<<< HEAD
         call initSmoothMesh
         call initFindNeighbor
 
-=======
->>>>>>> 0267322b30915d3b21a969849bd02442043a873e
     case (5)    ! AABBTraverse
         do k = 1, nCell(3)
         do j = 1, nCell(2)
@@ -1243,26 +1240,17 @@
                 t%cross = -4
                 t%cross = CellInout(t)
             endif
-<<<<<<< HEAD
             step=step+1
             p=step/real(nBGCells,R8)*100
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
             flush(6)
-=======
-            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
-            step=step/nBGCells*100
-            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
->>>>>>> 0267322b30915d3b21a969849bd02442043a873e
         enddo
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
-<<<<<<< HEAD
         call initSmoothMesh
         call initFindNeighbor
-=======
->>>>>>> 0267322b30915d3b21a969849bd02442043a873e
     end select
 
     call CPU_TIME(tEnd)
