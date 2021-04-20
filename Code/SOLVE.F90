@@ -41,7 +41,7 @@
         enddo
     enddo
     call CPU_TIME (tend)
-    write(*,*) "traverse find min distance time", tend-tstart
+    write(*,'(1X,A,F10.2)') "traverse find min distance time", tend-tstart
     
     
     call CPU_TIME(tstart)
@@ -60,7 +60,7 @@
         enddo
     enddo
     call CPU_TIME (tend)
-    write(*,*) "KDT find min distance time", tend-tstart
+    write(*,'(1X,A,F10.2)') "KDT find min distance time", tend-tstart
         
     
     

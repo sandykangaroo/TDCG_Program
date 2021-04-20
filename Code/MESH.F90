@@ -57,6 +57,14 @@
                 c%cross = -4
                 c%cross = CellInout(c)
             endif
+        case (5)
+            if (AABBTraverse(c)) then
+                c%cross = -3
+                c%cross = CellInout(c)
+            else
+                c%cross = -4
+                c%cross = CellInout(c)
+            endif
         end select
         endsubroutine initCellCross
 !----------------------------------------------------------------------
@@ -269,17 +277,26 @@
                 endif        
             endif
             return
-
-!Traverse            
-            !Loop1:do ng=1,nGeometry
-            !    do i=1, body(ng)%nse
-            !        tri= body(ng)%se3d(i)
-            !        AABB=TriBoxOverlap (c,tri)
-            !        if(AABB) exit Loop1
-            !    enddo
-            !enddo Loop1
-            !return         
         end function AABB
+!----------------------------------------------------------------------
+        Logical function AABBTraverse(c)!1=intersect,0=no intersect
+            use ModKDTree
+            use ModInpGlobal
+            use ModGeometry
+            implicit none
+            type(octCell),pointer :: c
+            type(triangle)        :: tri
+            integer                     :: ng, i
+          
+            Loop1:do ng=1,nGeometry
+                do i=1, body(ng)%nse
+                    tri= body(ng)%se3d(i)
+                    AABBTraverse=TriBoxOverlap (c,tri)
+                    if(AABBTraverse) exit Loop1
+                enddo
+            enddo Loop1
+            return         
+        end function AABBTraverse
 !----------------------------------------------------------------------
         recursive subroutine KdFindTri(c,boxCell,node,aaa)
             use ModKDTree
@@ -959,8 +976,7 @@
         subroutine NullifyCell(c)
         implicit none
         type(octCell),pointer :: c
-        NULLIFY(c%Father,                                       &
-                c%son1, c%son2, c%son3, c%son4,                 &
+        NULLIFY(c%son1, c%son2, c%son3, c%son4,                 &
                 c%son5, c%son6, c%son7, c%son8,                 &
                 c%NeighborX1, c%NeighborX2, c%NeighborY1,       &
                 c%NeighborY2, c%NeighborZ1, c%NeighborZ2)
@@ -1131,6 +1147,8 @@
         enddo
         write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
+        call initSmoothMesh
+        call initFindNeighbor
         call initPaintingAlgorithm ! Painting Algorithm Method
         cIntersectMethod = 2 ! Close the Painting Algorithm Method
 
@@ -1156,6 +1174,8 @@
         enddo
         write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
+        call initSmoothMesh
+        call initFindNeighbor
 
     case (3)    ! AABB with Painting Algorithm Method
         do k = 1, nCell(3)
@@ -1176,6 +1196,8 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call initFindNeighbor
+        call initSmoothMesh
         call initFindNeighbor
         call initPaintingAlgorithm ! Painting Algorithm Method
         cIntersectMethod = 4 ! Close the Painting Algorithm Method
@@ -1201,6 +1223,33 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call initFindNeighbor
+        call initSmoothMesh
+        call initFindNeighbor
+
+    case (5)    ! AABBTraverse
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t       =>Cell(i,j,k)
+            if (AABBTraverse(t)) then
+                t%cross = -3
+                t%cross = CellInout(t)
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+                t%cross = CellInout(t)
+            endif
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
+        enddo
+        enddo
+        enddo
+        write(*,*) '' ! Stop write with advance='no'
+        call initFindNeighbor
+        call initSmoothMesh
         call initFindNeighbor
     end select
 
@@ -1439,7 +1488,7 @@
             call PreSmoothMesh(c%son2)
             return
         endif
-
+        
         if (ASSOCIATED(c%NeighborX1)) then
             if (c%NeighborX1%lvl(1)+1<c%lvl(1)) c%NeighborX1%mark(1)=.true.
         endif
@@ -1470,6 +1519,7 @@
         !         endif
         !     endif
         ! endif
+        
         endsubroutine PreSmoothMesh
 !----------------------------------------------------------------------
         recursive subroutine SmoothMesh(c)
