@@ -1228,25 +1228,32 @@
             call SurfaceAdapt(c%son8)
         endif
         endsubroutine SurfaceAdapt
-!----------------------------------------------------------------------
-        subroutine initPaintingAlgorithm
-        use ModMesh
-        use ModMeshTools
-        use ModInpMesh
-        use ModNeighbor
-        implicit none
-        type(octCell),pointer :: tt
-        integer :: ii, jj, kk
+    endsubroutine initSurfaceAdapt
+!======================================================================
+    subroutine initPaintingAlgorithm
+    use ModMesh
+    use ModMeshTools
+    use ModInpMesh
+    use ModNeighbor
+    use ModPrecision
+    implicit none
+    type(octCell),pointer :: t
+    integer :: ii, jj, kk
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
 
-        loop:  do kk = 1, nCell(3)
-        do jj = 1, nCell(2)
-        do ii = 1, nCell(1)
-            tt       =>Cell(ii,jj,kk)
-            if (initPaintingAlgorithm2(tt)) exit loop
-        enddo
-        enddo
-        enddo loop
-        endsubroutine initPaintingAlgorithm
+    call CPU_TIME(tStart)
+    loop:  do kk = 1, nCell(3)
+    do jj = 1, nCell(2)
+    do ii = 1, nCell(1)
+        t       =>Cell(ii,jj,kk)
+        if (initPaintingAlgorithm2(t)) exit loop
+    enddo
+    enddo
+    enddo loop
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "Painting Algorithm time: ", tEnd-tStart
+    contains
 !----------------------------------------------------------------------
         recursive function initPaintingAlgorithm2(c1) result(PA)
         ! PA: Have run/not run the subroutine PaintingAlgorithm
@@ -1355,7 +1362,7 @@
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6)
         endif
         endsubroutine PaintingAlgorithm
-    endsubroutine initSurfaceAdapt
+    endsubroutine initPaintingAlgorithm
 !======================================================================
     subroutine initSmoothMesh
     use ModPrecision
