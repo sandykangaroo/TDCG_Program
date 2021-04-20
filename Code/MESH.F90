@@ -57,6 +57,14 @@
                 c%cross = -4
                 c%cross = CellInout(c)
             endif
+        case (5)
+            if (AABBTraverse(c)) then
+                c%cross = -3
+                c%cross = CellInout(c)
+            else
+                c%cross = -4
+                c%cross = CellInout(c)
+            endif
         end select
         endsubroutine initCellCross
 !----------------------------------------------------------------------
@@ -256,8 +264,9 @@
             
             tp => kdtree(1)
             node=>tp%root
-            if(boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or.boxCell(3)>node%box(6).or.&
-                &boxCell(4)<node%box(1).or.boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
+            if( boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or. &
+                boxCell(3)>node%box(6).or.boxCell(4)<node%box(1).or. &
+                boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
                  AABB=.false.
             else
                 call KdFindTri(c,boxCell,node,aaa)
@@ -268,17 +277,26 @@
                 endif        
             endif
             return
-
-!Traverse            
-            !Loop1:do ng=1,nGeometry
-            !    do i=1, body(ng)%nse
-            !        tri= body(ng)%se3d(i)
-            !        AABB=TriBoxOverlap (c,tri)
-            !        if(AABB) exit Loop1
-            !    enddo
-            !enddo Loop1
-            !return         
         end function AABB
+!----------------------------------------------------------------------
+        Logical function AABBTraverse(c)!1=intersect,0=no intersect
+            use ModKDTree
+            use ModInpGlobal
+            use ModGeometry
+            implicit none
+            type(octCell),pointer :: c
+            type(triangle)        :: tri
+            integer                     :: ng, i
+          
+            Loop1:do ng=1,nGeometry
+                do i=1, body(ng)%nse
+                    tri= body(ng)%se3d(i)
+                    AABBTraverse=TriBoxOverlap (c,tri)
+                    if(AABBTraverse) exit Loop1
+                enddo
+            enddo Loop1
+            return         
+        end function AABBTraverse
 !----------------------------------------------------------------------
         recursive subroutine KdFindTri(c,boxCell,node,aaa)
             use ModKDTree
@@ -660,20 +678,14 @@
         V2 = tri(3)%P-tri(1)%P
 
         ! Parallel identify
-        P(1) = V1(2)*V2(3)-V1(3)*V2(2)
-        P(2) = V1(3)*V2(1)-V1(1)*V2(3)
-        P(3) = V1(1)*V2(2)-V1(2)*V2(1)
+        P = CROSS_PRODUCT_3(V1,V2)
         t = DOT_PRODUCT(D,P)
         if (t==0) then  ! Parallel
             MollerTrumbore=0; return
         endif
 
-        P(1) = D(2)*V2(3)-D(3)*V2(2)
-        P(2) = D(3)*V2(1)-D(1)*V2(3)
-        P(3) = D(1)*V2(2)-D(2)*V2(1)
-        Q(1) = V0(2)*V1(3)-V0(3)*V1(2)
-         Q(1) = V0(3)*V1(1)-V0(1)*V1(3)
-        Q(1) = V0(1)*V1(2)-V0(2)*V1(1)
+        P = CROSS_PRODUCT_3(D,V2)
+        Q = CROSS_PRODUCT_3(V0,V1)
         A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
         t = DOT_PRODUCT(Q,V2)
         u = DOT_PRODUCT(P,V0)
@@ -963,8 +975,7 @@
         subroutine NullifyCell(c)
         implicit none
         type(octCell),pointer :: c
-        NULLIFY(c%Father,                                       &
-                c%son1, c%son2, c%son3, c%son4,                 &
+        NULLIFY(c%son1, c%son2, c%son3, c%son4,                 &
                 c%son5, c%son6, c%son7, c%son8,                 &
                 c%NeighborX1, c%NeighborX2, c%NeighborY1,       &
                 c%NeighborY2, c%NeighborZ1, c%NeighborZ2)
@@ -1048,6 +1059,10 @@
     implicit none
     integer :: i, j, k
     type(octCell),pointer :: t
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
+
+    call CPU_TIME(tStart)
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
@@ -1056,6 +1071,8 @@
     enddo
     enddo
     enddo
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "FindNeighbor time: ", tEnd-tStart
     contains
 !----------------------------------------------------------------------
         recursive subroutine FindNeighbor(c)
@@ -1100,7 +1117,13 @@
     implicit none
     type(octCell),pointer :: t
     integer :: i, j, k
+    real(R8):: tStart   ! Start time
+    real(R8):: tEnd     ! End time
+    real(R8):: step,a,aa,aaa,aaaa
 
+
+    call CPU_TIME(tStart)
+    write(*,'(1X,A)',advance='no') 'SurfaceAdapt progress:             '
     select case (cIntersectMethod)
     case (1)    ! Ray-cast with Painting Algorithm Method
         do k = 1, nCell(3)
@@ -1113,9 +1136,13 @@
             else
                 t%cross = -4
             endif
+            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
+            step=step/nBGCells*100
+            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
         enddo
         enddo
         enddo
+        write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
         call initPaintingAlgorithm ! Painting Algorithm Method
         cIntersectMethod = 2 ! Close the Painting Algorithm Method
@@ -1133,9 +1160,13 @@
                 t%cross = -4
                 t%cross = CellInout(t)
             endif
+            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
+            step=step/nBGCells*100
+            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
         enddo
         enddo
         enddo
+        write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
 
     case (3)    ! AABB with Painting Algorithm Method
@@ -1149,9 +1180,13 @@
             else
                 t%cross = -4
             endif
+            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
+            step=step/nBGCells*100
+            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
         enddo
         enddo
         enddo
+        write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
         call initPaintingAlgorithm ! Painting Algorithm Method
         cIntersectMethod = 4 ! Close the Painting Algorithm Method
@@ -1169,11 +1204,39 @@
                 t%cross = -4
                 t%cross = CellInout(t)
             endif
+            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
+            step=step/nBGCells*100
+            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
         enddo
         enddo
         enddo
+        write(*,*) '' ! Stop write with advance='no'
+        call initFindNeighbor
+    case (5)    ! AABBTraverse
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t       =>Cell(i,j,k)
+            if (AABBTraverse(t)) then
+                t%cross = -3
+                t%cross = CellInout(t)
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+                t%cross = CellInout(t)
+            endif
+            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
+            step=step/nBGCells*100
+            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
+        enddo
+        enddo
+        enddo
+        write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
     end select
+
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "SurfaceAdapt time: ", tEnd-tStart
     contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
@@ -1219,12 +1282,12 @@
         recursive function initPaintingAlgorithm2(c1) result(PA)
         ! PA: Have run/not run the subroutine PaintingAlgorithm
         implicit none
-        logical               :: PA 
+        logical               :: PA
         type(octCell),pointer :: c1
-        logical,SAVE          :: PAused=.false. ! If used PaintingAlgorithm, PAused=.T.
+        logical,SAVE          :: PAused=.false.
+        ! If used PaintingAlgorithm, PAused=.T.
 
         if (PAused) return
-        PA=.false.
         if(ASSOCIATED(c1%son8))then
             PA = initPaintingAlgorithm2(c1%son1)
             PA = initPaintingAlgorithm2(c1%son2)
@@ -1247,6 +1310,7 @@
             return
         endif
 
+        PA = .false.
         c1%cross = CellInout(c1)
         if (c1%cross==0) then
             if (ASSOCIATED(c1%NeighborX1)) &
@@ -1293,32 +1357,32 @@
             return
         endif
 
-        if (c%cross /=-3 .and. c%cross /=-4) return ! Cell has been paintted.
+        if (c%cross/=-3 .and. c%cross/=-4) return ! Cell has been paintted.
         c%cross = CellInout(c)
-        if (c%cross == 3) return    ! Inside cell, return.
+        if (c%cross==3) return ! Inside cell, return.
 
         if (dirct /= 4) then
-            cc => NeighborX1(c)
+            cc => c%NeighborX1
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,1)
         endif
         if (dirct /= 1) then
-            cc => NeighborX2(c)
+            cc => c%NeighborX2
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,4)
         endif
         if (dirct /= 5) then
-            cc => NeighborY1(c)
+            cc => c%NeighborY1
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,2)
         endif
         if (dirct /= 2) then
-            cc => NeighborY2(c)
+            cc => c%NeighborY2
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,5)
         endif
         if (dirct /= 6) then
-            cc => NeighborZ1(c)
+            cc => c%NeighborZ1
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,3)
         endif
         if (dirct /= 3) then
-            cc => NeighborZ2(c)
+            cc => c%NeighborZ2
             if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6)
         endif
         endsubroutine PaintingAlgorithm
@@ -1370,7 +1434,7 @@
 
     enddo
     call CPU_TIME(tEnd)
-    print*,"Smooth Mesh time: ", tEnd-tStart
+    write(*,'(1X,A,F10.2)') "Smooth Mesh time: ", tEnd-tStart
     contains
 !----------------------------------------------------------------------
         recursive subroutine PreSmoothMesh(c)
@@ -1463,7 +1527,7 @@
         
 
         ! Refine
-        if     ( c%mark(1) .and. c%mark(2) .and. c%mark(3) ) then
+        if     ( c%mark(1) .and. c%mark(2) .and. c%mark(3)) then
             call NewCell(c,0)
         elseif ( c%mark(1) .and. .not.c%mark(2) .and. .not.c%mark(3) ) then
             call NewCell(c,1)

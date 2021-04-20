@@ -1609,5 +1609,297 @@
     end function NeighborZ2        
 
     end module ModNeighbor
-    
+
+!
+!    module ModNeighbor
+!        use ModMesh
+!        use ModTypDef 
+!        use ModInpMesh
+!        implicit none
+!    contains
+!    
+!! X- neighbor 
+!    recursive function NeighborX1(c) RESULT(Neighbor)
+!        implicit none
+!        type(OctCell),pointer :: c,cf,cinitial,cfn,Neighbor
+!        !cf,c'father;cinitial,c'initial X- neighbor;cfn,c'father's X- neighbor
+!        
+!        Neighbor=>null()
+!        cf=>c%father
+!        
+!        if(.not.associated(cf))then
+!            if(c%nBGCell(1)==1)then
+!                Neighbor=>null()
+!            else
+!                Neighbor=>Cell(c%nBGCell(1)-1,c%nBGCell(2),c%nBGCell(3))
+!            endif
+!            return
+!        else if(c%Location==2)then
+!            Neighbor=>cf%son1
+!            return
+!        else if(c%Location==3)then
+!            Neighbor=>cf%son4
+!            return 
+!        else if(c%Location==6)then
+!            Neighbor=>cf%son5
+!            return
+!        else if(c%Location==7)then
+!            Neighbor=>cf%son8
+!            return 
+!        endif
+!        
+!        cfn=>NeighborX1(cf)
+!        if(associated(cfn))then
+!           if(.not.associated(cfn%son1))then 
+!                Neighbor=>cfn 
+!            else if(c%Location==4)then
+!                Neighbor=>cfn%son3
+!            else if(c%Location==1)then
+!                Neighbor=>cfn%son2
+!            else if(c%Location==8)then
+!                Neighbor=>cfn%son7
+!            else if(c%Location==5)then
+!                Neighbor=>cfn%son6
+!           end if 
+!        endif
+!        return
+!    end function NeighborX1
+!    
+!! X+ neighbor 
+!    recursive function NeighborX2(c) RESULT(Neighbor)
+!        implicit none
+!        type(OctCell),pointer :: c,cf,cinitial,cfn,Neighbor
+!        !cf,c'father;cinitial,c'initial X+ neighbor;cfn,c'father's X+ neighbor
+!        
+!        Neighbor=>null()
+!        cf=>c%father
+!        
+!        if(.not.associated(cf))then
+!            if(c%nBGCell(1)==nCell(1))then
+!                Neighbor=>null()
+!            else
+!                Neighbor=>Cell(c%nBGCell(1)+1,c%nBGCell(2),c%nBGCell(3))
+!            endif
+!            return
+!        else if(c%Location==1)then
+!            Neighbor=>cf%son2
+!            return
+!        else if(c%Location==4)then
+!            Neighbor=>cf%son3
+!            return  
+!        else if(c%Location==5)then
+!            Neighbor=>cf%son6
+!            return
+!        else if(c%Location==8)then
+!            Neighbor=>cf%son7
+!            return
+!        endif
+!        
+!        cfn=>NeighborX2(cf)
+!        if(associated(cfn))then
+!           if(.not.associated(cfn%son1))then 
+!                Neighbor=>cfn 
+!            else if(c%Location==2)then
+!                Neighbor=>cfn%son1
+!            else if(c%Location==3)then
+!                Neighbor=>cfn%son4
+!            else if(c%Location==6)then
+!                Neighbor=>cfn%son5
+!            else if(c%Location==7)then
+!                Neighbor=>cfn%son8
+!           end if 
+!        endif
+!        return
+!    end function NeighborX2   
+!    
+!! Y- neighbor
+!    recursive function NeighborY1(c) RESULT(Neighbor)
+!        implicit none
+!            type(OctCell),pointer :: c,cf,cinitial,cfn,Neighbor 
+!            !cf,c'father;cinitial,c'initial Y- neighbor;cfn,c'father's Y- neighbor
+!        
+!        Neighbor=>null()
+!        cf=>c%father
+!        
+!        if(.not.associated(cf))then
+!            if(c%nBGCell(2)==1)then
+!                Neighbor=>null()
+!            else
+!                Neighbor=>Cell(c%nBGCell(1),c%nBGCell(2)-1,c%nBGCell(3))
+!            endif
+!            return
+!        else if(c%Location==4)then
+!         Neighbor=>cf%son1
+!         return
+!        else if(c%Location==3)then
+!         Neighbor=>cf%son2
+!         return  
+!         else if(c%Location==8)then
+!         Neighbor=>cf%son5
+!         return
+!        else if(c%Location==7)then
+!         Neighbor=>cf%son6
+!         return    
+!        endif
+!        
+!            cfn=>NeighborY1(cf)
+!            if(associated(cfn))then
+!                if(.not.associated(cfn%son1))then   
+!                    Neighbor=>cfn 
+!                else if(c%Location==1)then
+!                    Neighbor=>cfn%son4
+!                else if(c%Location==2)then
+!                    Neighbor=>cfn%son3
+!                else if(c%Location==5)then
+!                    Neighbor=>cfn%son8
+!                else if(c%Location==6)then
+!                    Neighbor=>cfn%son7
+!                end if
+!            endif
+!            return
+!    end function NeighborY1
+!    
+!! Y+ neighbor
+!    recursive function NeighborY2(c) RESULT(Neighbor)
+!        implicit none
+!            type(OctCell),pointer :: c,cf,cinitial,cfn,Neighbor 
+!            !cf,c'father;cinitial,c'initial Y+ neighbor;cfn,c'father's Y+ neighbor
+!        
+!        Neighbor=>null()
+!        cf=>c%father
+!        
+!        if(.not.associated(cf))then
+!            if(c%nBGCell(2)==nCell(2))then
+!                Neighbor=>null()
+!            else
+!                Neighbor=>Cell(c%nBGCell(1),c%nBGCell(2)+1,c%nBGCell(3))
+!            endif
+!            return
+!        else if(c%Location==1)then
+!         Neighbor=>cf%son4
+!         return
+!        else if(c%Location==2)then
+!         Neighbor=>cf%son3
+!         return
+!        else if(c%Location==5)then
+!         Neighbor=>cf%son8
+!         return
+!        else if(c%Location==6)then
+!         Neighbor=>cf%son7
+!         return
+!        endif
+!        
+!            cfn=>NeighborY2(cf)
+!            if(associated(cfn))then
+!                if(.not.associated(cfn%son1))then
+!                    Neighbor=>cfn 
+!                 else if(c%Location==4)then
+!                    Neighbor=>cfn%son1
+!                 else if(c%Location==3)then
+!                    Neighbor=>cfn%son2
+!                 else if(c%Location==8)then
+!                    Neighbor=>cfn%son5
+!                 else if(c%Location==7)then
+!                    Neighbor=>cfn%son6
+!                end if
+!            endif
+!            return
+!    end function NeighborY2    
+! 
+!! Z- neighbor
+!    recursive function NeighborZ1(c) RESULT(Neighbor)
+!        implicit none
+!            type(OctCell),pointer :: c,cf,cinitial,cfn,Neighbor 
+!            !cf,c'father;cinitial,c'initial Z- neighbor;cfn,c'father's Z- neighbor
+!        
+!        Neighbor=>null()
+!        cf=>c%father
+!        
+!        if(.not.associated(cf))then
+!            if(c%nBGCell(3)==1)then
+!                Neighbor=>null()
+!            else
+!                Neighbor=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)-1)
+!            endif
+!            return
+!        else if(c%Location==5)then
+!         Neighbor=>cf%son1
+!         return
+!        else if(c%Location==6)then
+!         Neighbor=>cf%son2
+!         return  
+!        else if(c%Location==7)then
+!         Neighbor=>cf%son3
+!         return
+!        else if(c%Location==8)then
+!         Neighbor=>cf%son4
+!         return
+!        endif
+!        
+!            cfn=>NeighborZ1(cf)
+!            if(associated(cfn))then
+!                if(.not.associated(cfn%son1))then 
+!                    Neighbor=>cfn 
+!                else if(c%Location==1)then
+!                    Neighbor=>cfn%son5
+!                else if(c%Location==2)then
+!                    Neighbor=>cfn%son6
+!                else if(c%Location==3)then
+!                    Neighbor=>cfn%son7
+!                else if(c%Location==4)then
+!                    Neighbor=>cfn%son8
+!                end if
+!                
+!            endif
+!            return
+!    end function NeighborZ1        
+!
+!! Z+ neighbor
+!    recursive function NeighborZ2(c) RESULT(Neighbor)
+!        implicit none
+!            type(OctCell),pointer :: c,cf,cinitial,cfn,Neighbor 
+!            !cf,c'father;cinitial,c'initial Z+ neighbor;cfn,c'father's Z+ neighbor
+!        
+!        Neighbor=>null()
+!        cf=>c%father
+!        
+!        if(.not.associated(cf))then
+!            if(c%nBGCell(3)==nCell(3))then
+!                Neighbor=>null()
+!            else
+!                Neighbor=>Cell(c%nBGCell(1),c%nBGCell(2),c%nBGCell(3)+1)
+!            endif
+!            return
+!        else if(c%Location==1)then
+!         Neighbor=>cf%son5
+!         return
+!        else if(c%Location==2)then
+!         Neighbor=>cf%son6
+!         return  
+!        else if(c%Location==3)then
+!         Neighbor=>cf%son7
+!         return
+!        else if(c%Location==4)then
+!         Neighbor=>cf%son8
+!         return
+!        endif
+!        
+!            cfn=>NeighborZ2(cf)
+!            if(associated(cfn))then
+!                if(.not.associated(cfn%son1))then 
+!                    Neighbor=>cfn 
+!                else if(c%Location==5)then
+!                    Neighbor=>cfn%son1
+!                else if(c%Location==6)then
+!                    Neighbor=>cfn%son2
+!                else if(c%Location==7)then
+!                    Neighbor=>cfn%son3
+!                else if(c%Location==8)then
+!                    Neighbor=>cfn%son4
+!                end if
+!            endif
+!            return
+!    end function NeighborZ2        
+!
+!    end module ModNeighbor
     

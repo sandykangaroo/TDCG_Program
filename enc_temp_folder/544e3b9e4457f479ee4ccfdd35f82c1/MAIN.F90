@@ -81,22 +81,18 @@
     integer::i
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
-    real(R8):: tStartG   ! Start time
-    real(R8):: tEndG     ! End time
+
     print*,'Generating mesh......'
 
     call CPU_TIME(tStart)
     if (Restart) return
-    call CPU_TIME(tStartG)
     call GenerateBGMesh
-    call CPU_TIME(tEndG)
     call initFindNeighbor
     call initSurfaceAdapt
-    call initSmoothMesh
+    ! call initSmoothMesh
     call CPU_TIME(tEnd)
-    call GetMinDistance
-    
-    write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
+    ! call GetMinDistance
+
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
     print*,'Done'
 
