@@ -690,13 +690,14 @@
         ! Calls    : initNeighbor
         implicit none
         integer(I4),INTENT(IN):: split
+        integer(I4)           :: spl
         type(octCell),pointer :: c
         real(R8)              :: x, y, z, dx, dy, dz
 
-        if (.not.Aniso) goto 10
-        select case (split)
+        spl=split
+        if (.not.Aniso) spl=0
+        select case (spl)
         case (0)
-10          continue
             ALLOCATE( c%son1, c%son2, c%son3, c%son4,   &
                     c%son5, c%son6, c%son7, c%son8 )
             c%son1%nBGCell=c%nBGCell
@@ -1103,11 +1104,12 @@
     integer :: i, j, k
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
-    real(R8):: step,a,aa,aaa,aaaa
-
+    real(R8):: p        ! Used to print precentage
+    integer :: step=0   ! Counter, used to print precentage
 
     call CPU_TIME(tStart)
-    write(*,'(1X,A)',advance='no') 'SurfaceAdapt progress:             '
+    write(6,'(1X,A,12X,A)',advance='no') 'SurfaceAdapt progress:', ''
+    flush(6)
     select case (cIntersectMethod)
     case (1)    ! Ray-cast with Painting Algorithm Method
         do k = 1, nCell(3)
@@ -1120,9 +1122,10 @@
             else
                 t%cross = -4
             endif
-            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
-            step=step/nBGCells*100
-            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
         enddo
         enddo
         enddo
@@ -1144,9 +1147,10 @@
                 t%cross = -4
                 t%cross = CellInout(t)
             endif
-            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
-            step=step/nBGCells*100
-            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
         enddo
         enddo
         enddo
@@ -1164,9 +1168,10 @@
             else
                 t%cross = -4
             endif
-            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
-            step=step/nBGCells*100
-            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
         enddo
         enddo
         enddo
@@ -1188,9 +1193,10 @@
                 t%cross = -4
                 t%cross = CellInout(t)
             endif
-            step=(k-1)*nCell(1)*nCell(2)+(j-1)*nCell(1)+(i-1)
-            step=step/nBGCells*100
-            write(*,'(A,F5.1,A)', advance='no' ) '\b\b\b\b\b\b', step, '%'
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
         enddo
         enddo
         enddo

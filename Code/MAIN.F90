@@ -51,7 +51,7 @@
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
-        call TDCGOutput('OK')
+    call TDCGOutput('OK')
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') 'Program running time: ', tEnd-tStart
 
