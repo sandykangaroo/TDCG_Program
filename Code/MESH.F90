@@ -1253,6 +1253,7 @@
         call initFindNeighbor
     end select
 
+
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "SurfaceAdapt time: ", tEnd-tStart
     contains
