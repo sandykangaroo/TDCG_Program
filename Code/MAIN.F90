@@ -92,10 +92,17 @@
     call CPU_TIME(tEndG)
     call initFindNeighbor
     call initSurfaceAdapt
+<<<<<<< HEAD
     call CPU_TIME(tEnd)
 
     call GetMinDistance
 
+=======
+    call initSmoothMesh
+    call CPU_TIME(tEnd)
+    call GetMinDistance
+    
+>>>>>>> 0267322b30915d3b21a969849bd02442043a873e
     write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
     print*,'Done'
