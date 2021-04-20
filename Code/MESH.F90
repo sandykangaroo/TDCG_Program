@@ -1464,7 +1464,7 @@
 !----------------------------------------------------------------------
         recursive subroutine PreSmoothMesh(c)
         implicit none
-        type(octCell),POINTER :: c
+        type(octCell),POINTER :: c,cx1,cx2,cy1,cy2,cz1,cz2
         ! mark(6)  1 x refine; 2 y refine; 3 z refine; 
         !          4 x coarse; 5 y coarse; 6 z coarse; 
         if(ASSOCIATED(c%son8))then
@@ -1549,9 +1549,10 @@
             call SmoothMesh(c%son2)
             return
         endif
+        
 
         ! Refine
-        if     ( c%mark(1) .and. c%mark(2) .and. c%mark(3) ) then
+        if     ( c%mark(1) .and. c%mark(2) .and. c%mark(3)) then
             call NewCell(c,0)
         elseif ( c%mark(1) .and. .not.c%mark(2) .and. .not.c%mark(3) ) then
             call NewCell(c,1)

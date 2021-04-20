@@ -6,6 +6,7 @@ Debug/
 .gitattributes
 Data/*/
 Data/*
+tset*
 ~*.*
 *.u2d
 *.mod
