@@ -36,7 +36,7 @@
                 do l=1,body(1)%nse
                     mindis=min(mindis,distance(tem,body(1)%se3d(l)%p(4)))
                 enddo
-                write(3,*) mindis
+                !write(3,*) mindis
             enddo
         enddo
     enddo
@@ -55,7 +55,7 @@
                 h=0
                 call nearest_search(tem, tp%root, nearest, h)
                 mindis=distance(tem,nearest%the_data%p(4))
-                write(101,*) mindis
+                !write(101,*) mindis
             enddo
         enddo
     enddo

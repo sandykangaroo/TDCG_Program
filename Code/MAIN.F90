@@ -92,7 +92,7 @@
     call CPU_TIME(tEndG)
     call initFindNeighbor
     call initSurfaceAdapt
-    call initSmoothMesh
+    !call initSmoothMesh
     call CPU_TIME(tEnd)
     call GetMinDistance
     
