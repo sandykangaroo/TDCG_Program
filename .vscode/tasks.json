@@ -8,6 +8,7 @@
         "-o",
         "main.exe",
         "-J",
-        "./Release/"
+        "./x64/gfortran/Release/",
+        "-fbackslash"
     ]
 }

@@ -51,7 +51,7 @@
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
-        call TDCGOutput('OK')
+    call TDCGOutput('OK')
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') 'Program running time: ', tEnd-tStart
 
@@ -92,10 +92,10 @@
     call CPU_TIME(tEndG)
     call initFindNeighbor
     call initSurfaceAdapt
-    call initSmoothMesh
     call CPU_TIME(tEnd)
+
     call GetMinDistance
-    
+
     write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
     print*,'Done'
@@ -114,33 +114,6 @@
     !call GetMinDistance
     TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
-!======================================================================
-    subroutine AABBtime
-    use ModPrecision
-    use ModMesh
-    use ModInpGlobal
-    use ModMeshTools
-    use ModInpMesh
-    implicit none
-    real(R8):: tStart   ! Start time
-    real(R8):: tEnd     ! End time
-    integer :: i, j, k
-    type(octCell),pointer :: t
-    
-    call CPU_TIME(tStart)
-    do k = 1, nCell(3)
-    do j = 1, nCell(2)
-    do i = 1, nCell(1)
-        t=>Cell(i, j, k)
-        call initCellCross(t)
-    enddo
-    enddo
-    enddo
-    call CPU_TIME(tEnd)
-    write(*,'(1X,A,F10.2)') "AABB time: ", tEnd-tStart
-    
-    end subroutine AABBtime
-    
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
     use ModPrecision
