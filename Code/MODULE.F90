@@ -183,17 +183,17 @@
 !======================================================================
     module ModGeometry
     ! Define geometry discreted points and elements.
-       use ModPrecision
-       use ModTypDef
-       implicit none
+    use ModPrecision
+    use ModTypDef
+    implicit none
 
-       type geom
-            integer                          :: nsp, nse
-            type(triangle) , allocatable     :: se3d(:)
-            real(R8)                         :: box(6)
-        end type geom
+    type geom
+        integer                          :: nsp, nse
+        type(triangle) , allocatable     :: se3d(:)
+        real(R8)                         :: box(6)
+    end type geom
 
-        type(geom), allocatable, target     :: body(:) 
+    type(geom), allocatable, target     :: body(:) 
 
     end module ModGeometry
 !======================================================================
@@ -204,7 +204,7 @@
 
     type KDT_node
         type(triangle), pointer:: the_data
-        integer                :: splitaxis ! The dimension of split.
+        integer                :: SplitAxis ! The dimension of split.
                                     !  =1 x_axis; =2 y_axis; =3 z_axis
         real(R8)               :: box(6) ! Bounding box of The_data.
             ! box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax
@@ -220,4 +220,14 @@
 
     endmodule ModKDTree
 !======================================================================
+    module modtimer
+    use ModPrecision
+    implicit none
+    real(R8):: ts, te, time=0
+    integer :: times=0
+    real(R8):: ts2, te2, time2=0
+    integer :: times2=0
+    real(R8):: ts3, te3, time3=0
+    integer :: times3=0
+    endmodule modtimer
 !======================================================================

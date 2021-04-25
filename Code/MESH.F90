@@ -69,6 +69,7 @@
         endsubroutine initCellCross
 !----------------------------------------------------------------------
         logical function BBOX(p,box)
+        ! =.F. outside bbox; =.T. inside bbox.
         implicit none
         real(R8),INTENT(IN)::p(3)
         real(R8),INTENT(IN)::box(6)
@@ -85,14 +86,18 @@
         endif
         endfunction BBOX
 !----------------------------------------------------------------------
-        logical function CellCast(c)    ! return -3, 0, 3
+        logical function CellCast(c)
         use ModKDTree
         use ModInpGlobal
         implicit none
         type(octCell),pointer :: c
         type(typPoint)        :: p(8)
         real(R8):: x, y, z, dx, dy, dz
-        integer :: i, ii, Pintersect
+        integer :: i, ii, iii
+        integer :: Pintersect ! Number of the intersect point
+        integer :: nIntersect ! Intersect times for one point
+        integer :: Rintersect ! Once ray intersects, nRay++
+        real(R8):: k(3)
 
         x=c%Center(1); y=c%Center(2); z=c%Center(3)
         dx=BGCellSize(1)/2**(c%lvl(1)+1)
@@ -109,12 +114,31 @@
 
         Pintersect=0
         do i = 1,8
-            do ii = 1,nGeometry
-            ! Quick Bounding-BOX identify
-            if (BBOX(p(i)%P,KDTree(ii)%root%box)) then ! inside
-                Pintersect=Pintersect+RayCast(p(i)%P,KDTree(ii)%root)
-            endif
-            enddo
+            loop2:do ii = 1,nGeometry
+                Rintersect=0
+                loop3:do iii = 1, 3  !nRays
+                    nIntersect=0
+                    ! Rays direction:
+                    ! k(1)%P = [1., 0., 0.]
+                    ! k(2)%P = [0., 1., 0.]
+                    ! k(3)%P = [0., 0., 1.]
+                    k = CSHIFT([0.,0.,1.],4-iii)
+                    call RayCast(CSHIFT(p(i)%P,iii-1), &
+                                 KDTree(ii)%root,k,nIntersect,iii)
+                    ! If no intersect, must be a outside point, so return.
+                    if (nIntersect == 0) then
+                        Pintersect=Pintersect+0
+                        exit loop2
+                    elseif (mod(nIntersect,2)==0) then
+                        Rintersect = Rintersect + 0
+                    else
+                        Rintersect = Rintersect + 1
+                    endif
+                    ! If twice back a same result, not do the third.
+                    if ( iii==2 .and. Rintersect/=1 ) exit loop3
+                enddo loop3
+                if ( Rintersect > 1 ) Pintersect=Pintersect+1 ! inside
+            enddo loop2
             if (Pintersect/=0.and.Pintersect<i) then
                 CellCast = .true.  ! Intersect
                 return
@@ -126,120 +150,120 @@
         integer function CellInout(c)
         use ModKDTree
         use ModInpGlobal
+        use modtimer
         implicit none
         type(octCell),pointer :: c
-        type(typPoint)        :: point
-        integer :: ii, Pintersect
+        integer :: nIntersect ! Intersect times for one point
+        integer :: Rintersect ! Once ray intersects, Rintersect++
+        integer :: iii ! Ray
+        real(R8):: k(3)
 
-        Pintersect=0
-        point%P=(/c%Center(1),c%Center(2),c%Center(3)/)
-        do ii = 1,nGeometry
-            ! Quick Bounding-BOX identify
-            if (BBOX(point%P,KDTree(ii)%root%box)) then
-            Pintersect=Pintersect+RayCast(point%P,KDTree(ii)%root)
-            endif
-        enddo
-        if (Pintersect == 0) then ! inside
-            if (c%cross == -4) then
-                CellInout = 0 ; return
-            else
-                CellInout = 1 ; return
-            endif
+        if (c%cross == -4) then
+            CellInout = 0
         else
-            if (c%cross == -4) then
-                CellInout = 3 ; return
-            else
-                CellInout = 2 ; return
+            CellInout = 1
+        endif
+        ! Quick Bounding-BOX identify
+        if (BBOX(c%Center,KDTree(1)%root%box)) then
+            Rintersect=0
+            do iii = 1, 3  !nRays
+                nIntersect=0
+                ! Rays direction:
+                ! k(1)%P = [1., 0., 0.]
+                ! k(2)%P = [0., 1., 0.]
+                ! k(3)%P = [0., 0., 1.]
+                k = CSHIFT([0.,0.,1.],4-iii)
+                call RayCast(CSHIFT(c%Center,iii-1), &
+                             KDTree(1)%root,k,nIntersect,iii)
+                ! If no intersect, must be a outside point, so return.
+                if (nIntersect == 0) then
+                    return
+                elseif (mod(nIntersect,2)==0) then
+                    Rintersect = Rintersect + 0
+                else
+                    Rintersect = Rintersect + 1
+                endif
+                ! If twice back a same result, not do the third.
+                if ( iii==2 .and. Rintersect/=1 ) exit
+            enddo
+            if ( Rintersect > 1 ) then ! inside
+                if (c%cross == -4) then
+                    CellInout = 3
+                else
+                    CellInout = 2
+                endif
             endif
         endif
         endfunction CellInout
 !----------------------------------------------------------------------
-        integer function RayCast(point,tree)
+        recursive subroutine RayCast(point,tree,k,nIntersect,i)
+        ! Back nIntersect -> times of intersect
         use ModGeometry
         use ModKDTree
-        use ModInpGlobal, only: nGeometry
         implicit none
-        real(R8),INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        type(KDT_node),pointer:: tree
-        integer,PARAMETER  :: nRays = 3   ! Number of Rays.
-        type(typPoint)     :: k(nRays)  ! Three rays
-        integer :: i, j, jj, ng
-        integer :: nIntersect ! Save the intersections number of any ray.
-        integer :: nRayCast   ! Once a ray intersections, nRay=nRay+1.
-        type(typPoint):: triFace(3)
+        real(R8),INTENT(IN)    :: point(3)     ! point(3) = x, y, z.
+        type(KDT_node),pointer,INTENT(IN) :: tree
+        real(R8),INTENT(IN)    :: k(3)
+        integer,INTENT(INOUT)  :: nIntersect ! Save the intersect number
+        integer,INTENT(IN)     :: i ! Which Ray
+        real(R8)               :: boxmin(3), boxmax(3)
 
-        k(1)%P = [1., 0., 0.]
-        k(2)%P = [0., 1., 0.]
-        k(3)%P = [0., 0., 1.]
+        if (.not.ASSOCIATED(tree)) return
 
-        nRayCast   = 0
-        do ng= 1,nGeometry
-        do i = 1,nRays
-            nIntersect = 0
-            do j = 1,body(ng)%nse
-                ! Quick BBOX identify
-                do jj = 1,3
-                    triFace(jj)%P = body(ng)%se3d(j)%P(jj)%P
-                enddo
-                select case (i)
-                case (1)
-                if ((point(2)<min(triFace(1)%P(2), &
-                                  triFace(2)%P(2), &
-                                  triFace(3)%P(2))  .or.  &
-                     point(2)>max(triFace(1)%P(2), &
-                                  triFace(2)%P(2), &
-                                  triFace(3)%P(2))) .and. &
-                    (point(3)<min(triFace(1)%P(3), &
-                                  triFace(2)%P(3), &
-                                  triFace(3)%P(3))  .or.  &
-                     point(3)>min(triFace(1)%P(3), &
-                                  triFace(2)%P(3), &
-                                  triFace(3)%P(3)))) cycle ! outside
-                case (2)
-                if ((point(1)<min(triFace(1)%P(1), &
-                                  triFace(2)%P(1), &
-                                  triFace(3)%P(1))  .or.  &
-                     point(1)>max(triFace(1)%P(1), &
-                                  triFace(2)%P(1), &
-                                  triFace(3)%P(1))) .and. &
-                    (point(3)<min(triFace(1)%P(3), &
-                                  triFace(2)%P(3), &
-                                  triFace(3)%P(3))  .or.  &
-                     point(3)>min(triFace(1)%P(3), &
-                                  triFace(2)%P(3), &
-                                  triFace(3)%P(3)))) cycle ! outside
-                case (3)
-                if ((point(1)<min(triFace(1)%P(1), &
-                                  triFace(2)%P(1), &
-                                  triFace(3)%P(1))  .or.  &
-                     point(1)>max(triFace(1)%P(1), &
-                                  triFace(2)%P(1), &
-                                  triFace(3)%P(1))) .and. &
-                    (point(2)<min(triFace(1)%P(2), &
-                                  triFace(2)%P(2), &
-                                  triFace(3)%P(2))  .or.  &
-                     point(2)>min(triFace(1)%P(2), &
-                                  triFace(2)%P(2), &
-                                  triFace(3)%P(2)))) cycle ! outside
-                end select
-                nIntersect=nIntersect+MollerTrumbore(Point,k(i)%P,triFace)
-            enddo
-            if (nIntersect == 0) then
-                RayCast=0; return
-            elseif (mod(nIntersect,2)==0) then
-                nRayCast = nRayCast + 0
-            else
-                nRayCast = nRayCast + 1
+        ! Quick Bounding-BOX identify
+        boxmin = CSHIFT(tree%box(1:3),i-1)
+        if (point(1)>boxmin(1).and.point(2)>boxmin(2)) then
+            boxmax = CSHIFT(tree%box(4:6),i-1)
+            if(point(1)<boxmax(1).and.point(2)<boxmax(2)) then
+                if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
+                    nIntersect = nIntersect + 1
+                endif
             endif
-        enddo
-        enddo
-        
-        if (nRayCast > nRays/2)then ! nRays/2=INT(real.nRays/2.0)
-            RayCast=1; return   ! inside
-        else
-            RayCast=0; return   ! outside
         endif
-        endfunction RayCast
+
+        ! Into the next tree
+        call RayCast(point,tree%right,k,nIntersect,i)
+        call RayCast(point,tree%left,k,nIntersect,i)
+
+        endsubroutine RayCast
+!----------------------------------------------------------------------
+        logical function MollerTrumbore(Point,D,tri)
+        use ModTools
+        implicit none
+        real(R8)      ,INTENT(IN):: point(3)   ! point(3) = x, y, z.
+        real(R8)      ,INTENT(IN):: D(3)
+        type(triangle),INTENT(IN):: tri
+        real(R8):: V0(3), V1(3), V2(3)
+        real(R8):: P(3), Q(3)
+        real(R8):: t, u, v
+        real(R8):: A
+
+        V0 = point      - tri%P(1)%P
+        V1 = tri%P(2)%P - tri%P(1)%P
+        V2 = tri%P(3)%P - tri%P(1)%P
+
+        ! Parallel identify
+        P = CROSS_PRODUCT_3(V1,V2)
+        t = DOT_PRODUCT(D,P)
+        if (t==0) then  ! Parallel
+            MollerTrumbore=.false.; return
+        endif
+
+        P = CROSS_PRODUCT_3(D,V2)
+        Q = CROSS_PRODUCT_3(V0,V1)
+        A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
+        t = DOT_PRODUCT(Q,V2)
+        u = DOT_PRODUCT(P,V0)
+        v = DOT_PRODUCT(Q,D)
+
+        if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>0) then
+            MollerTrumbore=.true.; return
+        elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<0) then
+            MollerTrumbore=.true.; return
+        else
+            MollerTrumbore=.false.; return
+        endif
+        endfunction MollerTrumbore
 !----------------------------------------------------------------------
         Logical function AABB(c)!1=intersect,0=no intersect
             use ModKDTree
@@ -322,16 +346,10 @@
             if(boxCell(split)>node%the_data%p(4)%p(split))then
                 if(associated(node%right))then
                     call KdFindTri(c,boxCell,node%right,aaa)
-                    if(aaa)then
-                      return
-                    endif
                 endif
             elseif(boxCell(splitmax)<node%the_data%p(4)%p(split))then
                 if(associated(node%left))then
                     call KdFindTri(c,boxCell,node%left,aaa)
-                    if(aaa)then
-                        return
-                    endif
                 endif
             else
                 if(associated(node%right))then
@@ -340,9 +358,6 @@
                         return
                     elseif(associated(node%left))then
                         call KdFindTri(c,boxCell,node%left,aaa)
-                        if(aaa)then
-                            return
-                        endif
                     endif
                 endif
             endif
@@ -368,7 +383,7 @@
             real(R8)              :: boxcenter(3), normal(3)
             real(R8)              :: e0(3), e1(3), e2(3)
             real(R8)              :: boxhalfsize(3)
-            real(R8)              :: min, max
+            real(R8)              :: minvlue, maxvlue
             real(R8)              :: rad, d, dd, fex, fey, fez, a
             real(R8)              :: X01P0, X01P2
             real(R8)              :: Y02P0, Y02P2
@@ -403,14 +418,14 @@
             X01P0=e0(3)*v0(2)-e0(2)*v0(3)
             X01P2=e0(3)*v2(2)-e0(2)*v2(3)
             if(X01P0<X01P2)then
-                min=X01P0
-                max=X01P2
+                minvlue=X01P0
+                maxvlue=X01P2
             else
-                min=X01P2
-                max=X01P0
+                minvlue=X01P2
+                maxvlue=X01P0
             endif
             rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return 
             endif
@@ -418,14 +433,14 @@
             Y02P0=-e0(3)*v0(1)+e0(1)*v0(3)
             Y02P2=-e0(3)*v2(1)+e0(1)*v2(3)
             if(Y02P0<Y02P2)then
-                min=Y02P0
-                max=Y02P2
+                minvlue=Y02P0
+                maxvlue=Y02P2
             else
-                min=Y02P2
-                max=Y02P0
+                minvlue=Y02P2
+                maxvlue=Y02P0
             endif
             rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return 
             endif
@@ -433,14 +448,14 @@
             Z12P1=e0(2)*v1(1)-e0(1)*v1(2)
             Z12P2=e0(2)*v2(1)-e0(1)*v2(2)
             if(Z12P2<Z12P1)then
-                min=Z12P2
-                max=Z12P1
+                minvlue=Z12P2
+                maxvlue=Z12P1
             else
-                min=Z12P1
-                max=Z12P2
+                minvlue=Z12P1
+                maxvlue=Z12P2
             endif
             rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return
             endif
@@ -453,14 +468,14 @@
             X01P0=e1(3)*v0(2)-e1(2)*v0(3)
             X01P2=e1(3)*v2(2)-e1(2)*v2(3)
             if(X01P0<X01P2)then
-                min=X01P0
-                max=X01P2
+                minvlue=X01P0
+                maxvlue=X01P2
             else
-                min=X01P2
-                max=X01P0
+                minvlue=X01P2
+                maxvlue=X01P0
             endif
             rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return 
             endif
@@ -468,14 +483,14 @@
             Y02P0=-e1(3)*v0(1)+e1(1)*v0(3)
             Y02P2=-e1(3)*v2(1)+e1(1)*v2(3)
             if(Y02P0<Y02P2)then
-                min=Y02P0
-                max=Y02P2
+                minvlue=Y02P0
+                maxvlue=Y02P2
             else
-                min=Y02P2
-                max=Y02P0
+                minvlue=Y02P2
+                maxvlue=Y02P0
             endif
             rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return 
             endif
@@ -483,14 +498,14 @@
             Z0P0=e1(2)*v0(1)-e1(1)*v0(2)
             Z0P1=e1(2)*v1(1)-e1(1)*v1(2)
             if(Z0P0<Z0P1)then
-                min=Z0P0
-                max=Z0P1
+                minvlue=Z0P0
+                maxvlue=Z0P1
             else
-                min=Z0P1
-                max=Z0P0
+                minvlue=Z0P1
+                maxvlue=Z0P0
             endif
             rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return 
             endif
@@ -503,14 +518,14 @@
             X2P0=e2(3)*v0(2)-e2(2)*v0(3)
             X2P1=e2(3)*v1(2)-e2(2)*v1(3)
             if(X2P0<X2P1)then
-                min=X2P0
-                max=X2P1
+                minvlue=X2P0
+                maxvlue=X2P1
             else
-                min=X2P1
-                max=X2P0
+                minvlue=X2P1
+                maxvlue=X2P0
             endif
             rad=fez*boxhalfsize(2)+fey*boxhalfsize(3)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return
             endif
@@ -519,14 +534,14 @@
             Y1P0=-e2(3)*v0(1)+e2(1)*v0(3)
             Y1P1=-e2(3)*v1(1)+e2(1)*v1(3)
             if(Y1P0<Y1P1)then
-                min=Y1P0
-                max=Y1P1
+                minvlue=Y1P0
+                maxvlue=Y1P1
             else
-                min=Y1P1
-                max=Y1P0
+                minvlue=Y1P1
+                maxvlue=Y1P0
             endif
             rad=fez*boxhalfsize(1)+fex*boxhalfsize(3)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return
             endif
@@ -534,14 +549,14 @@
             Z12P1=e2(2)*v1(1)-e2(1)*v1(2)
             Z12P2=e2(2)*v2(1)-e2(1)*v2(2)
             if(Z12P2<Z12P1)then
-                min=Z12P2
-                max=Z12P1
+                minvlue=Z12P2
+                maxvlue=Z12P1
             else
-                min=Z12P1
-                max=Z12P2
+                minvlue=Z12P1
+                maxvlue=Z12P2
             endif
             rad=fey*boxhalfsize(1)+fex*boxhalfsize(2)
-            if(min>rad.or.max<-rad)then
+            if(minvlue>rad.or.maxvlue<-rad)then
                 TriBoxOverlap=.false.
                 return
             endif
@@ -554,25 +569,25 @@
 !/*  the triangle against the AABB */
             
             !/* test in X-direction */ 
-            min=FindMin(v0(1),v1(1),v2(1))
-            max=FindMax(v0(1),v1(1),v2(1))
-            if(min>boxhalfsize(1).or.max<-boxhalfsize(1))then
+            minvlue=Min(v0(1),v1(1),v2(1))
+            maxvlue=Max(v0(1),v1(1),v2(1))
+            if(minvlue>boxhalfsize(1).or.maxvlue<-boxhalfsize(1))then
                 TriBoxOverlap=.false.
                 return
             endif
                         
             !/* test in Y-direction */ 
-            min=FindMin(v0(2),v1(2),v2(2))
-            max=FindMax(v0(2),v1(2),v2(2))
-            if(min>boxhalfsize(2).or.max<-boxhalfsize(2))then
+            minvlue=Min(v0(2),v1(2),v2(2))
+            maxvlue=Max(v0(2),v1(2),v2(2))
+            if(minvlue>boxhalfsize(2).or.maxvlue<-boxhalfsize(2))then
                 TriBoxOverlap=.false.
                 return
             endif
             
             !/* test in Z-direction */ 
-            min=FindMin(v0(3),v1(3),v2(3))
-            max=FindMax(v0(3),v1(3),v2(3))
-            if(min>boxhalfsize(3).or.max<-boxhalfsize(3)) then
+            minvlue=Min(v0(3),v1(3),v2(3))
+            maxvlue=Max(v0(3),v1(3),v2(3))
+            if(minvlue>boxhalfsize(3).or.maxvlue<-boxhalfsize(3)) then
                 TriBoxOverlap=.false.
                 return
             endif
@@ -588,7 +603,7 @@
             
             TriBoxOverlap=.true.
             return
-        end function TriBoxOverlap   
+        end function TriBoxOverlap
 !---------------------------------------------------------------------- 
         Logical function planeBoxOverlap(normal,vert,maxbox)
             use ModPrecision   
@@ -613,7 +628,7 @@
                 planeBoxOverlap =.false.
                 return
             endif
-            iii= DOT_PRODUCT(normal, vmax)          
+            iii= DOT_PRODUCT(normal, vmax)
             if(iii>=0)then
                 planeBoxOverlap =.true.
                 return
@@ -623,83 +638,6 @@
             return
         end function
 !----------------------------------------------------------------------        
-          function Sub(a,b)
-            use ModPrecision
-            implicit none
-            real(R8)           :: SUB(3)
-            real(R8),INTENT(IN):: a(3), b(3)
-            SUB =              [a(1)-b(1), &
-                                a(2)-b(2), &
-                                a(3)-b(3)]
-        endfunction Sub
-!----------------------------------------------------------------------        
-        Real(R8)function FindMin(x0,x1,x2)
-            use ModPrecision
-            implicit none
-            real(R8),INTENT(IN)  :: x0,x1,x2
-                       
-            FindMin = x0
-            
-            if (x1 < FindMin) then
-                FindMin = x1
-            endif 
-            if (x2 < FindMin) then
-                FindMin = x2
-            endif
-        end function FindMin
-       Real(R8) function FindMax(x0,x1,x2)
-            use ModPrecision
-            implicit none
-            real(R8),INTENT(IN)  ::x0,x1,x2
-            
-            FindMax = x0
-            if (x1 > FindMax) then
-                FindMax = x1
-            endif 
-            if (x2 > FindMax) then
-                FindMax = x2
-            endif
-        end function FindMax
-        
-!----------------------------------------------------------------------
-        integer function MollerTrumbore(Point,D,tri)
-        use ModTools
-        implicit none
-        real(R8)      ,INTENT(IN):: point(3)   ! point(3) = x, y, z.
-        real(R8)      ,INTENT(IN):: D(3)
-        type(typPoint),INTENT(IN):: tri(3)
-        real(R8):: V0(3), V1(3), V2(3)
-        real(R8):: P(3), Q(3)
-        real(R8):: t, u, v
-        real(R8):: A
-
-        V0 = point-tri(1)%P
-        V1 = tri(2)%P-tri(1)%P
-        V2 = tri(3)%P-tri(1)%P
-
-        ! Parallel identify
-        P = CROSS_PRODUCT_3(V1,V2)
-        t = DOT_PRODUCT(D,P)
-        if (t==0) then  ! Parallel
-            MollerTrumbore=0; return
-        endif
-
-        P = CROSS_PRODUCT_3(D,V2)
-        Q = CROSS_PRODUCT_3(V0,V1)
-        A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
-        t = DOT_PRODUCT(Q,V2)
-        u = DOT_PRODUCT(P,V0)
-        v = DOT_PRODUCT(Q,D)
-
-        if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>0) then
-            MollerTrumbore=1; return
-        elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<0) then
-            MollerTrumbore=1; return
-        else
-            MollerTrumbore=0; return
-        endif
-        endfunction MollerTrumbore
-!----------------------------------------------------------------------
         subroutine NewCell(c,split)
         use ModInpGlobal
         use ModNeighbor
@@ -1121,7 +1059,7 @@
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
     real(R8):: p        ! Used to print precentage
-    integer :: step=0   ! Counter, used to print precentage
+    integer :: step=0   ! Counter, print progress precentage
 
     call CPU_TIME(tStart)
     write(6,'(1X,A,12X,A)',advance='no') 'SurfaceAdapt progress:', ''
@@ -1253,7 +1191,6 @@
         call initFindNeighbor
     end select
 
-
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "SurfaceAdapt time: ", tEnd-tStart
     contains
@@ -1293,6 +1230,8 @@
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
+    write(6,'(1X,A,12X,A)',advance='no') 'PaintingAlgorithm progress:', ''
+    flush(6)
     loop:  do kk = 1, nCell(3)
     do jj = 1, nCell(2)
     do ii = 1, nCell(1)
@@ -1301,6 +1240,7 @@
     enddo
     enddo
     enddo loop
+    write(*,*) '' ! Stop write with advance='no'
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "Painting Algorithm time: ", tEnd-tStart
     contains
@@ -1340,76 +1280,112 @@
         c1%cross = CellInout(c1)
         if (c1%cross==0) then
             if (ASSOCIATED(c1%NeighborX1)) &
-                call PaintingAlgorithm(c1%NeighborX1,1)
+                call PaintingAlgorithm(c1%NeighborX1,1,.true.)
             if (ASSOCIATED(c1%NeighborX2)) &
-                call PaintingAlgorithm(c1%NeighborX2,4)
+                call PaintingAlgorithm(c1%NeighborX2,4,.true.)
             if (ASSOCIATED(c1%NeighborY1)) &
-                call PaintingAlgorithm(c1%NeighborY1,2)
+                call PaintingAlgorithm(c1%NeighborY1,2,.true.)
             if (ASSOCIATED(c1%NeighborY2)) &
-                call PaintingAlgorithm(c1%NeighborY2,5)
+                call PaintingAlgorithm(c1%NeighborY2,5,.true.)
             if (ASSOCIATED(c1%NeighborZ1)) &
-                call PaintingAlgorithm(c1%NeighborZ1,3)
+                call PaintingAlgorithm(c1%NeighborZ1,3,.true.)
             if (ASSOCIATED(c1%NeighborZ2)) &
-                call PaintingAlgorithm(c1%NeighborZ2,6)
+                call PaintingAlgorithm(c1%NeighborZ2,6,.true.)
             PA = .true.
             PAused = .true.
         endif
         endfunction initPaintingAlgorithm2
 !----------------------------------------------------------------------
-        recursive subroutine PaintingAlgorithm(c,dirct)
+        recursive subroutine PaintingAlgorithm(c,dirct,iosIn)
         implicit none
         type(octCell),pointer :: c, cc
         integer               :: dirct
+        LOGICAL,INTENT(IN)    :: iosIn  ! = F , come from cross=-3 cell
+                                        ! = T , come from cross= 0 cell
+        LOGICAL               :: iosOut
+        integer,SAVE          :: progress=0 ! counter, print precentage
 
+        iosOut=iosIn
+        if (c%cross==-3) iosOut = .false.
         if(ASSOCIATED(c%son8))then
-            call PaintingAlgorithm(c%son1,dirct)
-            call PaintingAlgorithm(c%son2,dirct)
-            call PaintingAlgorithm(c%son3,dirct)
-            call PaintingAlgorithm(c%son4,dirct)
-            call PaintingAlgorithm(c%son5,dirct)
-            call PaintingAlgorithm(c%son6,dirct)
-            call PaintingAlgorithm(c%son7,dirct)
-            call PaintingAlgorithm(c%son8,dirct)
+            call PaintingAlgorithm(c%son1,dirct,iosOut)
+            call PaintingAlgorithm(c%son2,dirct,iosOut)
+            call PaintingAlgorithm(c%son3,dirct,iosOut)
+            call PaintingAlgorithm(c%son4,dirct,iosOut)
+            call PaintingAlgorithm(c%son5,dirct,iosOut)
+            call PaintingAlgorithm(c%son6,dirct,iosOut)
+            call PaintingAlgorithm(c%son7,dirct,iosOut)
+            call PaintingAlgorithm(c%son8,dirct,iosOut)
             return
         elseif(ASSOCIATED(c%son4))then
-            call PaintingAlgorithm(c%son1,dirct)
-            call PaintingAlgorithm(c%son2,dirct)
-            call PaintingAlgorithm(c%son3,dirct)
-            call PaintingAlgorithm(c%son4,dirct)
+            call PaintingAlgorithm(c%son1,dirct,iosOut)
+            call PaintingAlgorithm(c%son2,dirct,iosOut)
+            call PaintingAlgorithm(c%son3,dirct,iosOut)
+            call PaintingAlgorithm(c%son4,dirct,iosOut)
             return
         elseif(ASSOCIATED(c%son2))then
-            call PaintingAlgorithm(c%son1,dirct)
-            call PaintingAlgorithm(c%son2,dirct)
+            call PaintingAlgorithm(c%son1,dirct,iosOut)
+            call PaintingAlgorithm(c%son2,dirct,iosOut)
             return
         endif
 
-        if (c%cross/=-3 .and. c%cross/=-4) return ! Cell has been paintted.
-        c%cross = CellInout(c)
-        if (c%cross==3) return ! Inside cell, return.
+        if (c%cross/=-3 .and. c%cross/=-4) return ! Cell has been paintted
+            ! if(c%nBGCell(1)==4.and.c%nBGCell(2)==7.and.c%nBGCell(3)==4) then
+            ! print*,''
+            ! endif
+
+        if (iosIn) then
+            if (c%cross==-4)then ! This cell is a outside cell too.
+                c%cross=0
+                iosOut = .True.
+            elseif (c%cross==-3) then
+                progress = progress + 1 ! Once call cellinout, progress++
+                c%cross = CellInout(c)
+                iosOut = .false.
+            endif
+        else
+            progress = progress + 1
+            c%cross = CellInout(c)
+            if (c%cross==3) then
+                iosOut = .false.
+                return ! Inside cell, return.
+            elseif (c%cross==0) then
+                iosOut = .true.
+            else
+                iosOut = .false.
+            endif
+        endif
+
+        ! counter, print progress precentage
+        if (mod(progress,100)==0) then
+            write(6,'(A,F5.1,A)',advance='no') &
+                    '\b\b\b\b\b\b', progress/real(nCells,R8)*100, '%'
+            flush(6)
+        endif
 
         if (dirct /= 4) then
             cc => c%NeighborX1
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,1)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,1,iosOut)
         endif
         if (dirct /= 1) then
             cc => c%NeighborX2
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,4)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,4,iosOut)
         endif
         if (dirct /= 5) then
             cc => c%NeighborY1
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,2)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,2,iosOut)
         endif
         if (dirct /= 2) then
             cc => c%NeighborY2
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,5)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,5,iosOut)
         endif
         if (dirct /= 6) then
             cc => c%NeighborZ1
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,3)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,3,iosOut)
         endif
         if (dirct /= 3) then
             cc => c%NeighborZ2
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6,iosOut)
         endif
         endsubroutine PaintingAlgorithm
     endsubroutine initPaintingAlgorithm
@@ -1427,7 +1403,7 @@
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
-    do ii=1, InitRefineLVL+5
+    do ii=1, InitRefineLVL
 
         do k = 1, nCell(3)
         do j = 1, nCell(2)

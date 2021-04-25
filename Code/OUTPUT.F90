@@ -19,9 +19,10 @@
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
     character(80)           :: FileName
-    integer                 :: ios, i, j
+    integer                 :: iost, i, j
     integer,PARAMETER       :: nVars = 8 ! Number of cVariables for output
                                 ! node 1-8, U, V, W, Rou, T, P, Ma, Cross
+    integer                 :: ios ! If most of cells is NAN, output mesh only
 
     ALLOCATE(Nodes(nCells*8,3))  ! Reserve enough space for Nodes-array.
     ALLOCATE(cVariables(nCells,nVars))
@@ -31,21 +32,29 @@
     print*, 'Save to file: ',FileName
     call InitNodeInfo
     print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
-    call initTmpStorageVar  ! Temporary Storage cVariables
+    call initTmpStorageVar(ios)  ! Temporary Storage cVariables
 
-    open(21, file=FileName, iostat=ios, status="replace", action="write")
-        if ( ios /= 0 ) stop ("Error====> Error opening file ")
+    open(21, file=FileName, iostat=iost, status="replace", action="write")
+        if ( iost /= 0 ) stop ("Error====> Error opening file ")
         write(21,*) 'TITLE="TDCG-program Results"'
-        !write(21,*) 'cVariables="X","Y","Z","U","V"'
-        write(21,*) 'Variables="X","Y","Z","U","V","W","Rou"',      &
-                    ',"T","P","Ma","Cross"'
-        write(21,*) 'ZONE N=',nNodes,'E=',nCells
-        write(21,*) 'DATAPACKING=BLOCK  ','ZONETYPE=FEbrick'
-        write(21,"(1X,A28,I2,A15)")                    &
-            'VARLOCATION=([1-3]=NODAL,[4-',nVars+3,']=CELLCENTERED)'
 
-        write(21,"(F20.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
-        write(21,"(F20.10)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
+        if (ios == 1) then
+            write(21,*) 'Variables="X","Y","Z","U","V","W","Rou"',      &
+                        ',"T","P","Ma","Cross"'
+            write(21,*) 'ZONE N=',nNodes,'E=',nCells
+            write(21,*) 'DATAPACKING=BLOCK  ','ZONETYPE=FEbrick'
+            write(21,"(1X,A28,I2,A15)")                    &
+                'VARLOCATION=([1-3]=NODAL,[4-',nVars+3,']=CELLCENTERED)'
+            write(21,"(F20.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
+            write(21,"(F20.10)") ((cVariables(i,j),i=1,nCells),j=1,nVars)
+        else
+            write(21,*) 'Variables="X","Y","Z","Cross"'
+            write(21,*) 'ZONE N=',nNodes,'E=',nCells
+            write(21,*) 'DATAPACKING=BLOCK  ','ZONETYPE=FEbrick'
+            write(21,"(1X,A)") 'VARLOCATION=([1-3]=NODAL,[4]=CELLCENTERED)'
+            write(21,"(F20.10)") ((real(Nodes(i,j),R8),i=1,nNodes),j=1,3)
+            write(21,"(F20.10)") (cVariables(i,8),i=1,nCells)
+        endif
         write(21,"(8(I9,1X))") ((cNodes(i,j),j=1,8),i=1,nCells)
     close(21)
     DEALLOCATE(Nodes)
@@ -87,46 +96,85 @@
     print*, 'Save to file: ',FileName
     call InitNodeInfo
     print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
-    call initTmpStorageVar  ! Temporary Storage cVariables
+    call initTmpStorageVar(ios)  ! Temporary Storage cVariables
     
-    ! Open the file and write the tecplot datafile header information.
-    ios = TecIni142('TDCG-program Results'//NULLCHR, &
-                    'X Y Z U V W Rou T P Ma Cross'//NULLCHR, &
-                    FileName//NULLCHR, &
-                    NULLCHR, &
-                    FileFormat, &        ! FileFormat
-                    0, &        ! FileType
-                    Debug, &
-                    0)          ! VIsDouble     = 0 Single
-                                !               = 1 Double
-        if (ios/=0) stop "Error value returned in TecIni142"
-    ! Write the zone header information.
-    ios = TecZne142('Zone'//NULLCHR, &
-                    5, &        ! ZoneType
-                    nNodes, &   ! NumPts
-                    nCells, &   ! NumElements
-                    0, &        ! Not used for FEbrick Zone type.
-                    0, 0, 0, &  ! For future use.
-                    SolTime, &  ! SolutionTime
-                    0, &        ! StrandID
-                    0, &        ! ParentZn
-                    1, &        ! IsBlock
-                    0, &        ! NumFaceConnections
-                    3, &        ! FaceNeighborMode
-                    0, 0, 0, &  ! Not used for FEbrick Zone type.
-                    Null, &     ! PassiveVarList
-                    VarLocation, &
-                    Null, &     ! ShareVarFromZone
-                    0)          ! ShareConnectivityFromZone
-        if (ios/=0) stop "Error value returned in TecZne142"
-    do i=1,3
-    ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
-        if (ios/=0) stop "Error value returned in TecDat142"
-    enddo
-    do i=1,nVars
-    ios = TecDat142(nCells,real(cVariables(1:nCells,i),R4),0)
-        if (ios/=0) stop "Error value returned in TecDat142"
-    enddo
+    if (ios == 1) then
+        ! Open the file and write the tecplot datafile header information.
+        ios = TecIni142('TDCG-program Results'//NULLCHR, &
+                        'X Y Z U V W Rou T P Ma Cross'//NULLCHR, &
+                        FileName//NULLCHR, &
+                        NULLCHR, &
+                        FileFormat, &        ! FileFormat
+                        0, &        ! FileType
+                        Debug, &
+                        0)          ! VIsDouble     = 0 Single
+                                    !               = 1 Double
+            if (ios/=0) stop "Error value returned in TecIni142"
+        ! Write the zone header information.
+        ios = TecZne142('Zone'//NULLCHR, &
+                        5, &        ! ZoneType
+                        nNodes, &   ! NumPts
+                        nCells, &   ! NumElements
+                        0, &        ! Not used for FEbrick Zone type.
+                        0, 0, 0, &  ! For future use.
+                        SolTime, &  ! SolutionTime
+                        0, &        ! StrandID
+                        0, &        ! ParentZn
+                        1, &        ! IsBlock
+                        0, &        ! NumFaceConnections
+                        3, &        ! FaceNeighborMode
+                        0, 0, 0, &  ! Not used for FEbrick Zone type.
+                        Null, &     ! PassiveVarList
+                        [1,1,1,0,0,0,0,0,0,0,0], & ! VarLocation
+                        Null, &     ! ShareVarFromZone
+                        0)          ! ShareConnectivityFromZone
+            if (ios/=0) stop "Error value returned in TecZne142"
+        do i=1,3
+        ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
+            if (ios/=0) stop "Error value returned in TecDat142"
+        enddo
+        do i=1,nVars
+        ios = TecDat142(nCells,real(cVariables(1:nCells,i),R4),0)
+            if (ios/=0) stop "Error value returned in TecDat142"
+        enddo
+    else
+        ! Open the file and write the tecplot datafile header information.
+        ios = TecIni142('TDCG-program Results'//NULLCHR, &
+                        'X Y Z Cross'//NULLCHR, &
+                        FileName//NULLCHR, &
+                        NULLCHR, &
+                        FileFormat, &        ! FileFormat
+                        0, &        ! FileType
+                        Debug, &
+                        0)          ! VIsDouble     = 0 Single
+                                    !               = 1 Double
+            if (ios/=0) stop "Error value returned in TecIni142"
+        ! Write the zone header information.
+        ios = TecZne142('Zone'//NULLCHR, &
+                        5, &        ! ZoneType
+                        nNodes, &   ! NumPts
+                        nCells, &   ! NumElements
+                        0, &        ! Not used for FEbrick Zone type.
+                        0, 0, 0, &  ! For future use.
+                        SolTime, &  ! SolutionTime
+                        0, &        ! StrandID
+                        0, &        ! ParentZn
+                        1, &        ! IsBlock
+                        0, &        ! NumFaceConnections
+                        3, &        ! FaceNeighborMode
+                        0, 0, 0, &  ! Not used for FEbrick Zone type.
+                        Null, &     ! PassiveVarList
+                        [1,1,1,0], & ! VarLocation
+                        Null, &     ! ShareVarFromZone
+                        0)          ! ShareConnectivityFromZone
+            if (ios/=0) stop "Error value returned in TecZne142"
+        do i=1,3
+        ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
+            if (ios/=0) stop "Error value returned in TecDat142"
+        enddo
+        ios = TecDat142(nCells,real(cVariables(1:nCells,8),R4),0)
+            if (ios/=0) stop "Error value returned in TecDat142"
+    endif
     ios = TecNod142(transpose(cNodes))
         if (ios/=0) stop "Error value returned in TecNod142"
     ios = TecEnd142()
@@ -294,51 +342,67 @@
     endsubroutine InitNodeInfo
 !======================================================================
 !======================================================================
-    subroutine initTmpStorageVar
+    subroutine initTmpStorageVar(ios)
+    ! ios = 0, mesh only; = 1, all vars
     use ModInpMesh
     use ModMesh
     use ModOutput
     implicit none
     type(octCell),pointer :: t
     integer :: i, j, k
+    integer,INTENT(OUT) :: ios ! If most of cells is NAN, output mesh only
 
+    ios=0
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
         t=>Cell(i, j, k)
-        call TmpStorageVar(t)
+        call TmpStorageVar(t,ios)
     enddo
     enddo
     enddo
+    if (ios>nCells/2) then
+        ios = 0
+    else
+        ios = 1
+    endif
         contains
 !----------------------------------------------------------------------
-        recursive subroutine TmpStorageVar(c)
+        recursive subroutine TmpStorageVar(c,ios)
         use ModInpInflow,only : Rgas, Gama00
         implicit none
         type(octCell),pointer :: c
+        integer,INTENT(INOUT) :: ios
+        ! If most of cells is NAN, output mesh only
         integer :: n, jj
         REAL(R8):: u, v, w,p
 
         if(ASSOCIATED(c%son8))then
-            call TmpStorageVar(c%son1)
-            call TmpStorageVar(c%son2)
-            call TmpStorageVar(c%son3)
-            call TmpStorageVar(c%son4)
-            call TmpStorageVar(c%son5)
-            call TmpStorageVar(c%son6)
-            call TmpStorageVar(c%son7)
-            call TmpStorageVar(c%son8)
+            call TmpStorageVar(c%son1,ios)
+            call TmpStorageVar(c%son2,ios)
+            call TmpStorageVar(c%son3,ios)
+            call TmpStorageVar(c%son4,ios)
+            call TmpStorageVar(c%son5,ios)
+            call TmpStorageVar(c%son6,ios)
+            call TmpStorageVar(c%son7,ios)
+            call TmpStorageVar(c%son8,ios)
         elseif(ASSOCIATED(c%son4))then
-            call TmpStorageVar(c%son1)
-            call TmpStorageVar(c%son2)
-            call TmpStorageVar(c%son3)
-            call TmpStorageVar(c%son4)
+            call TmpStorageVar(c%son1,ios)
+            call TmpStorageVar(c%son2,ios)
+            call TmpStorageVar(c%son3,ios)
+            call TmpStorageVar(c%son4,ios)
         elseif(ASSOCIATED(c%son2))then
-            call TmpStorageVar(c%son1)
-            call TmpStorageVar(c%son2)
+            call TmpStorageVar(c%son1,ios)
+            call TmpStorageVar(c%son2,ios)
         else
             n=c%nCell
             do jj=1,8; cNodes(n,jj)=c%Node(jj); enddo
+            if (c%U(4)==0 .or. c%U(5)==0)then
+                cVariables(n,1:7)=-9999999
+                cVariables(n,8)  = c%cross    ! Cross
+                ios = ios + 1
+                return
+            endif
             u=c%U(1)/c%U(4); v=c%U(2)/c%U(4); w=c%U(3)/c%U(4)
             p=Rgas*c%U(4)*c%U(5)
             cVariables(n,1)= u          ! u
@@ -349,7 +413,6 @@
             cVariables(n,6)= p          ! P
             cVariables(n,7)= sqrt((u*u+v*v+w*w)/abs(Gama00*p/c%U(4)))!Ma
             cVariables(n,8)= c%cross    ! Cross
-            if (c%U(4)==0 .or. c%U(5)==0) cVariables(n,1:7)=-9999999
         endif
         endsubroutine TmpStorageVar
 !----------------------------------------------------------------------

@@ -40,6 +40,7 @@
 !======================================================================
     program TDCGmain
     use ModPrecision
+    use modtimer
     implicit none
     real(R8):: tStart
     real(R8):: tEnd
@@ -54,6 +55,13 @@
     call TDCGOutput('OK')
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') 'Program running time: ', tEnd-tStart
+
+    ! write(*,'(1X,A,F10.2)') 'MollerTrumbore time:  ', time2
+    ! write(*,'(1X,A,I15)')     'MollerTrumbore times: ', times2
+    ! write(*,'(1X,A,F10.2)') "RayCast time:  ", time3
+    ! write(*,'(1X,A,I15)')     "RayCast times: ", times3
+    ! write(*,'(1X,A,F10.2)') "Inout time:  ", time
+    ! write(*,'(1X,A,I15)')     "Inout times: ", times
 
     end program TDCGmain
 !======================================================================
@@ -94,7 +102,7 @@
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
 
-    call GetMinDistance
+    ! call GetMinDistance
 
     write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart

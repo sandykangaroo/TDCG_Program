@@ -7,7 +7,7 @@ $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
     Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/sphere_4982_',
+    GeometryName  = './Data/body',
     OutputNameStr = './Data/test',
     OutputFormat  = '.plt'
 $END
@@ -23,14 +23,13 @@ $END
 !                     4 AABB KDT
 !                     5 AABB Traverse
 $Mesh
-    nCell = 20, 20, 20,
-!   DomainMin = -100.0, -100.0, 100.0,
-!   DomainMax =  100.0,  100.0,  100.0,
-	DomainMin = -2000.0, -2000.0, -2000.0,
-    DomainMax = 2000.0,  2000.0,  2000.0,
-	
-    InitRefineLVL = 4, AdaptRefineLVL  =  2,
-    cIntersectMethod = 5
+    nCell = 20,20,20,
+   DomainMin = -150.0, -150.0, -150.0,
+   DomainMax =  150.0,  150.0,  150.0,
+ !   DomainMin = -40000.0, -1700.0, 3000.0,
+ !   DomainMax = -26000.0,  1700.0,  5500.0,
+    InitRefineLVL = 3, AdaptRefineLVL  =  2,
+    cIntersectMethod = 1
 $END
 
 $NRRset
