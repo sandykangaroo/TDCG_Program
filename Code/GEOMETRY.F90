@@ -303,93 +303,69 @@
         
     end subroutine Partition
 !----------------------------------------------------------------------
-
-!    recursive subroutine KDTree_out(node)
-!        type(KDT_node), pointer                          :: node, p
-!        real(R8)                                       :: xmid, x(6), aa
-!        integer                                          :: i, mid
-!        logical                                          :: opd
-! 
-!        inquire(file='./Data/split2.dat', opened=opd)
-!        if ( .not. opd) then
-!            open(1, file='./Data/split2.dat', status='unknown', form='formatted')
-!        end if
-!        
-!        if( .not. associated(node%left) .and. .not. associated(node%right) ) then 
-!            return
-!        end if
-!                
-!        p => node        
-!        mid = p%splitaxis
-!        xmid = p%the_data%p(4)%P(mid)
-!         write(102,*) p%level p%the_data%p(1)%label, p%the_data%p(2)%label,p%the_data%p(3)%label
-!!        write(1,*) ' ZONE T = "1" '
-!        write(1,*) ' VARIABLES = "X", "Y", "Z" '
-!        write(1,*) ' ZONE NODES=4, ELEMENTS=1, DATAPACKING=POINT, ZONETYPE=FEBRICK '        
-!        if ( mid == 1) then
-!            write(1,*) xmid, p%box(2), p%box(3)
-!            write(1,*) xmid, p%box(2), p%box(6)
-!            write(1,*) xmid, p%box(5), p%box(6)
-!            write(1,*) xmid, p%box(5), p%box(3)
-!            write(1,*) '1 2 3 4 1 2 3 4'
-!        else if ( mid == 2) then
-!            write(1,*) p%box(1), xmid, p%box(3)
-!            write(1,*) p%box(1), xmid, p%box(6)
-!            write(1,*) p%box(4), xmid, p%box(6)
-!            write(1,*) p%box(4), xmid, p%box(3)
-!            write(1,*) '1 2 3 4 1 2 3 4'    
-!        else if ( mid == 3) then
-!            write(1,*) p%box(1), p%box(2), xmid
-!            write(1,*) p%box(1), p%box(5), xmid
-!            write(1,*) p%box(4), p%box(5), xmid
-!            write(1,*) p%box(4), p%box(2), xmid
-!            write(1,*) '1 2 3 4 1 2 3 4'  
-!        end if
-!        
-!        if( associated(node%left) .OR. associated(node%right) ) then
-!            if ( associated(node%left) .and. associated(node%right) ) then
-!                p => node%left
-!                call KDTree_out(p)
-!                p => node%right
-!                call KDTree_out(p)
-!            end if
-!            if ( associated(node%left) .and. .not. associated(node%right) ) then
-!                p => node%left
-!                call KDTree_out(p)
-!            end if
-!            if ( .not. associated(node%left) .and. associated(node%right) ) then
-!                p => node%right
-!                call KDTree_out(p)
-!            end if
-!        end if
-!
-!        if (.not. associated(node%parent)) then
-!            close(1)
-!        end if
-!    end subroutine KDTree_out
-!----------------------------------------------------------------------
-
     recursive subroutine KDTree_out(node)
         type(KDT_node), pointer                          :: node, p
         real(R8)                                       :: xmid, x(6), aa
         integer                                          :: i, mid
         logical                                          :: opd
  
-         write(102,*) node%level, node%the_data%p(1)%label, node%the_data%p(2)%label,node%the_data%p(3)%label
- 
+        inquire(file='./Data/split2.dat', opened=opd)
+        if ( .not. opd) then
+            open(1, file='./Data/split2.dat', status='unknown', form='formatted')
+        end if
+        
+        if( .not. associated(node%left) .and. .not. associated(node%right) ) then 
+            return
+        end if
+                
+        p => node        
+        mid = p%splitaxis
+        xmid = p%the_data%p(4)%P(mid)
+!        write(1,*) ' ZONE T = "1" '
+        write(1,*) ' VARIABLES = "X", "Y", "Z" '
+        write(1,*) ' ZONE NODES=4, ELEMENTS=1, DATAPACKING=POINT, ZONETYPE=FEBRICK '        
+        if ( mid == 1) then
+            write(1,*) xmid, p%box(2), p%box(3)
+            write(1,*) xmid, p%box(2), p%box(6)
+            write(1,*) xmid, p%box(5), p%box(6)
+            write(1,*) xmid, p%box(5), p%box(3)
+            write(1,*) '1 2 3 4 1 2 3 4'
+        else if ( mid == 2) then
+            write(1,*) p%box(1), xmid, p%box(3)
+            write(1,*) p%box(1), xmid, p%box(6)
+            write(1,*) p%box(4), xmid, p%box(6)
+            write(1,*) p%box(4), xmid, p%box(3)
+            write(1,*) '1 2 3 4 1 2 3 4'    
+        else if ( mid == 3) then
+            write(1,*) p%box(1), p%box(2), xmid
+            write(1,*) p%box(1), p%box(5), xmid
+            write(1,*) p%box(4), p%box(5), xmid
+            write(1,*) p%box(4), p%box(2), xmid
+            write(1,*) '1 2 3 4 1 2 3 4'  
+        end if
+        
         if( associated(node%left) .OR. associated(node%right) ) then
             if ( associated(node%left) .and. associated(node%right) ) then
-                call KDTree_out(node%left)
-                call KDTree_out(node%right)
+                p => node%left
+                call KDTree_out(p)
+                p => node%right
+                call KDTree_out(p)
             end if
             if ( associated(node%left) .and. .not. associated(node%right) ) then
-                call KDTree_out(node%left)
+                p => node%left
+                call KDTree_out(p)
             end if
             if ( .not. associated(node%left) .and. associated(node%right) ) then
-                call KDTree_out(node%right)
+                p => node%right
+                call KDTree_out(p)
             end if
         end if
+
+        if (.not. associated(node%parent)) then
+            close(1)
+        end if
     end subroutine KDTree_out
+
 !----------------------------------------------------------------------
 
     recursive subroutine nearest_search(Tar, node, nearest, i)
@@ -405,7 +381,7 @@
         integer                                         :: i, split
         
         i = i + 1
-!        write(*,*) node%level
+        !write(12,*) node%level
         aa = 1.d0
         if ( .not. associated(node%left) .and. .not.associated(node%right) ) then
             dist = distance(Tar, nearest%the_data%p(4))

@@ -43,19 +43,18 @@
     call CPU_TIME (tend)
     write(*,'(1X,A,F10.2)') "traverse find min distance time", tend-tstart
     
-    
+    tp=>kdtree(1)
     call CPU_TIME(tstart)
     do i=1,nCell(1)
         do j=1,nCell(2)
             do k=1,nCell(3)
                 t=>Cell(i,j,k)
                 tem%P(:)=t%center(:)
-                tp=>kdtree(1)
                 nearest => tp%root
                 h=0
                 call nearest_search(tem, tp%root, nearest, h)
                 mindis=distance(tem,nearest%the_data%p(4))
-                !write(101,*) mindis
+                !write(101,*) mindis,h
             enddo
         enddo
     enddo

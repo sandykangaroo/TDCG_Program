@@ -312,7 +312,7 @@
             
             tri = node%the_data
             aaa = TriBoxOverlap(c,tri)
-
+            !write(*,*) node%level
             if(aaa)then
                 return
             endif
@@ -1393,7 +1393,7 @@
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
-    do ii=1, InitRefineLVL+5
+    do ii=1, InitRefineLVL+1
 
         do k = 1, nCell(3)
         do j = 1, nCell(2)
