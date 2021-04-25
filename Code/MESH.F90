@@ -336,30 +336,27 @@
             
             tri = node%the_data
             aaa = TriBoxOverlap(c,tri)
-         
+            !write(*,*) node%level
             if(aaa)then
                 return
             endif
             
-            split=node%splitaxis 
-            splitmax=node%splitaxis+3
-            if(boxCell(split)>node%the_data%p(4)%p(split))then
-                if(associated(node%right))then
+            if(associated(node%right))then
+            if( boxCell(1)<=node%right%box(4).and.boxCell(4)>=node%right%box(1).and.&
+                boxCell(2)<=node%right%box(5).and.boxCell(5)>=node%right%box(2).and.&
+                boxCell(3)<=node%right%box(6).and.boxCell(6)>=node%right%box(3))then
                     call KdFindTri(c,boxCell,node%right,aaa)
-                endif
-            elseif(boxCell(splitmax)<node%the_data%p(4)%p(split))then
-                if(associated(node%left))then
+                    if(aaa) return
+            endif
+            endif
+            
+            if(associated(node%left))then
+            if( boxCell(1)<=node%left%box(4).and.boxCell(4)>=node%left%box(1).and.&
+                boxCell(2)<=node%left%box(5).and.boxCell(5)>=node%left%box(2).and.&
+                boxCell(3)<=node%left%box(6).and.boxCell(6)>=node%left%box(3))then
                     call KdFindTri(c,boxCell,node%left,aaa)
-                endif
-            else
-                if(associated(node%right))then
-                    call KdFindTri(c,boxCell,node%right,aaa)
-                    if(aaa)then
-                        return
-                    elseif(associated(node%left))then
-                        call KdFindTri(c,boxCell,node%left,aaa)
-                    endif
-                endif
+                    if(aaa) return
+            endif
             endif
         end subroutine KdFindTri    
 !----------------------------------------------------------------------

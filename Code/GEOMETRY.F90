@@ -81,17 +81,17 @@
         else
 !-------------------------------------------------------------------------------
 !find the most_spread_direction and define it as split direction 
-        !call find_split_direction(res, td%splitaxis)
+        call find_split_direction(res, td%splitaxis)
         
 !-------------------------------------------------------------------------------        
 !define the split direction alternative     
-        if ( mod(td%level,3) == 1 ) then
-            td%splitaxis = 1
-        else if ( mod(td%level,3) == 2 ) then
-            td%splitaxis = 2
-        else if ( mod(td%level,3) == 0 ) then
-             td%splitaxis = 3
-        end if
+        !if ( mod(td%level,3) == 1 ) then
+        !    td%splitaxis = 1
+        !else if ( mod(td%level,3) == 2 ) then
+        !    td%splitaxis = 2
+        !else if ( mod(td%level,3) == 0 ) then
+        !     td%splitaxis = 3
+        !end if
 !-------------------------------------------------------------------------------            
         call sort_under_split_direction(res, td%splitaxis)
         td%the_data = res(mid)
@@ -303,7 +303,6 @@
         
     end subroutine Partition
 !----------------------------------------------------------------------
-
     recursive subroutine KDTree_out(node)
         type(KDT_node), pointer                          :: node, p
         real(R8)                                       :: xmid, x(6), aa
@@ -366,6 +365,7 @@
             close(1)
         end if
     end subroutine KDTree_out
+
 !----------------------------------------------------------------------
 
     recursive subroutine nearest_search(Tar, node, nearest, i)
@@ -381,7 +381,7 @@
         integer                                         :: i, split
         
         i = i + 1
-!        write(*,*) node%level
+        !write(12,*) node%level
         aa = 1.d0
         if ( .not. associated(node%left) .and. .not.associated(node%right) ) then
             dist = distance(Tar, nearest%the_data%p(4))
