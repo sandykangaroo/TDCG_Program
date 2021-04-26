@@ -65,6 +65,14 @@
                 c%cross = -4
                 c%cross = CellInout(c)
             endif
+        case (6)
+            if (CellCast(c)) then
+                c%cross = -3
+                c%cross = CellInout(c)
+            else
+                c%cross = -4
+                c%cross = CellInout(c)
+            endif
         end select
         endsubroutine initCellCross
 !----------------------------------------------------------------------
@@ -89,6 +97,7 @@
         logical function CellCast(c)
         use ModKDTree
         use ModInpGlobal
+        use ModInpMesh,only: cIntersectMethod
         implicit none
         type(octCell),pointer :: c
         type(typPoint)        :: p(8)
@@ -123,8 +132,13 @@
                     ! k(2)%P = [0., 1., 0.]
                     ! k(3)%P = [0., 0., 1.]
                     k = CSHIFT([0.,0.,1.],4-iii)
-                    call RayCast(CSHIFT(p(i)%P,iii-1), &
-                                 KDTree(ii)%root,k,nIntersect,iii)
+                    if (cIntersectMethod/=6) then
+                        call RayCast(CSHIFT(p(i)%P,iii-1), &
+                                    KDTree(ii)%root,k,nIntersect,iii)
+                    else
+                        call RayCastTraverse(CSHIFT(p(i)%P,iii-1), &
+                                    KDTree(ii)%root,k,nIntersect,iii)
+                    endif
                     ! If no intersect, must be a outside point, so return.
                     if (nIntersect == 0) then
                         Pintersect=Pintersect+0
@@ -151,6 +165,7 @@
         use ModKDTree
         use ModInpGlobal
         use modtimer
+        use ModInpMesh,only: cIntersectMethod
         implicit none
         type(octCell),pointer :: c
         integer :: nIntersect ! Intersect times for one point
@@ -173,8 +188,13 @@
                 ! k(2)%P = [0., 1., 0.]
                 ! k(3)%P = [0., 0., 1.]
                 k = CSHIFT([0.,0.,1.],4-iii)
-                call RayCast(CSHIFT(c%Center,iii-1), &
-                             KDTree(1)%root,k,nIntersect,iii)
+                if (cIntersectMethod/=6) then
+                    call RayCast(CSHIFT(c%Center,iii-1), &
+                                KDTree(1)%root,k,nIntersect,iii)
+                else
+                    call RayCastTraverse(CSHIFT(c%Center,iii-1), &
+                                KDTree(1)%root,k,nIntersect,iii)
+                endif
                 ! If no intersect, must be a outside point, so return.
                 if (nIntersect == 0) then
                     return
@@ -204,28 +224,51 @@
         real(R8),INTENT(IN)    :: point(3)     ! point(3) = x, y, z.
         type(KDT_node),pointer,INTENT(IN) :: tree
         real(R8),INTENT(IN)    :: k(3)
-        integer,INTENT(INOUT)  :: nIntersect ! Save the intersect number
-        integer,INTENT(IN)     :: i ! Which Ray
-        real(R8)               :: boxmin(3), boxmax(3)
+        integer, INTENT(INOUT) :: nIntersect ! Save the intersect number
+        integer, INTENT(IN)    :: i ! Which Ray
+        real(R8)               :: box(3)
 
         if (.not.ASSOCIATED(tree)) return
 
         ! Quick Bounding-BOX identify
-        boxmin = CSHIFT(tree%box(1:3),i-1)
-        if (point(1)>boxmin(1).and.point(2)>boxmin(2)) then
-            boxmax = CSHIFT(tree%box(4:6),i-1)
-            if(point(1)<boxmax(1).and.point(2)<boxmax(2)) then
+        box = CSHIFT(tree%box(1:3),i-1)
+        if (point(1)>box(1).and.point(2)>box(2)) then ! Box min
+            box = CSHIFT(tree%box(4:6),i-1)
+            if(point(1)<box(1).and.point(2)<box(2).and. & ! Box max
+               point(3)<box(3)) then ! Positive direction
                 if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
                     nIntersect = nIntersect + 1
                 endif
+                ! Into the next tree
+                call RayCast(point,tree%right,k,nIntersect,i)
+                call RayCast(point,tree%left,k,nIntersect,i)
             endif
         endif
 
-        ! Into the next tree
-        call RayCast(point,tree%right,k,nIntersect,i)
-        call RayCast(point,tree%left,k,nIntersect,i)
-
         endsubroutine RayCast
+!----------------------------------------------------------------------
+        subroutine RayCastTraverse(point,notused1,k,nIntersect,i)
+        use ModGeometry
+        use ModKDTree
+        use ModInpGlobal, only: nGeometry
+        implicit none
+        real(R8),INTENT(IN)    :: point(3)     ! point(3) = x, y, z.
+        type(KDT_node),pointer,INTENT(IN) :: notused1
+        real(R8),INTENT(IN)    :: k(3)
+        integer, INTENT(INOUT) :: nIntersect ! Save the intersect number
+        integer, INTENT(IN)    :: i
+        integer :: j, jj, ng
+        type(triangle):: triFace
+
+        do ng= 1,nGeometry
+            nIntersect = 0
+            do j = 1,body(ng)%nse
+                if (MollerTrumbore(Point,k,body(ng)%se3d(j))) then
+                    nIntersect=nIntersect+1
+                endif
+            enddo
+        enddo
+        endsubroutine RayCastTraverse
 !----------------------------------------------------------------------
         logical function MollerTrumbore(Point,D,tri)
         use ModTools
@@ -241,21 +284,15 @@
         V0 = point      - tri%P(1)%P
         V1 = tri%P(2)%P - tri%P(1)%P
         V2 = tri%P(3)%P - tri%P(1)%P
-
-        ! Parallel identify
-        P = CROSS_PRODUCT_3(V1,V2)
-        t = DOT_PRODUCT(D,P)
-        if (t==0) then  ! Parallel
-            MollerTrumbore=.false.; return
-        endif
-
         P = CROSS_PRODUCT_3(D,V2)
         Q = CROSS_PRODUCT_3(V0,V1)
         A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
-        t = DOT_PRODUCT(Q,V2)
         u = DOT_PRODUCT(P,V0)
         v = DOT_PRODUCT(Q,D)
-
+        t = DOT_PRODUCT(Q,V2)
+        ! Add if() judgment before each operation is no necessary, for 
+        ! the reason that BBOX judgment leads to a high probability of 
+        ! return value = .True.
         if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>0) then
             MollerTrumbore=.true.; return
         elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<0) then
@@ -1168,6 +1205,31 @@
         do i = 1, nCell(1)
             t       =>Cell(i,j,k)
             if (AABBTraverse(t)) then
+                t%cross = -3
+                t%cross = CellInout(t)
+                call SurfaceAdapt(t)
+            else
+                t%cross = -4
+                t%cross = CellInout(t)
+            endif
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
+        enddo
+        enddo
+        enddo
+        write(*,*) '' ! Stop write with advance='no'
+        call initFindNeighbor
+        call initSmoothMesh
+        call initFindNeighbor
+
+    case (6)    ! Ray-cast only
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t       =>Cell(i,j,k)
+            if (CellCast(t)) then
                 t%cross = -3
                 t%cross = CellInout(t)
                 call SurfaceAdapt(t)

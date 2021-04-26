@@ -22,21 +22,23 @@ $END
 !                     3 AABB Painting Algorithm
 !                     4 AABB KDT
 !                     5 AABB Traverse
+!                     6 Ray-cast Traverse
 $Mesh
-    nCell = 20, 20, 20,
+    nCell = 100, 100, 100,
+    InitRefineLVL = 3 AdaptRefineLVL  =  2,
+    cIntersectMethod = 3
 !bogie  
 !   DomainMin = -100.0, -100.0, -100.0,
 !   DomainMax =  200.0,  200.0,  100.0,
 !sphere   
-	DomainMin = -2000.0, -2000.0, -2000.0,
-   DomainMax = 2000.0,  2000.0,  2000.0,
+!	DomainMin = -2000.0, -2000.0, -2000.0,
+!   DomainMax = 2000.0,  2000.0,  2000.0,
 !pantograph  
-!	DomainMin = -1200.0, -150.0, 0.0,
-!    DomainMax = -200.0,  150.0,  400.0,
-
-	
-    InitRefineLVL = 4 AdaptRefineLVL  =  2,
-    cIntersectMethod = 4
+!	DomainMin = -40000.0, -1700.0, 3000.0,
+ !   DomainMax = -26000.0,  1700.0, 5500.0,
+!body 
+	DomainMin = -150.0, -150.0, -150,
+    DomainMax = 150.0,  150.0,  150.0,
 $END
 
 $NRRset
