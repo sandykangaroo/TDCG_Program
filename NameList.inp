@@ -24,7 +24,6 @@ $END
 !                     5 AABB Traverse
 !                     6 Ray-cast Traverse
 $Mesh
-    nCell = 100, 100, 100,
     InitRefineLVL = 3 AdaptRefineLVL  =  2,
     cIntersectMethod = 3
 !bogie  
@@ -34,11 +33,13 @@ $Mesh
 !	DomainMin = -2000.0, -2000.0, -2000.0,
 !   DomainMax = 2000.0,  2000.0,  2000.0,
 !pantograph  
+!    nCell = 100, 40, 40,
 !	DomainMin = -40000.0, -1700.0, 3000.0,
- !   DomainMax = -26000.0,  1700.0, 5500.0,
+!    DomainMax = -26000.0,  1700.0, 5500.0,
 !body 
+    nCell = 20,20,20,
 	DomainMin = -150.0, -150.0, -150,
-    DomainMax = 150.0,  150.0,  150.0,
+   DomainMax = 150.0,  150.0,  150.0,
 $END
 
 $NRRset

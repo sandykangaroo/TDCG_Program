@@ -386,23 +386,27 @@
             call TmpStorageVar(c%son6,ios)
             call TmpStorageVar(c%son7,ios)
             call TmpStorageVar(c%son8,ios)
+            return
         elseif(ASSOCIATED(c%son4))then
             call TmpStorageVar(c%son1,ios)
             call TmpStorageVar(c%son2,ios)
             call TmpStorageVar(c%son3,ios)
             call TmpStorageVar(c%son4,ios)
+            return
         elseif(ASSOCIATED(c%son2))then
             call TmpStorageVar(c%son1,ios)
             call TmpStorageVar(c%son2,ios)
+            return
+        endif
+
+        n=c%nCell
+        do jj=1,8
+            cNodes(n,jj)=c%Node(jj)
+        enddo
+        if (c%U(4)==0 .or. c%U(5)==0)then
+            cVariables(n,1:7)=-9999999
+            ios = ios + 1
         else
-            n=c%nCell
-            do jj=1,8; cNodes(n,jj)=c%Node(jj); enddo
-            if (c%U(4)==0 .or. c%U(5)==0)then
-                cVariables(n,1:7)=-9999999
-                cVariables(n,8)  = c%cross    ! Cross
-                ios = ios + 1
-                return
-            endif
             u=c%U(1)/c%U(4); v=c%U(2)/c%U(4); w=c%U(3)/c%U(4)
             p=Rgas*c%U(4)*c%U(5)
             cVariables(n,1)= u          ! u
@@ -412,8 +416,8 @@
             cVariables(n,5)= c%U(5)     ! T
             cVariables(n,6)= p          ! P
             cVariables(n,7)= sqrt((u*u+v*v+w*w)/abs(Gama00*p/c%U(4)))!Ma
-            cVariables(n,8)= c%cross    ! Cross
         endif
+        cVariables(n,8)= c%cross    ! Cross
         endsubroutine TmpStorageVar
 !----------------------------------------------------------------------
     endsubroutine initTmpStorageVar

@@ -95,16 +95,13 @@
 
     call CPU_TIME(tStart)
     if (Restart) return
-    call CPU_TIME(tStartG)
     call GenerateBGMesh
-    call CPU_TIME(tEndG)
     call initFindNeighbor
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
 
     ! call GetMinDistance
 
-    write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
     print*,'Done'
 

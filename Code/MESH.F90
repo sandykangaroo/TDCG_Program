@@ -226,24 +226,54 @@
         real(R8),INTENT(IN)    :: k(3)
         integer, INTENT(INOUT) :: nIntersect ! Save the intersect number
         integer, INTENT(IN)    :: i ! Which Ray
-        real(R8)               :: box(3)
+        real(R8)               :: box(6)
 
         if (.not.ASSOCIATED(tree)) return
 
         ! Quick Bounding-BOX identify
-        box = CSHIFT(tree%box(1:3),i-1)
-        if (point(1)>box(1).and.point(2)>box(2)) then ! Box min
-            box = CSHIFT(tree%box(4:6),i-1)
-            if(point(1)<box(1).and.point(2)<box(2).and. & ! Box max
-               point(3)<box(3)) then ! Positive direction
+        select case (i) ! faster than cshift.
+        case (1)
+            box(1) = tree%box(1)
+            box(2) = tree%box(2)
+            box(4) = tree%box(4)
+            box(5) = tree%box(5)
+            box(6) = tree%box(6)
+        case (2)
+            box(1) = tree%box(2)
+            box(2) = tree%box(3)
+            box(4) = tree%box(5)
+            box(5) = tree%box(6)
+            box(6) = tree%box(4)
+        case (3)
+            box(1) = tree%box(3)
+            box(2) = tree%box(1)
+            box(4) = tree%box(6)
+            box(5) = tree%box(4)
+            box(6) = tree%box(5)
+        end select
+        if (point(1)>box(1).and.point(2)>box(2).and. &
+            point(1)<box(4).and.point(2)<box(5).and. & ! Box max
+            point(3)<box(6)) then ! Positive direction
                 if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
                     nIntersect = nIntersect + 1
                 endif
                 ! Into the next tree
                 call RayCast(point,tree%right,k,nIntersect,i)
                 call RayCast(point,tree%left,k,nIntersect,i)
-            endif
         endif
+        ! box = CSHIFT(tree%box(1:3),i-1)
+        ! if (point(1)>box(1).and.point(2)>box(2)) then ! Box min
+        !     box = CSHIFT(tree%box(4:6),i-1)
+        !     if(point(1)<box(1).and.point(2)<box(2).and. & ! Box max
+        !        point(3)<box(3)) then ! Positive direction
+        !         if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
+        !             nIntersect = nIntersect + 1
+        !         endif
+        !         ! Into the next tree
+        !         call RayCast(point,tree%right,k,nIntersect,i)
+        !         call RayCast(point,tree%left,k,nIntersect,i)
+        !     endif
+        ! endif
 
         endsubroutine RayCast
 !----------------------------------------------------------------------
@@ -1287,10 +1317,11 @@
     integer :: ii, jj, kk
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
+    real(R8):: p        ! Used to print precentage
+    integer :: step=0   ! Counter, print progress precentage
 
     call CPU_TIME(tStart)
-    write(6,'(1X,A,12X,A)',advance='no') 'PaintingAlgorithm progress:', ''
-    flush(6)
+
     loop:  do kk = 1, nCell(3)
     do jj = 1, nCell(2)
     do ii = 1, nCell(1)
@@ -1299,9 +1330,28 @@
     enddo
     enddo
     enddo loop
-    write(*,*) '' ! Stop write with advance='no'
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "Painting Algorithm time: ", tEnd-tStart
+
+    call CPU_TIME(tStart)
+    write(6,'(1X,A,12X,A)',advance='no') 'PaintingAlgorithm progress:', ''
+    flush(6)
+    do kk = 1, nCell(3)
+    do jj = 1, nCell(2)
+    do ii = 1, nCell(1)
+        t       =>Cell(ii,jj,kk)
+        call PAintersectInout(t)
+        step=step+1
+        p=step/real(nBGCells,R8)*100
+        write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+        flush(6)
+    enddo
+    enddo
+    enddo
+    print*,''
+
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "IntersectCell inout judge time: ", tEnd-tStart
     contains
 !----------------------------------------------------------------------
         recursive function initPaintingAlgorithm2(c1) result(PA)
@@ -1339,114 +1389,109 @@
         c1%cross = CellInout(c1)
         if (c1%cross==0) then
             if (ASSOCIATED(c1%NeighborX1)) &
-                call PaintingAlgorithm(c1%NeighborX1,1,.true.)
+                call PaintingAlgorithm(c1%NeighborX1,1)
             if (ASSOCIATED(c1%NeighborX2)) &
-                call PaintingAlgorithm(c1%NeighborX2,4,.true.)
+                call PaintingAlgorithm(c1%NeighborX2,4)
             if (ASSOCIATED(c1%NeighborY1)) &
-                call PaintingAlgorithm(c1%NeighborY1,2,.true.)
+                call PaintingAlgorithm(c1%NeighborY1,2)
             if (ASSOCIATED(c1%NeighborY2)) &
-                call PaintingAlgorithm(c1%NeighborY2,5,.true.)
+                call PaintingAlgorithm(c1%NeighborY2,5)
             if (ASSOCIATED(c1%NeighborZ1)) &
-                call PaintingAlgorithm(c1%NeighborZ1,3,.true.)
+                call PaintingAlgorithm(c1%NeighborZ1,3)
             if (ASSOCIATED(c1%NeighborZ2)) &
-                call PaintingAlgorithm(c1%NeighborZ2,6,.true.)
+                call PaintingAlgorithm(c1%NeighborZ2,6)
             PA = .true.
             PAused = .true.
         endif
         endfunction initPaintingAlgorithm2
 !----------------------------------------------------------------------
-        recursive subroutine PaintingAlgorithm(c,dirct,iosIn)
+        recursive subroutine PaintingAlgorithm(c,dirct)
         implicit none
         type(octCell),pointer :: c, cc
         integer               :: dirct
-        LOGICAL,INTENT(IN)    :: iosIn  ! = F , come from cross=-3 cell
-                                        ! = T , come from cross= 0 cell
-        LOGICAL               :: iosOut
         integer,SAVE          :: progress=0 ! counter, print precentage
 
-        iosOut=iosIn
-        if (c%cross==-3) iosOut = .false.
         if(ASSOCIATED(c%son8))then
-            call PaintingAlgorithm(c%son1,dirct,iosOut)
-            call PaintingAlgorithm(c%son2,dirct,iosOut)
-            call PaintingAlgorithm(c%son3,dirct,iosOut)
-            call PaintingAlgorithm(c%son4,dirct,iosOut)
-            call PaintingAlgorithm(c%son5,dirct,iosOut)
-            call PaintingAlgorithm(c%son6,dirct,iosOut)
-            call PaintingAlgorithm(c%son7,dirct,iosOut)
-            call PaintingAlgorithm(c%son8,dirct,iosOut)
+            call PaintingAlgorithm(c%son1,dirct)
+            call PaintingAlgorithm(c%son2,dirct)
+            call PaintingAlgorithm(c%son3,dirct)
+            call PaintingAlgorithm(c%son4,dirct)
+            call PaintingAlgorithm(c%son5,dirct)
+            call PaintingAlgorithm(c%son6,dirct)
+            call PaintingAlgorithm(c%son7,dirct)
+            call PaintingAlgorithm(c%son8,dirct)
             return
         elseif(ASSOCIATED(c%son4))then
-            call PaintingAlgorithm(c%son1,dirct,iosOut)
-            call PaintingAlgorithm(c%son2,dirct,iosOut)
-            call PaintingAlgorithm(c%son3,dirct,iosOut)
-            call PaintingAlgorithm(c%son4,dirct,iosOut)
+            call PaintingAlgorithm(c%son1,dirct)
+            call PaintingAlgorithm(c%son2,dirct)
+            call PaintingAlgorithm(c%son3,dirct)
+            call PaintingAlgorithm(c%son4,dirct)
             return
         elseif(ASSOCIATED(c%son2))then
-            call PaintingAlgorithm(c%son1,dirct,iosOut)
-            call PaintingAlgorithm(c%son2,dirct,iosOut)
+            call PaintingAlgorithm(c%son1,dirct)
+            call PaintingAlgorithm(c%son2,dirct)
             return
         endif
 
-        if (c%cross/=-3 .and. c%cross/=-4) return ! Cell has been paintted
-            ! if(c%nBGCell(1)==4.and.c%nBGCell(2)==7.and.c%nBGCell(3)==4) then
-            ! print*,''
-            ! endif
-
-        if (iosIn) then
-            if (c%cross==-4)then ! This cell is a outside cell too.
-                c%cross=0
-                iosOut = .True.
-            elseif (c%cross==-3) then
-                progress = progress + 1 ! Once call cellinout, progress++
-                c%cross = CellInout(c)
-                iosOut = .false.
-            endif
-        else
-            progress = progress + 1
-            c%cross = CellInout(c)
-            if (c%cross==3) then
-                iosOut = .false.
-                return ! Inside cell, return.
-            elseif (c%cross==0) then
-                iosOut = .true.
-            else
-                iosOut = .false.
-            endif
-        endif
-
-        ! counter, print progress precentage
-        if (mod(progress,100)==0) then
-            write(6,'(A,F5.1,A)',advance='no') &
-                    '\b\b\b\b\b\b', progress/real(nCells,R8)*100, '%'
-            flush(6)
-        endif
+        if (c%cross/=-4) return ! Cell has been paintted
+        c%cross=0
 
         if (dirct /= 4) then
             cc => c%NeighborX1
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,1,iosOut)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,1)
         endif
         if (dirct /= 1) then
             cc => c%NeighborX2
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,4,iosOut)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,4)
         endif
         if (dirct /= 5) then
             cc => c%NeighborY1
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,2,iosOut)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,2)
         endif
         if (dirct /= 2) then
             cc => c%NeighborY2
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,5,iosOut)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,5)
         endif
         if (dirct /= 6) then
             cc => c%NeighborZ1
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,3,iosOut)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,3)
         endif
         if (dirct /= 3) then
             cc => c%NeighborZ2
-            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6,iosOut)
+            if (ASSOCIATED(cc)) call PaintingAlgorithm(cc,6)
         endif
         endsubroutine PaintingAlgorithm
+!----------------------------------------------------------------------
+        recursive subroutine PAintersectInout(c)
+        implicit none
+        type(octCell),pointer :: c
+
+        if(ASSOCIATED(c%son8))then
+            call PAintersectInout(c%son1)
+            call PAintersectInout(c%son2)
+            call PAintersectInout(c%son3)
+            call PAintersectInout(c%son4)
+            call PAintersectInout(c%son5)
+            call PAintersectInout(c%son6)
+            call PAintersectInout(c%son7)
+            call PAintersectInout(c%son8)
+            return
+        elseif(ASSOCIATED(c%son4))then
+            call PAintersectInout(c%son1)
+            call PAintersectInout(c%son2)
+            call PAintersectInout(c%son3)
+            call PAintersectInout(c%son4)
+            return
+        elseif(ASSOCIATED(c%son2))then
+            call PAintersectInout(c%son1)
+            call PAintersectInout(c%son2)
+            return
+        endif
+
+        if (c%cross/=-3) return
+        c%cross = CellInout(c)
+
+        endsubroutine PAintersectInout
     endsubroutine initPaintingAlgorithm
 !======================================================================
     subroutine initSmoothMesh
