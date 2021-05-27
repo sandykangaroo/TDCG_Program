@@ -1,4 +1,20 @@
 !======================================================================
+    module ModGeometry
+    ! Define geometry discreted points and elements.
+    use ModPrecision
+    use ModTypDef
+    implicit none
+
+    type geom
+        integer                          :: nsp, nse
+        type(triangle) , allocatable     :: se3d(:)
+        real(R8)                         :: box(6)
+    end type geom
+
+    type(geom), allocatable, target     :: body(:) 
+
+    end module ModGeometry
+!======================================================================
     module geometry_mod2
     use ModPrecision
     use ModTypDef
@@ -461,7 +477,7 @@
 !   3. Find nearest triangle in the Geometry surface for an arbitrary point in 3D space
 !   Copyright@BI LIN��2019.06.21
 !======================================================================
-    subroutine ReadGeometry
+    subroutine ReadFacet
     use ModPrecision
     use ModInpGlobal
     use ModGeometry
@@ -471,7 +487,7 @@
     implicit none
     
     integer                     :: i, j, k, l
-    integer                     :: vertex(3), ng, nsp, nse, a, inout
+    integer                     :: vertex(3), ng, nsp, nse, a
     character(80)               :: FileName
     character(20)               :: dd
     logical                     :: file_exist
@@ -581,15 +597,156 @@
     write(*,*) 'Total surface   points number of all objects is : ', nsp
     write(*,*) 'Total surface elements number of all objects is : ', nse
 
+    tp => kdtree(1)
+    call CPU_TIME(tStart)
+    call create_KDT_tree_for_body_i(tp, 1)
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "creat tree time:",tEnd-tStart
+
+    call CPU_TIME(tStart)
+    call KDTree_out(tp%root)
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
+    DEALLOCATE(body)
+
+    return
+    end subroutine ReadFacet
+!======================================================================
+    subroutine ReadStl
+    use ModPrecision
+    use ModInpGlobal
+    use ModGeometry
+    use geometry_mod2
+    use ModTypDef
+    use ModKDTree
+    implicit none
+    integer                     :: i, j, k
+    integer                     :: ng  ! Geometry number
+    integer                     :: nsp ! Point number
+    integer(I4)                 :: nse ! Element number
+    character(80)               :: FileName
+    character(20)               :: dd
+    logical                     :: file_exist
+    type(typPoint), allocatable :: sp(:)
+    type(typKDTtree), pointer   :: tp => null()
+    real(R8)                    :: box(6)
+    character(80)               :: Header
+    real(R4)                    :: Normal(3)
+    real(R4)                    :: Vertex(3)
+    integer(I2)                 :: unknown
+    real(R8)                    :: tstart,tend
+
+    allocate(body(nGeometry), kdtree(nGeometry))
+
+    open(22, file='./Data/Geometry.dat', status='unknown', form='formatted')
+
+    do ng = 1, nGeometry
+        if (ng == 0) then
+        elseif (ng .LT. 10) then
+            write(dd,'(g0)') ng
+            dd = '00'//adjustl(dd)
+        elseif (ng .LT. 100) then
+            write(dd,*) ng
+            dd = '0'//adjustl(dd)
+        else
+            write(dd,*) ng
+            dd = adjustl(dd)
+        end if
+
+        FileName = trim(GeometryName)//trim(dd)//'.stl'
+        print*,"Read file: ", FileName
+        inquire( file = FileName , exist = file_exist )
+            if(.not. file_exist) stop "Error====> Error geometry file name"
+        open(1, file=FileName, status='old', form='unformatted', &
+                access='stream')
+
+        read(1) Header
+        print*,'Header=',Header
+        read(1) nse
+        allocate(body(ng)%se3d(nse))
+        body(ng)%nse = nse
+        body(ng)%nsp = nse*3
+
+        read(1) (normal(k), k=1,3)
+        do i = 1, 3
+            do k = 1, 3
+                read(1) Vertex(k)
+                body(ng)%se3d(1)%P(i)%p(k) = Vertex(k)
+            enddo
+        enddo
+        read(1) unknown
+        box(1) = min(body(ng)%se3d(1)%p(1)%P(1), &
+                     body(ng)%se3d(1)%p(2)%P(1), &
+                     body(ng)%se3d(1)%p(3)%P(1))
+        box(2) = min(body(ng)%se3d(1)%p(1)%P(2), &
+                     body(ng)%se3d(1)%p(2)%P(2), &
+                     body(ng)%se3d(1)%p(3)%P(2))
+        box(3) = min(body(ng)%se3d(1)%p(1)%P(3), &
+                     body(ng)%se3d(1)%p(2)%P(3), &
+                     body(ng)%se3d(1)%p(3)%P(3))
+        box(4) = box(1)
+        box(5) = box(2)
+        box(6) = box(3)
+
+        do i = 2, nse
+            read(1) (normal(k), k=1,3)
+            do j = 1, 3
+                do k = 1, 3
+                    read(1) Vertex(k)
+                    body(ng)%se3d(i)%P(j)%p(k) = Vertex(k)
+                enddo
+                box(1) = min(box(1), body(ng)%se3d(i)%p(j)%P(1))
+                box(2) = min(box(2), body(ng)%se3d(i)%p(j)%P(2))
+                box(3) = min(box(3), body(ng)%se3d(i)%p(j)%P(3))
+                box(4) = max(box(4), body(ng)%se3d(i)%p(j)%P(1))
+                box(5) = max(box(5), body(ng)%se3d(i)%p(j)%P(2))
+                box(6) = max(box(6), body(ng)%se3d(i)%p(j)%P(3))
+            enddo
+            read(1) unknown
+            body(ng)%se3d(i)%p(4)%P(:) = (body(ng)%se3d(i)%p(1)%P(:) + &
+                                          body(ng)%se3d(i)%p(2)%P(:) + &
+                                          body(ng)%se3d(i)%p(3)%P(:))/3.
+        end do
+        body(ng)%box(:) = box(:)
+
+        write(22, *)'VARIABLES="X",        "Y",        "Z"'
+        write(22, *)'ZONE N=', body(ng)%nsp, 'E=', nse
+        write(22, *)'F=FEPOINT,', 'ET=TRIANGLE'
+        do i = 1, nse
+            do j = 1, 3
+                write(22,*) (body(ng)%se3d(i)%p(j)%P(k), k=1,3)
+            enddo
+        end do
+        do i = 0, nse*3, 3
+            write(22,*) i+1, i+2, i+3
+        end do
+        close(1)
+    end do
+    close(22)
+
+    nsp = 0
+    nse = 0
+    do ng = 1, nGeometry
+        nsp = nsp + body(ng)%nsp
+        nse = nse + body(ng)%nse
+    end do
+    write(*,*) 'Total surface   points number of all objects is : ', nsp
+    write(*,*) 'Total surface elements number of all objects is : ', nse
+
 
     tp => kdtree(1)
     call CPU_TIME(tStart)
     call create_KDT_tree_for_body_i(tp, 1)
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "creat tree time:",tEnd-tStart
+
     call CPU_TIME(tStart)
     call KDTree_out(tp%root)
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
+
+    DEALLOCATE(body)
     return
-    end subroutine ReadGeometry
+
+    endsubroutine ReadStl
+!======================================================================

@@ -6,10 +6,14 @@
 $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
-    Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/body',
-    OutputNameStr = './Data/test',
-    OutputFormat  = '.plt'
+    Limiter = 1, Restart = .f., nGeometry = 1, MeshOnly  = .t.
+    ! GeometryName  = './Data/11/bogie_8W',
+    ! GeometryName  = './Data/sphere1k',
+    ! GeometryName  = './Data/pantograph',
+    GeometryName  = './Data/Wheels',
+    GeometryFormat = 'stl',
+    OutputName = './Data/test',
+    OutputFormat  = 'plt'
 $END
 
 ! nCell
@@ -25,21 +29,29 @@ $END
 !                     6 Ray-cast Traverse
 $Mesh
     InitRefineLVL = 3 AdaptRefineLVL  =  2,
-    cIntersectMethod = 3
+    cIntersectMethod = 4
 !bogie  
+!    nCell = 30,30,20,
 !   DomainMin = -100.0, -100.0, -100.0,
 !   DomainMax =  200.0,  200.0,  100.0,
 !sphere   
 !	DomainMin = -2000.0, -2000.0, -2000.0,
 !   DomainMax = 2000.0,  2000.0,  2000.0,
 !pantograph  
-!    nCell = 100, 40, 40,
-!	DomainMin = -40000.0, -1700.0, 3000.0,
-!    DomainMax = -26000.0,  1700.0, 5500.0,
-!body 
-    nCell = 20,20,20,
-	DomainMin = -150.0, -150.0, -150,
-   DomainMax = 150.0,  150.0,  150.0,
+    ! nCell = 25, 10, 10,
+	! DomainMin = -40000.0, -1700.0, 3000.0,
+    ! DomainMax = -26000.0,  1700.0, 5500.0,
+!sphere
+!    nCell = 5,5,5,
+!    DomainMin = -200, -200, -200,
+!    DomainMax =  200,  200,  200,
+!    nCell = 20,20,20,
+!    DomainMin = -150.0, -150.0, -150,
+!    DomainMax =  150.0,  150.0,  150.0,
+!wheel
+   nCell = 20,20,20,
+   DomainMin = 0, -0.2, -0.2,
+   DomainMax =  0.5,  1.0,  1.0,
 $END
 
 $NRRset
