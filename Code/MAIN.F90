@@ -40,7 +40,6 @@
 !======================================================================
     program TDCGmain
     use ModPrecision
-    use modtimer
     implicit none
     real(R8):: tStart
     real(R8):: tEnd
@@ -56,24 +55,28 @@
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') 'Program running time: ', tEnd-tStart
 
-    ! write(*,'(1X,A,F10.2)') 'MollerTrumbore time:  ', time2
-    ! write(*,'(1X,A,I15)')     'MollerTrumbore times: ', times2
-    ! write(*,'(1X,A,F10.2)') "RayCast time:  ", time3
-    ! write(*,'(1X,A,I15)')     "RayCast times: ", times3
-    ! write(*,'(1X,A,F10.2)') "Inout time:  ", time
-    ! write(*,'(1X,A,I15)')     "Inout times: ", times
-
     end program TDCGmain
 !======================================================================
     subroutine TDCGRead
+    use ModPrecision
+    use ModInpGlobal,only: GeometryFormat
     implicit none
+    real(R8):: tStart
+    real(R8):: tEnd
 
-    print*, 'Reading input file NameList.inp......'
-        call ReadInp
-    print*,'Done'
-    print*,'Reading geometry file......'
-        call ReadGeometry
-    print*,'Done'
+    call CPU_TIME(tStart)
+
+    call ReadInp
+    if (GeometryFormat=='stl') then
+        CALL ReadStl
+    elseif (GeometryFormat=='facet') then
+        CALL ReadFacet
+    else
+        stop 'error GeometryFormat'
+    endif
+
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "Total read time: ", tEnd-tStart
 
     endsubroutine TDCGRead
 !======================================================================
@@ -96,7 +99,6 @@
     call CPU_TIME(tStart)
     if (Restart) return
     call GenerateBGMesh
-    call initFindNeighbor
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
 
@@ -129,12 +131,14 @@
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
-    if (OutputFormat=='.plt') then
+    if (OutputFormat=='plt') then
         CALL OutputFlowFieldBinary(TimeStepStr,0)
-    elseif (OutputFormat=='.szplt') then
+    elseif (OutputFormat=='szplt') then
         CALL OutputFlowFieldBinary(TimeStepStr,1)
-    else
+    elseif (OutputFormat=='dat') then
         CALL OutputFlowFieldASCII(TimeStepStr)
+    else
+        stop 'error OutputFormat'
     endif
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "Subroutine-Output time: ", tEnd-tStart
