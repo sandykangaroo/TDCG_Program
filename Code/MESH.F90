@@ -5,8 +5,9 @@
         ! Mesh
         integer :: nBGCells     ! Number of the background Cells.
         integer :: nCells     ! Number of total Cells.
-        real(R8):: BGCellSize(3)    ! Step size for background cell.
-        type(octCell),pointer :: Cell(:,:,:)
+        real(R8):: BGCellSize(3)    ! Step size for background OctCell.
+        type(typOctCell),pointer :: OctCell(:,:,:)
+        type(typStructCell),pointer:: StruCell(:,:,:,:)
         ! Geometry
         ! integer :: nGeoPoints   ! Number of the geometry points.
         ! integer :: nGeoFaces    ! Number of the geometry faces.
@@ -26,7 +27,7 @@
         use ModKDTree
         use ModInpGlobal, only: nGeometry
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
 
         select case (cIntersectMethod)
         case (1:2)
@@ -39,10 +40,10 @@
             call CellCast(c)
         case (7) ! After surface refine, change cIntersectMethod=1,2 to =7
             call CellCast(c)
-            if (c%cross == -4) c%cross = CellInout(c)
+            if (c%cross == -4) call CellInout(c)
         case (8) ! After surface refine, change cIntersectMethod=3,4 to =8
             call AABB(c)
-            if (c%cross == -4) c%cross = CellInout(c)
+            if (c%cross == -4) call CellInout(c)
         end select
         endsubroutine initCellCross
 !----------------------------------------------------------------------
@@ -69,7 +70,7 @@
         use ModInpGlobal
         use ModInpMesh,only: cIntersectMethod
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         type(typPoint)        :: p(8)
         real(R8):: x, y, z, dx, dy, dz
         integer :: i, ii, iii
@@ -124,7 +125,7 @@
                 if ( Rintersect > 1 ) Pintersect=Pintersect+1 ! inside
             enddo loop2
             if (Pintersect/=0.and.Pintersect<i) then ! Intersect
-                c%cross = CellInout(c)
+                call CellInout(c)
                 return
             endif
         enddo
@@ -132,21 +133,71 @@
         c%cross = -4
         endsubroutine CellCast
 !----------------------------------------------------------------------
-        integer function CellInout(c)
+        subroutine CellInout(c)
         use ModKDTree
         use ModInpGlobal
         use ModInpMesh,only: cIntersectMethod
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         integer :: nIntersect ! Intersect times for one point
         integer :: Rintersect ! Once ray intersects, Rintersect++
         integer :: iii ! Ray
         real(R8):: k(3)
 
+        ! if (c%cross == -4) then
+        !     CellInout = 0
+        ! else
+        !     CellInout = 1
+        ! endif
+        ! ! Quick Bounding-BOX identify
+        ! if (BBOX(c%Center,KDTree(1)%root%box)) then
+        !     Rintersect=0
+        !     do iii = 1, 3  !nRays
+        !         nIntersect=0
+        !         k = CSHIFT([0.,0.,1.],4-iii)
+        !             call RayCast(CSHIFT(c%Center,iii-1), &
+        !                         KDTree(1)%root,k,nIntersect,iii)
+        !         if (mod(nIntersect,2)==0) then
+        !             Rintersect = Rintersect + 0
+        !         else
+        !             Rintersect = Rintersect + 1
+        !         endif
+        !     enddo
+        !     do iii = 1, 3  !nRays
+        !         nIntersect=0
+        !         k = CSHIFT([0.,0.,-1.],4-iii)
+        !             call RayCastTraverse(CSHIFT(c%Center,iii-1), &
+        !                         KDTree(1)%root,k,nIntersect,iii)
+        !         if (mod(nIntersect,2)==0) then
+        !             Rintersect = Rintersect + 0
+        !         else
+        !             Rintersect = Rintersect + 1
+        !         endif
+        !     enddo
+        !         nIntersect=0
+        !         k = [1.,1.,1.]
+        !             call RayCastTraverse(CSHIFT(c%Center,0), &
+        !                         KDTree(1)%root,k,nIntersect,1)
+        !         if (mod(nIntersect,2)==0) then
+        !             Rintersect = Rintersect + 0
+        !         else
+        !             Rintersect = Rintersect + 1
+        !         endif
+        !     if ( Rintersect > 3 ) then ! inside
+        !         if (c%cross == -4) then
+        !             CellInout = 3
+        !         else
+        !             CellInout = 2
+        !         endif
+        !     endif
+        ! endif
+
+
+
         if (c%cross == -4) then
-            CellInout = 0
+            c%cross = 0
         else
-            CellInout = 1
+            c%cross = 1
         endif
         ! Quick Bounding-BOX identify
         if (BBOX(c%Center,KDTree(1)%root%box)) then
@@ -178,13 +229,13 @@
             enddo
             if ( Rintersect > 1 ) then ! inside
                 if (c%cross == -4) then
-                    CellInout = 3
+                    c%cross = 3
                 else
-                    CellInout = 2
+                    c%cross = 2
                 endif
             endif
         endif
-        endfunction CellInout
+        endsubroutine CellInout
 !----------------------------------------------------------------------
         recursive subroutine RayCast(point,tree,k,nIntersect,i)
         ! Back nIntersect -> times of intersect
@@ -247,27 +298,25 @@
 
         endsubroutine RayCast
 !----------------------------------------------------------------------
-        subroutine RayCastTraverse(point,notused1,k,nIntersect,i)
+        recursive subroutine RayCastTraverse(point,tree,k,nIntersect,i)
         use ModGeometry
         use ModKDTree
-        use ModInpGlobal, only: nGeometry
         implicit none
         real(R8),INTENT(IN)    :: point(3)     ! point(3) = x, y, z.
-        type(KDT_node),pointer,INTENT(IN) :: notused1
+        type(KDT_node),pointer,INTENT(IN) :: tree
         real(R8),INTENT(IN)    :: k(3)
         integer, INTENT(INOUT) :: nIntersect ! Save the intersect number
-        integer, INTENT(IN)    :: i
-        integer :: j, jj, ng
-        type(triangle):: triFace
+        integer, INTENT(IN)    :: i ! Which Ray
+        real(R8)               :: box(6)
 
-        do ng= 1,nGeometry
-            nIntersect = 0
-            do j = 1,body(ng)%nse
-                if (MollerTrumbore(Point,k,body(ng)%se3d(j))) then
-                    nIntersect=nIntersect+1
+        if (.not.ASSOCIATED(tree)) return
+
+                if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
+                    nIntersect = nIntersect + 1
                 endif
-            enddo
-        enddo
+                ! Into the next tree
+                call RayCastTraverse(point,tree%right,k,nIntersect,i)
+                call RayCastTraverse(point,tree%left,k,nIntersect,i)
         endsubroutine RayCastTraverse
 !----------------------------------------------------------------------
         logical function MollerTrumbore(Point,D,tri)
@@ -302,12 +351,12 @@
         endif
         endfunction MollerTrumbore
 !----------------------------------------------------------------------
-        subroutine AABB(c)!1=intersect,0=no intersect
+        subroutine AABB(c)
             use ModKDTree
             use ModInpGlobal
             use ModGeometry
             implicit none
-            type(octCell),pointer :: c
+            type(typOctCell),pointer :: c
             type(triangle)        :: tri
             real(R8)              :: boxCell(6)
             type(KDT_node),pointer:: node
@@ -343,16 +392,23 @@
             use ModInpGlobal
             use ModGeometry
             implicit none
-            type(octCell),pointer :: c
+            type(typOctCell),pointer :: c
             type(triangle)        :: tri
             integer                     :: ng, i
+            real(R8)              ::boxCell(6)
 
             c%cross=-4
             Loop1:do ng=1,nGeometry
                 do i=1, body(ng)%nse
                     tri= body(ng)%se3d(i)
                     if(TriBoxOverlap (c,tri))then
-                        call CrossCellInout(c,tri)
+                        boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
+                        boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
+                        boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
+                        boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
+                        boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
+                        boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
+                        call CrossCellInout(c,boxCell,tri)
                         exit Loop1
                     endif
                 enddo
@@ -370,13 +426,13 @@
             type(KDT_node), pointer                 :: leftside,rightside
             type(triangle)                          :: triright,trileft,tri
             logical, INTENT(OUT)                    :: aaa
-            type(octCell),pointer                   :: c
+            type(typOctCell),pointer                   :: c
             
             tri = node%the_data
             aaa = TriBoxOverlap(c,tri)
             !write(*,*) node%level
             if(aaa)then
-                call CrossCellInout(c,tri)
+                call CrossCellInout(c,boxCell,tri)
                 return
             endif
             
@@ -413,7 +469,7 @@
             use ModGeometry
             implicit none
             
-            type(octCell),pointer :: c
+            type(typOctCell),pointer :: c
             type(triangle)        :: tri
             real(R8)              :: v0(3), v1(3), v2(3)
             real(R8)              :: normal(3)
@@ -441,8 +497,8 @@
             e1(:)=v2-v1
             e2(:)=v0-v2
             
-!/* Bullet 3: */
-!/* test the 9 tests first (this was faster) */
+            !/* Bullet 3: */
+            !/* test the 9 tests first (this was faster) */
             fex=abs(e0(1))
             fey=abs(e0(2))
             fez=abs(e0(3))
@@ -594,11 +650,11 @@
             endif
             
             
-!/* Bullet 1: */
-!/* first test overlap in the {x,y,z}-directions */
-!/* find min, max of the triangle each direction, and test for overlap in */
-!/* that direction -- this is equivalent to testing a minimal AABB around */
-!/*  the triangle against the AABB */
+    !/* Bullet 1: */
+    !/* first test overlap in the {x,y,z}-directions */
+    !/* find min, max of the triangle each direction, and test for overlap in */
+    !/* that direction -- this is equivalent to testing a minimal AABB around */
+    !/*  the triangle against the AABB */
             
             !/* test in X-direction */ 
             minvlue=Min(v0(1),v1(1),v2(1))
@@ -624,9 +680,9 @@
                 return
             endif
             
-!/* Bullet 2: */
-!/* test if the box intersects the plane of the triangle */
-!/* compute plane equation of triangle: normal*x+d=0 */   
+    !/* Bullet 2: */
+    !/* test if the box intersects the plane of the triangle */
+    !/* compute plane equation of triangle: normal*x+d=0 */   
             normal = CROSS_PRODUCT_3(e0,e1)
             if(.not.planeBoxOverlap(normal,v0,boxhalfsize)) then
                 TriBoxOverlap=.false.
@@ -670,13 +726,34 @@
             return
         end function
 !----------------------------------------------------------------------
-        subroutine CrossCellInout(c,tri)
+        subroutine CrossCellInout(c,box,tri)
         use ModPrecision
         use ModKDTree
         use ModTypDef
         use ModTools
         implicit none
-        type(octCell),pointer     :: c
+        type(typOctCell),pointer     :: c
+        real(R8),INTENT(IN)       :: box(6)
+        type(triangle),INTENT(IN) :: tri
+
+        if (bbox(tri%P(1)%P,box)) then
+            call CellInout(c)
+        elseif (bbox(tri%P(2)%P,box)) then
+            call CellInout(c)
+        elseif (bbox(tri%P(3)%P,box)) then
+            call CellInout(c)
+        else
+            call DotProductInout(c,tri)
+        endif
+        endsubroutine CrossCellInout
+!----------------------------------------------------------------------
+        subroutine DotProductInout(c,tri)
+        use ModPrecision
+        use ModKDTree
+        use ModTypDef
+        use ModTools
+        implicit none
+        type(typOctCell),pointer     :: c
         type(triangle),INTENT(IN) :: tri
         real(R8)                  :: n(3), v0(3), v1(3), v2(3)
 
@@ -689,8 +766,7 @@
         else
             c%cross=2
         endif
-
-        endsubroutine CrossCellInout
+        endsubroutine DotProductInout
 !----------------------------------------------------------------------
         subroutine NewCell(c,split)
         use ModInpGlobal
@@ -700,7 +776,7 @@
         implicit none
         integer(I4),INTENT(IN):: split
         integer(I4)           :: spl
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         real(R8)              :: x, y, z, dx, dy, dz
 
         spl=split
@@ -717,14 +793,14 @@
             c%son6%nBGCell=c%nBGCell
             c%son7%nBGCell=c%nBGCell
             c%son8%nBGCell=c%nBGCell
-            ! c%son1%nCell=c%nCell
-            ! c%son2%nCell=nCells+1
-            ! c%son3%nCell=nCells+2
-            ! c%son4%nCell=nCells+3
-            ! c%son5%nCell=nCells+4
-            ! c%son6%nCell=nCells+5
-            ! c%son7%nCell=nCells+6
-            ! c%son8%nCell=nCells+7
+            c%son1%nCell=c%nCell
+            c%son2%nCell=nCells+1
+            c%son3%nCell=nCells+2
+            c%son4%nCell=nCells+3
+            c%son5%nCell=nCells+4
+            c%son6%nCell=nCells+5
+            c%son7%nCell=nCells+6
+            c%son8%nCell=nCells+7
             nCells=nCells+7
             c%son1%lvl=c%lvl+1
             c%son2%lvl=c%lvl+1
@@ -826,8 +902,8 @@
             ALLOCATE(c%son1,c%son2)
             c%son1%nBGCell=c%nBGCell
             c%son2%nBGCell=c%nBGCell
-            ! c%son1%nCell=c%nCell
-            ! c%son2%nCell=nCells+1
+            c%son1%nCell=c%nCell
+            c%son2%nCell=nCells+1
             nCells=nCells+1
             c%son1%fSplitType=split
             c%son2%fSplitType=split
@@ -878,10 +954,10 @@
             c%son2%nBGCell=c%nBGCell
             c%son3%nBGCell=c%nBGCell
             c%son4%nBGCell=c%nBGCell
-            ! c%son1%nCell=c%nCell
-            ! c%son2%nCell=nCells+1
-            ! c%son3%nCell=nCells+2
-            ! c%son4%nCell=nCells+3
+            c%son1%nCell=c%nCell
+            c%son2%nCell=nCells+1
+            c%son3%nCell=nCells+2
+            c%son4%nCell=nCells+3
             nCells=nCells+3
             c%son1%fSplitType=split
             c%son2%fSplitType=split
@@ -962,7 +1038,7 @@
         recursive subroutine FindNeighbor(c)
         use ModNeighbor
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
 
         if (.not.ASSOCIATED(c)) return
 
@@ -986,7 +1062,7 @@
         recursive subroutine UpdateNeighbor(c,dirct)
         USE ModNeighbor
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         integer,INTENT(IN)    ::dirct
 
         if (.not.ASSOCIATED(c)) return
@@ -1026,13 +1102,13 @@
 !----------------------------------------------------------------------
         subroutine DeletCell(c,split)
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         integer(I4),INTENT(IN):: split
         endsubroutine DeletCell
 !----------------------------------------------------------------------
         subroutine NullifyCell(c)
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         NULLIFY(c%son1, c%son2, c%son3, c%son4,                 &
                 c%son5, c%son6, c%son7, c%son8,                 &
                 c%NeighborX1, c%NeighborX2, c%NeighborY1,       &
@@ -1041,7 +1117,7 @@
 !----------------------------------------------------------------------
         ! recursive subroutine InitialCellMark(c)
         ! implicit none
-        ! type(octCell),pointer :: c
+        ! type(typOctCell),pointer :: c
         ! if(ASSOCIATED(c%son8))then
         !     call InitialCellMark(c%son1)
         !     call InitialCellMark(c%son2)
@@ -1075,19 +1151,19 @@
     use ModMeshTools
     implicit none
     integer :: i, j, k
-    type(octCell),pointer :: t
+    type(typOctCell),pointer :: t
 
     BGCellSize=abs(DomainMin-DomainMax)/nCell
     nBGCells=nCell(1)*nCell(2)*nCell(3)
     nCells=0
-    ALLOCATE(Cell(nCell(1),nCell(2),nCell(3)))
+    ALLOCATE(OctCell(nCell(1),nCell(2),nCell(3)))
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
-        t=>Cell(i, j, k)
+        t=>OctCell(i, j, k)
         nCells=nCells+1
             t%nBGCell     = [i, j, k]
-            ! t%nCell       = nCells
+            t%nCell       = nCells
             t%lvl         = 0
             t%fSplitType  = 0
             t%Location    = 0
@@ -1117,7 +1193,7 @@
     use ModNeighbor
     implicit none
     integer :: i, j, k
-    type(octCell),pointer :: t
+    type(typOctCell),pointer :: t
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
 
@@ -1125,7 +1201,7 @@
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
-        t=>Cell(i,j,k)
+        t=>OctCell(i,j,k)
         call FindNeighbor(t)
     enddo
     enddo
@@ -1143,26 +1219,35 @@
     use ModNeighbor
     implicit none
     integer :: i, j, k
-    type(octCell),pointer :: t
+    type(typOctCell),pointer :: t
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
+    real(R8):: p        ! Used to print precentage
+    integer :: step=0   ! Counter, print progress precentage
 
     call CPU_TIME(tStart)
+    write(6,'(1X,A,12X,A)',advance='no') 'OctCell inout progress:', ''
+    flush(6)
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
-        t=>Cell(i,j,k)
+        t=>OctCell(i,j,k)
         call initCellInout2(t)
+            step=step+1
+            p=step/real(nBGCells,R8)*100
+            write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
+            flush(6)
     enddo
     enddo
     enddo
+    print*,''
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "CellInout time: ", tEnd-tStart
     contains
 !----------------------------------------------------------------------
         recursive subroutine initCellInout2(c)
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
 
         if(ASSOCIATED(c%son8))then
             call initCellInout2(c%son1)
@@ -1187,7 +1272,7 @@
         endif
 
         if (c%cross/=-4) return
-        c%cross=CellInout(c)
+        call CellInout(c)
 
         endsubroutine initCellInout2
     endsubroutine initCellInout
@@ -1198,7 +1283,7 @@
     use ModInpMesh
     use ModNeighbor
     implicit none
-    type(octCell),pointer :: t
+    type(typOctCell),pointer :: t
     integer :: i, j, k
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
@@ -1206,14 +1291,14 @@
     integer :: step=0   ! Counter, print progress precentage
 
     call CPU_TIME(tStart)
-    write(6,'(1X,A,12X,A)',advance='no') 'SurfaceAdapt progress:', ''
+    write(6,'(1X,A,12X,A)',advance='no') 'OctCell cross progress:', ''
     flush(6)
     select case (cIntersectMethod)
     case (1)    ! Ray-cast with Painting Algorithm Method
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t       =>Cell(i,j,k)
+            t       =>OctCell(i,j,k)
             call CellCast(t)
             if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
             step=step+1
@@ -1233,7 +1318,7 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t       =>Cell(i,j,k)
+            t       =>OctCell(i,j,k)
             call CellCast(t)
             if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
             step=step+1
@@ -1253,7 +1338,7 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t       =>Cell(i,j,k)
+            t       =>OctCell(i,j,k)
             call AABB(t)
             if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
             step=step+1
@@ -1273,7 +1358,7 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t       =>Cell(i,j,k)
+            t       =>OctCell(i,j,k)
             call AABB(t)
             if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
             step=step+1
@@ -1293,7 +1378,7 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t       =>Cell(i,j,k)
+            t       =>OctCell(i,j,k)
             call AABBTraverse(t)
             if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
             step=step+1
@@ -1312,7 +1397,7 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t       =>Cell(i,j,k)
+            t       =>OctCell(i,j,k)
             call CellCast(t)
             if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
             step=step+1
@@ -1334,7 +1419,7 @@
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
         integer :: ii
 
         do ii=1,3
@@ -1361,7 +1446,7 @@
     use ModNeighbor
     use ModPrecision
     implicit none
-    type(octCell),pointer :: t
+    type(typOctCell),pointer :: t
     integer :: ii, jj, kk
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
@@ -1373,7 +1458,7 @@
     loop:  do kk = 1, nCell(3)
     do jj = 1, nCell(2)
     do ii = 1, nCell(1)
-        t       =>Cell(ii,jj,kk)
+        t       =>OctCell(ii,jj,kk)
         if (PAFindSeed(t)) exit loop
     enddo
     enddo
@@ -1387,7 +1472,7 @@
         ! PA: Have run/not run the subroutine PaintingAlgorithm
         implicit none
         logical               :: PA
-        type(octCell),pointer :: c1
+        type(typOctCell),pointer :: c1
         logical,SAVE          :: PAused=.false.
         ! If used PaintingAlgorithm, PAused=.T.
 
@@ -1415,7 +1500,7 @@
         endif
 
         PA = .false.
-        c1%cross = CellInout(c1)
+        call CellInout(c1)
         if (c1%cross==0) then
             if (ASSOCIATED(c1%NeighborX1)) &
                 call PaintingAlgorithm(c1%NeighborX1,1)
@@ -1436,7 +1521,7 @@
 !----------------------------------------------------------------------
         recursive subroutine PaintingAlgorithm(c,dirct)
         implicit none
-        type(octCell),pointer :: c, cc
+        type(typOctCell),pointer :: c, cc
         integer,INTENT(IN)    :: dirct
 
         if(ASSOCIATED(c%son8))then
@@ -1461,25 +1546,228 @@
             return
         endif
 
-        if (c%cross/=-4) return ! Cell has been paintted
+        if (c%cross/=-4) return ! OctCell has been paintted
 
         if (ASSOCIATED(c%NeighborX1)) then
-            if (c%NeighborX1%cross==0) goto 10
+            if (c%NeighborX1%cross==0) then
+                goto 10
+            elseif (c%NeighborX1%cross/=-4) then
+                if (ASSOCIATED(c%NeighborX1%son1)) then
+                    if (c%NeighborX1%son1%cross==0) then
+                    if (c%NeighborX1%son1%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX1%son2%cross==0) then
+                    if (c%NeighborX1%son2%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborX1%son3)) then
+                    if (c%NeighborX1%son3%cross==0) then
+                    if (c%NeighborX1%son3%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX1%son4%cross==0) then
+                    if (c%NeighborX1%son4%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborX1%son5)) then
+                    if (c%NeighborX1%son5%cross==0) then
+                    if (c%NeighborX1%son5%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX1%son6%cross==0) then
+                    if (c%NeighborX1%son6%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX1%son7%cross==0) then
+                    if (c%NeighborX1%son7%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX1%son8%cross==0) then
+                    if (c%NeighborX1%son8%NeighborX2%nCell==c%nCell) goto 10
+                    endif
+                endif
+            endif
         endif
+
         if (ASSOCIATED(c%NeighborX2)) then
-            if (c%NeighborX2%cross==0) goto 10
+            if (c%NeighborX2%cross==0) then
+                goto 10
+            elseif (c%NeighborX2%cross/=-4) then
+                if (ASSOCIATED(c%NeighborX2%son1)) then
+                    if (c%NeighborX2%son1%cross==0) then
+                    if (c%NeighborX2%son1%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX2%son2%cross==0) then
+                    if (c%NeighborX2%son2%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborX2%son3)) then
+                    if (c%NeighborX2%son3%cross==0) then
+                    if (c%NeighborX2%son3%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX2%son4%cross==0) then
+                    if (c%NeighborX2%son4%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborX2%son5)) then
+                    if (c%NeighborX2%son5%cross==0) then
+                    if (c%NeighborX2%son5%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX2%son6%cross==0) then
+                    if (c%NeighborX2%son6%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX2%son7%cross==0) then
+                    if (c%NeighborX2%son7%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborX2%son8%cross==0) then
+                    if (c%NeighborX2%son8%NeighborX1%nCell==c%nCell) goto 10
+                    endif
+                endif
+            endif
         endif
+
         if (ASSOCIATED(c%NeighborY1)) then
-            if (c%NeighborY1%cross==0) goto 10
+            if (c%NeighborY1%cross==0) then
+                goto 10
+            elseif (c%NeighborY1%cross/=-4) then
+                if (ASSOCIATED(c%NeighborY1%son1)) then
+                    if (c%NeighborY1%son1%cross==0) then
+                    if (c%NeighborY1%son1%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY1%son2%cross==0) then
+                    if (c%NeighborY1%son2%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborY1%son3)) then
+                    if (c%NeighborY1%son3%cross==0) then
+                    if (c%NeighborY1%son3%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY1%son4%cross==0) then
+                    if (c%NeighborY1%son4%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborY1%son5)) then
+                    if (c%NeighborY1%son5%cross==0) then
+                    if (c%NeighborY1%son5%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY1%son6%cross==0) then
+                    if (c%NeighborY1%son6%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY1%son7%cross==0) then
+                    if (c%NeighborY1%son7%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY1%son8%cross==0) then
+                    if (c%NeighborY1%son8%NeighborY2%nCell==c%nCell) goto 10
+                    endif
+                endif
+            endif
         endif
+
         if (ASSOCIATED(c%NeighborY2)) then
-            if (c%NeighborY2%cross==0) goto 10
+            if (c%NeighborY2%cross==0) then
+                goto 10
+            elseif (c%NeighborY2%cross/=-4) then
+                if (ASSOCIATED(c%NeighborY2%son1)) then
+                    if (c%NeighborY2%son1%cross==0) then
+                    if (c%NeighborY2%son1%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY2%son2%cross==0) then
+                    if (c%NeighborY2%son2%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborY2%son3)) then
+                    if (c%NeighborY2%son3%cross==0) then
+                    if (c%NeighborY2%son3%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY2%son4%cross==0) then
+                    if (c%NeighborY2%son4%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborY2%son5)) then
+                    if (c%NeighborY2%son5%cross==0) then
+                    if (c%NeighborY2%son5%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY2%son6%cross==0) then
+                    if (c%NeighborY2%son6%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY2%son7%cross==0) then
+                    if (c%NeighborY2%son7%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborY2%son8%cross==0) then
+                    if (c%NeighborY2%son8%NeighborY1%nCell==c%nCell) goto 10
+                    endif
+                endif
+            endif
         endif
+
         if (ASSOCIATED(c%NeighborZ1)) then
-            if (c%NeighborZ1%cross==0) goto 10
+            if (c%NeighborZ1%cross==0) then
+                goto 10
+            elseif (c%NeighborZ1%cross/=-4) then
+                if (ASSOCIATED(c%NeighborZ1%son1)) then
+                    if (c%NeighborZ1%son1%cross==0) then
+                    if (c%NeighborZ1%son1%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ1%son2%cross==0) then
+                    if (c%NeighborZ1%son2%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborZ1%son3)) then
+                    if (c%NeighborZ1%son3%cross==0) then
+                    if (c%NeighborZ1%son3%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ1%son4%cross==0) then
+                    if (c%NeighborZ1%son4%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborZ1%son5)) then
+                    if (c%NeighborZ1%son5%cross==0) then
+                    if (c%NeighborZ1%son5%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ1%son6%cross==0) then
+                    if (c%NeighborZ1%son6%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ1%son7%cross==0) then
+                    if (c%NeighborZ1%son7%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ1%son8%cross==0) then
+                    if (c%NeighborZ1%son8%NeighborZ2%nCell==c%nCell) goto 10
+                    endif
+                endif
+            endif
         endif
+
         if (ASSOCIATED(c%NeighborZ2)) then
-            if (c%NeighborZ2%cross==0) goto 10
+            if (c%NeighborZ2%cross==0) then
+                goto 10
+            elseif (c%NeighborZ2%cross/=-4) then
+                if (ASSOCIATED(c%NeighborZ2%son1)) then
+                    if (c%NeighborZ2%son1%cross==0) then
+                    if (c%NeighborZ2%son1%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ2%son2%cross==0) then
+                    if (c%NeighborZ2%son2%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborZ2%son3)) then
+                    if (c%NeighborZ2%son3%cross==0) then
+                    if (c%NeighborZ2%son3%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ2%son4%cross==0) then
+                    if (c%NeighborZ2%son4%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                endif
+                if (ASSOCIATED(c%NeighborZ2%son5)) then
+                    if (c%NeighborZ2%son5%cross==0) then
+                    if (c%NeighborZ2%son5%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ2%son6%cross==0) then
+                    if (c%NeighborZ2%son6%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ2%son7%cross==0) then
+                    if (c%NeighborZ2%son7%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                    if (c%NeighborZ2%son8%cross==0) then
+                    if (c%NeighborZ2%son8%NeighborZ1%nCell==c%nCell) goto 10
+                    endif
+                endif
+            endif
         endif
         return
 
@@ -1512,7 +1800,7 @@
 !----------------------------------------------------------------------
         recursive subroutine PAMarkCrossCell(c)
         implicit none
-        type(octCell),pointer :: c
+        type(typOctCell),pointer :: c
 
         if (c%cross/=-3) return
         if(ASSOCIATED(c%son8))then
@@ -1537,7 +1825,7 @@
             return
         endif
 
-        c%cross = CellInout(c)
+        call CellInout(c)
 
         endsubroutine PAMarkCrossCell
     endsubroutine initPaintingAlgorithm2
@@ -1549,7 +1837,7 @@
     use ModNeighbor
     use ModPrecision
     implicit none
-    type(octCell),pointer :: t
+    type(typOctCell),pointer :: t
     integer :: ii, jj, kk
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
@@ -1561,7 +1849,7 @@
     loop:  do kk = 1, nCell(3)
     do jj = 1, nCell(2)
     do ii = 1, nCell(1)
-        t       =>Cell(ii,jj,kk)
+        t       =>OctCell(ii,jj,kk)
         if (PAFindSeed(t)) exit loop
     enddo
     enddo
@@ -1577,7 +1865,7 @@
         ! PA: Have run/not run the subroutine PaintingAlgorithm
         implicit none
         logical               :: PA
-        type(octCell),pointer :: c1
+        type(typOctCell),pointer :: c1
         logical,SAVE          :: PAused=.false.
         ! If used PaintingAlgorithm, PAused=.T.
 
@@ -1605,7 +1893,7 @@
         endif
 
         PA = .false.
-        c1%cross = CellInout(c1)
+        call CellInout(c1)
         if (c1%cross==0) then
             if (ASSOCIATED(c1%NeighborX1)) &
                 call PaintingAlgorithm(c1%NeighborX1,1,.true.)
@@ -1626,10 +1914,10 @@
 !----------------------------------------------------------------------
         recursive subroutine PaintingAlgorithm(c,dirct,iosIn)
         implicit none
-        type(octCell),pointer :: c, cc
+        type(typOctCell),pointer :: c, cc
         integer               :: dirct
-        LOGICAL,INTENT(IN)    :: iosIn  ! = F , come from cross=-3 cell
-                                        ! = T , come from cross= 0 cell
+        LOGICAL,INTENT(IN)    :: iosIn  ! = F , come from cross=-3 OctCell
+                                        ! = T , come from cross= 0 OctCell
         LOGICAL               :: iosOut
         integer,SAVE          :: progress=0 ! counter, print precentage
 
@@ -1657,24 +1945,24 @@
             return
         endif
 
-        if (c%cross/=-3 .and. c%cross/=-4) return ! Cell has been paintted
+        if (c%cross/=-3 .and. c%cross/=-4) return ! OctCell has been paintted
 
         if (iosIn) then
-            if (c%cross==-4)then ! This cell is a outside cell too.
+            if (c%cross==-4)then ! This OctCell is a outside OctCell too.
                 c%cross=0
                 iosOut = .True.
             elseif (c%cross==-3) then
                 progress = progress + 1 ! Once call cellinout, progress++
-                c%cross = CellInout(c)
+                call CellInout(c)
                 iosOut = .false.
                 !if (c%cross==2) return
             endif
         else
             progress = progress + 1
-            c%cross = CellInout(c)
+            call CellInout(c)
             if (c%cross==3) then
                 iosOut = .false.
-                return ! Inside cell, return.
+                return ! Inside OctCell, return.
             elseif (c%cross==2) then
                 iosOut = .false.
                 !return
@@ -1726,7 +2014,7 @@
     use ModMeshTools
     use ModInpMesh
     implicit none
-    type(octCell),POINTER :: t
+    type(typOctCell),POINTER :: t
     integer               :: i, j, k, ii
     logical               :: iost
     real(R8):: tStart   ! Start time
@@ -1738,8 +2026,8 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t=>Cell(i, j, k)
-            call PreSmoothMesh(t) ! Mark neighbor cell if need refine.
+            t=>OctCell(i, j, k)
+            call PreSmoothMesh(t) ! Mark neighbor OctCell if need refine.
         enddo
         enddo
         enddo
@@ -1748,7 +2036,7 @@
         do k = 1, nCell(3)
         do j = 1, nCell(2)
         do i = 1, nCell(1)
-            t=>Cell(i, j, k)
+            t=>OctCell(i, j, k)
             call SmoothMesh(t,iost) ! Do smooth.
         enddo
         enddo
@@ -1765,7 +2053,7 @@
 !----------------------------------------------------------------------
         recursive subroutine PreSmoothMesh(c)
         implicit none
-        type(octCell),POINTER :: c,cx1,cx2,cy1,cy2,cz1,cz2
+        type(typOctCell),POINTER :: c,cx1,cx2,cy1,cy2,cz1,cz2
         ! mark(6)  1 x refine; 2 y refine; 3 z refine; 
         !          4 x coarse; 5 y coarse; 6 z coarse; 
         if(ASSOCIATED(c%son8))then
@@ -1808,7 +2096,7 @@
         if (ASSOCIATED(c%NeighborZ2)) then
             if (c%NeighborZ2%lvl(3)+1<c%lvl(3)) c%NeighborZ2%mark(3)=.true.
         endif
-        ! Hole Cell
+        ! Hole OctCell
         ! if (.not.mark(1)) then
         !     if (ASSOCIATED(c%NeighborX1).and.ASSOCIATED(c%NeighborX2))then
         !         if (c%NeighborX1%lvl(1)>c%lvl(1) .and. &
@@ -1825,7 +2113,7 @@
 !----------------------------------------------------------------------
         recursive subroutine SmoothMesh(c,iosout)
         implicit none
-        type(octCell),POINTER :: c
+        type(typOctCell),POINTER :: c
         logical,INTENT(INOUT) :: iosout
         logical               :: ios
         ! mark(6)  1 x refine; 2 y refine; 3 z refine;
@@ -1899,7 +2187,7 @@
             call FindNeighbor(c%son7)
             call FindNeighbor(c%son8)
         endif
-        ! Initial cell mark.
+        ! Initial OctCell mark.
 
         ! Coarse
         ! TODO

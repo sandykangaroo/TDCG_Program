@@ -18,7 +18,7 @@
     implicit none
     
     integer :: i, j, k, l, h, m
-    type(octCell),pointer           :: t
+    type(typOctCell),pointer           :: t
     type(typKDTtree),pointer        :: tp => null()
     real(R8)                        :: tempoint(3),mindis
     real(R8)                        :: tstart,tend
@@ -30,7 +30,7 @@
     do i=1,nCell(1)
         do j=1,nCell(2)
             do k=1,nCell(3)
-                t=>Cell(i,j,k)
+                t=>OctCell(i,j,k)
                 tem%P(:)=t%center(:)
                 mindis=1000000
                 do l=1,body(1)%nse
@@ -48,7 +48,7 @@
     do i=1,nCell(1)
         do j=1,nCell(2)
             do k=1,nCell(3)
-                t=>Cell(i,j,k)
+                t=>OctCell(i,j,k)
                 tem%P(:)=t%center(:)
                 nearest => tp%root
                 h=0

@@ -91,7 +91,7 @@
 !             integer::I2D(:,:)
 !         end type Integer2DArray
     
-! Cartesian Cell's point coordinate
+! Cartesian OctCell's point coordinate
         type typPoint
             real(R8):: P(3)
             integer :: label
@@ -116,25 +116,25 @@
 ! levelx     = x-direct level
 ! levely     = y-direct level
 ! levelz     = z-direct level
-! cross      relationship between cell and the object surface.
+! cross      relationship between OctCell and the object surface.
 !            = -5 Initial
-!            = -4 Not intersect cell.
-!            = -3 Intersect cell.
-!            =  0 Cell outside the object surface.
-!            =  1 Intersect while cell center outside the object surface
-!            =  2 Intersect while cell center inside the object surface
-!            =  3 Cell inside the object surface
+!            = -4 Not intersect OctCell.
+!            = -3 Intersect OctCell.
+!            =  0 OctCell outside the object surface.
+!            =  1 Intersect while OctCell center outside the object surface
+!            =  2 Intersect while OctCell center inside the object surface
+!            =  3 OctCell inside the object surface
 !            = -1 NRR: ray region
 !            = -2 NRR: region between ray-ray
-! fSplitType = 0 Cell is isotropical 
-!            = 1 Cell is obtained by refined in x-direction
-!            = 2 Cell is obtained by refined in y-direction
-!            = 3 Cell is obtained by refined in z-direction
-!            = 4 Cell is obtained by refined in xy-direction
-!            = 5 Cell is obtained by refined in xz-direction
-!            = 6 Cell is obtained by refined in yz-direction
-! Location   = 0 Cell does not have a son 
-!            = 1,2,3,...8 Cell's location among siblings
+! fSplitType = 0 OctCell is isotropical 
+!            = 1 OctCell is obtained by refined in x-direction
+!            = 2 OctCell is obtained by refined in y-direction
+!            = 3 OctCell is obtained by refined in z-direction
+!            = 4 OctCell is obtained by refined in xy-direction
+!            = 5 OctCell is obtained by refined in xz-direction
+!            = 6 OctCell is obtained by refined in yz-direction
+! Location   = 0 OctCell does not have a son 
+!            = 1,2,3,...8 OctCell's location among siblings
 ! Node       number of the eight vertexs
 ! U          1 rou*u
 !            2 rou*v
@@ -147,9 +147,9 @@
 !            3 z
 ! Neighbor   1 minus
 !            2 plus
-        type octCell
+        type typOctCell
             integer :: nBGCell(3)
-            ! integer :: nCell
+            integer :: nCell
             integer :: lvl(3)
             integer :: cross
             integer :: fSplitType, Location
@@ -157,14 +157,22 @@
             real(R8):: Center(3)
             real(R8):: U(5)
             logical :: Mark(6)
-            type(octCell),pointer :: Father
-            type(octCell),pointer :: son1, son2, son3, son4,    &
+            type(typOctCell),pointer :: Father
+            type(typOctCell),pointer :: son1, son2, son3, son4,    &
                                      son5, son6, son7, son8
-            type(octCell),pointer :: NeighborX1, NeighborX2,    &
+            type(typOctCell),pointer :: NeighborX1, NeighborX2,    &
                                      NeighborY1, NeighborY2,    &
                                      NeighborZ1, NeighborZ2
 
-        end type octCell
+        end type typOctCell
+
+        ! type BlockCell
+
+        type typStructCell
+            integer :: cross
+            real(R8):: Center(3)
+            real(R8):: U(5)
+        end type typStructCell
     end module ModTypDef
 !======================================================================
 ! Define globally share constants

@@ -36,7 +36,7 @@
         integer                :: depth  ! level of node in the tree
         type(triangle), pointer:: res(:) ! store triangles on surface of body i
         type(KDT_node), pointer:: p
-        real(R8)               :: box(6), aa
+        real(R8)               :: box(6)
 
         n =  body(i)%nse
         depth = 1
@@ -62,7 +62,6 @@
         real(R8)                           :: box(6), b(6), bt
     ! .. Local Arguments ..
         integer                              :: n, j, mid
-        real(R8)                           :: aa
 
         n = size(res)
         allocate(td)
@@ -88,30 +87,26 @@
                 b(4) = max(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))    
                 td%left => build_tree(resB, pt, b, depth2)
                 td%right => null()
-            end if  
-            if ( res(2)%p(4)%P(1) >= res(2)%p(4)%P(1) ) then
+            else ! if ( res(2)%p(4)%P(1) >= res(2)%p(4)%P(1) ) then
                 b(1) = min(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 td%left => null()
                 td%right => build_tree(resB, pt, b, depth2)
             end if
         else
-!-------------------------------------------------------------------------------
-!find the most_spread_direction and define it as split direction 
-        call find_split_direction(res, td%splitaxis)
-        
-!-------------------------------------------------------------------------------        
-!define the split direction alternative     
-        !if ( mod(td%level,3) == 1 ) then
-        !    td%splitaxis = 1
-        !else if ( mod(td%level,3) == 2 ) then
-        !    td%splitaxis = 2
-        !else if ( mod(td%level,3) == 0 ) then
-        !     td%splitaxis = 3
-        !end if
-!-------------------------------------------------------------------------------            
-        call sort_under_split_direction(res, td%splitaxis)
-        td%the_data = res(mid)
-!       build left child 
+            !find the most_spread_direction and define it as split direction 
+            call find_split_direction(res, td%splitaxis)
+            
+            !define the split direction alternative     
+            !if ( mod(td%level,3) == 1 ) then
+            !    td%splitaxis = 1
+            !else if ( mod(td%level,3) == 2 ) then
+            !    td%splitaxis = 2
+            !else if ( mod(td%level,3) == 0 ) then
+            !     td%splitaxis = 3
+            !end if
+            call sort_under_split_direction(res, td%splitaxis)
+            td%the_data = res(mid)
+            !       build left child 
             resB => res(1:mid - 1)
             if ( td%splitaxis == 1 ) then       
                 bt = b(4)                              
@@ -119,15 +114,13 @@
                 do j = 2, mid - 1
                     b(4) = max(b(4), resB(j)%p(1)%P(1), resB(j)%p(2)%P(1), resB(j)%p(3)%P(1))
                 end do
-            end if
-            if ( td%splitaxis == 2 ) then
+            elseif ( td%splitaxis == 2 ) then
                 bt = b(5)
                 b(5) = max(resB(1)%p(1)%P(2), resB(1)%p(2)%P(2), resB(1)%p(3)%P(2))
                 do j = 2, mid - 1
                     b(5) = max(b(5), resB(j)%p(1)%P(2), resB(j)%p(2)%P(2), resB(j)%p(3)%P(2))
                 end do
-            end if
-            if ( td%splitaxis == 3 ) then
+            elseif ( td%splitaxis == 3 ) then
                 bt = b(6)
                 b(6) = max(resB(1)%p(1)%P(3), resB(1)%p(2)%P(3), resB(1)%p(3)%P(3))
                 do j = 2, mid - 1
@@ -135,24 +128,21 @@
                 end do
             end if
             td%left => build_tree(resB, pt, b, depth2)
-!       build right child 
-           resB => res(mid + 1 : n)
-           aa = 1.d0
+            !       build right child 
+            resB => res(mid + 1 : n)
             if ( td%splitaxis == 1 ) then            
                 b(4) = bt
                 b(1) = min(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 do j = 2, n - mid
                     b(1) = min(b(1), resB(j)%p(1)%P(1), resB(j)%p(2)%P(1), resB(j)%p(3)%P(1))
                 end do
-            end if
-            if ( td%splitaxis == 2 ) then
+            elseif ( td%splitaxis == 2 ) then
                 b(5) = bt
                 b(2) = min(resB(1)%p(1)%P(2), resB(1)%p(2)%P(2), resB(1)%p(3)%P(2))
                 do j = 2, n - mid
                     b(2) = min(b(2), resB(j)%p(1)%P(2), resB(j)%p(2)%P(2), resB(j)%p(3)%P(2))
                 end do
-            end if
-            if ( td%splitaxis == 3 ) then
+            elseif ( td%splitaxis == 3 ) then
                 b(6) = bt
                 b(3) = min(resB(1)%p(1)%P(3), resB(1)%p(2)%P(3), resB(1)%p(3)%P(3))
                 do j = 2, n - mid
@@ -160,13 +150,10 @@
                 end do    
             end if
             td%right => build_tree(resB, pt, b, depth2)
-
         end if
 
 !        write(*,*) depth
-        aa = 1.d0
         return
-
     end function build_tree
 !----------------------------------------------------------------------
 
@@ -185,9 +172,7 @@
         average = 0.d0
         variance = 0.d0
         do j = 1, n
-            summ(1) = summ(1) + res(j)%p(4)%P(1)
-            summ(2) = summ(2) + res(j)%p(4)%P(2)
-            summ(3) = summ(3) + res(j)%p(4)%P(3)
+            summ(:) = summ(:) + res(j)%p(4)%P(:)
         end do
         average = summ / n
         do j = 1, n
@@ -663,6 +648,8 @@
         read(1) Header
         print*,'Header=',Header
         read(1) nse
+        print*,'elements=',nse
+
         allocate(body(ng)%se3d(nse))
         body(ng)%nse = nse
         body(ng)%nsp = nse*3
@@ -687,6 +674,7 @@
         box(4) = box(1)
         box(5) = box(2)
         box(6) = box(3)
+        body(ng)%se3d(1)%p(4)%label = 1
 
         do i = 2, nse
             read(1) (normal(k), k=1,3)
@@ -706,6 +694,7 @@
             body(ng)%se3d(i)%p(4)%P(:) = (body(ng)%se3d(i)%p(1)%P(:) + &
                                           body(ng)%se3d(i)%p(2)%P(:) + &
                                           body(ng)%se3d(i)%p(3)%P(:))/3.
+            body(ng)%se3d(i)%p(4)%label = i
         end do
         body(ng)%box(:) = box(:)
 
@@ -740,10 +729,10 @@
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "creat tree time:",tEnd-tStart
 
-    call CPU_TIME(tStart)
-    call KDTree_out(tp%root)
-    call CPU_TIME(tEnd)
-    write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
+    ! call CPU_TIME(tStart)
+    ! call KDTree_out(tp%root)
+    ! call CPU_TIME(tEnd)
+    ! write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
 
     DEALLOCATE(body)
     return
