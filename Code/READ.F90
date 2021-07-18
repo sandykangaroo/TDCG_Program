@@ -13,7 +13,7 @@
                         OutputName, GeometryName, OutputFormat,    &
                         MeshOnly, GeometryFormat
     NAMELIST /Mesh/     nCell, DomainMin, DomainMax, InitRefineLVL,       &
-                        AdaptRefineLVL, cIntersectMethod
+                        AdaptRefineLVL, cIntersectMethod, useKDT
     NAMELIST /NRRset/   NRRSeed, NRRLength, NRRTheta
     NAMELIST /Inflow/   Alpha, Beta, Re, T00, Ma00, Gama00, Rgas
 
@@ -30,6 +30,9 @@
     close(21)
     end subroutine ReadInp
 !======================================================================
+    subroutine ReadPLT
+
+    endsubroutine ReadPLT
 !======================================================================
 !======================================================================
 !======================================================================

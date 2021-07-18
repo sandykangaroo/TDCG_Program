@@ -8,12 +8,12 @@ $Global
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
     Limiter = 1, Restart = .f., nGeometry = 1, MeshOnly  = .t.
     ! GeometryName  = './Data/11/bogie_8W',
-    ! GeometryName  = './Data/sphere10k',
+    GeometryName  = './Data/sphere10k',
     ! GeometryName  = './Data/pantograph',
-    GeometryName  = './Data/zxj2',
+    ! GeometryName  = './Data/zxj1',
     ! GeometryName  = './Data/LamborghiniB',
-    ! GeometryFormat = 'facet',
-    GeometryFormat = 'stl',
+    GeometryFormat = 'facet',
+    ! GeometryFormat = 'stl',
     OutputName = './Data/test',
     OutputFormat  = 'plt'
 $END
@@ -30,8 +30,8 @@ $END
 !                     5 AABB Traverse
 !                     6 Ray-cast Traverse
 $Mesh
-    InitRefineLVL = 5 AdaptRefineLVL  =  2,
-    cIntersectMethod = 3
+    InitRefineLVL = 4, AdaptRefineLVL  =  2,
+    cIntersectMethod = 4, useKDT = .t.,
 !bogie  
 !    nCell = 30,30,20,
 !   DomainMin = -100.0, -100.0, -100.0,
@@ -44,9 +44,9 @@ $Mesh
 	! DomainMin = -40000.0, -1700.0, 3000.0,
     ! DomainMax = -26000.0,  1700.0, 5500.0,
 !sphere
-!    nCell = 2,2,2,
-!    DomainMin = -100, -100, -100,
-!    DomainMax =  100,  100,  100,
+   nCell = 5,5,5,
+   DomainMin = -200, -200, -200,
+   DomainMax =  200,  200,  200,
 !    nCell = 20,20,20,
 !    DomainMin = -150.0, -150.0, -150,
 !    DomainMax =  150.0,  150.0,  150.0,
@@ -57,9 +57,9 @@ $Mesh
 !    DomainMin = 0, 0, 0,
 !    DomainMax =  3.5,  6.0,  1.5,
 !zxj2
-   nCell = 20,20,10,
-   DomainMin = -1200., -700.,  1500,
-   DomainMax =  1200.,  700.,  2400.,
+!    nCell = 20,20,10,
+!    DomainMin = -1200., -700.,  1700,
+!    DomainMax =  1200.,  700.,  2400.,
 $END
 
 $NRRset

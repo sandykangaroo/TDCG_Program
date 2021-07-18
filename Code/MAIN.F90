@@ -58,11 +58,11 @@
     end program TDCGmain
 !======================================================================
     subroutine TDCGRead
-    use ModPrecision
+    use ModTypDef
     use ModInpGlobal,only: GeometryFormat
     implicit none
-    real(R8):: tStart
-    real(R8):: tEnd
+    real(R8)                    :: tStart
+    real(R8)                    :: tEnd
 
     call CPU_TIME(tStart)
 
@@ -74,6 +74,7 @@
     else
         stop 'error GeometryFormat'
     endif
+    ! call initCheckVector
 
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "Total read time: ", tEnd-tStart

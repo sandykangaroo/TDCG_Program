@@ -2,18 +2,11 @@
     module ModMesh
         use ModTypDef
         implicit none
-        ! Mesh
         integer :: nBGCells     ! Number of the background Cells.
         integer :: nCells     ! Number of total Cells.
         real(R8):: BGCellSize(3)    ! Step size for background OctCell.
         type(typOctCell),pointer :: OctCell(:,:,:)
-        type(typStructCell),pointer:: StruCell(:,:,:,:)
-        ! Geometry
-        ! integer :: nGeoPoints   ! Number of the geometry points.
-        ! integer :: nGeoFaces    ! Number of the geometry faces.
-        ! real(R8),ALLOCATABLE :: Geometry(:,:)
-        ! integer ,ALLOCATABLE :: GeoFace(:,:)
-        ! type(typPoint)       :: GeoBBOX(2) ! Bounding box of geometry.
+        ! type(typStructCell),pointer:: StruCell(:,:,:,:)
     endmodule ModMesh
 !======================================================================
     module ModMeshTools
@@ -46,24 +39,6 @@
             if (c%cross == -4) call CellInout(c)
         end select
         endsubroutine initCellCross
-!----------------------------------------------------------------------
-        logical function BBOX(p,box)
-        ! =.F. outside bbox; =.T. inside bbox.
-        implicit none
-        real(R8),INTENT(IN)::p(3)
-        real(R8),INTENT(IN)::box(6)
-
-        if (p(1) < box(1) .or.    &
-            p(2) < box(2) .or.    &
-            p(3) < box(3) .or.    &
-            p(1) > box(4) .or.    &
-            p(2) > box(5) .or.    &
-            p(3) > box(6)) then
-            BBOX = .False.
-        else
-            BBOX = .True.
-        endif
-        endfunction BBOX
 !----------------------------------------------------------------------
         subroutine CellCast(c)
         use ModKDTree
@@ -137,6 +112,7 @@
         use ModKDTree
         use ModInpGlobal
         use ModInpMesh,only: cIntersectMethod
+        use ModTools, only: BBOX
         implicit none
         type(typOctCell),pointer :: c
         integer :: nIntersect ! Intersect times for one point
@@ -192,15 +168,15 @@
         !     endif
         ! endif
 
-
-
         if (c%cross == -4) then
             c%cross = 0
-        else
+        elseif (c%cross == -3) then
             c%cross = 1
+        else
+            stop 'Subroutine CellInout error1'
         endif
         ! Quick Bounding-BOX identify
-        if (BBOX(c%Center,KDTree(1)%root%box)) then
+        if (BBOX(c%Center,KDTree(1)%root%box)>=0) then
             Rintersect=0
             do iii = 1, 3  !nRays
                 nIntersect=0
@@ -228,10 +204,12 @@
                 if ( iii==2 .and. Rintersect/=1 ) exit
             enddo
             if ( Rintersect > 1 ) then ! inside
-                if (c%cross == -4) then
+                if (c%cross == 0) then
                     c%cross = 3
-                else
+                elseif (c%cross == 1) then
                     c%cross = 2
+                else
+                    stop 'Subroutine CellInout error2'
                 endif
             endif
         endif
@@ -275,7 +253,7 @@
         if (point(1)>box(1).and.point(2)>box(2).and. &
             point(1)<box(4).and.point(2)<box(5).and. & ! Box max
             point(3)<box(6)) then ! Positive direction
-                if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
+                if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data,.false.)) then
                     nIntersect = nIntersect + 1
                 endif
                 ! Into the next tree
@@ -287,7 +265,7 @@
         !     box = CSHIFT(tree%box(4:6),i-1)
         !     if(point(1)<box(1).and.point(2)<box(2).and. & ! Box max
         !        point(3)<box(3)) then ! Positive direction
-        !         if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
+        !         if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data,.false.)) then
         !             nIntersect = nIntersect + 1
         !         endif
         !         ! Into the next tree
@@ -311,20 +289,22 @@
 
         if (.not.ASSOCIATED(tree)) return
 
-                if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data)) then
-                    nIntersect = nIntersect + 1
-                endif
-                ! Into the next tree
-                call RayCastTraverse(point,tree%right,k,nIntersect,i)
-                call RayCastTraverse(point,tree%left,k,nIntersect,i)
+        if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data,.false.)) then
+            nIntersect = nIntersect + 1
+        endif
+        ! Into the next tree
+        call RayCastTraverse(point,tree%right,k,nIntersect,i)
+        call RayCastTraverse(point,tree%left,k,nIntersect,i)
         endsubroutine RayCastTraverse
 !----------------------------------------------------------------------
-        logical function MollerTrumbore(Point,D,tri)
+        logical function MollerTrumbore(Point,D,tri,ios)
         use ModTools
         implicit none
         real(R8)      ,INTENT(IN):: point(3)   ! point(3) = x, y, z.
         real(R8)      ,INTENT(IN):: D(3)
         type(triangle),INTENT(IN):: tri
+        logical       ,INTENT(IN):: ios ! T: Called by CCIspecial.
+                                        ! F: Called by others.
         real(R8):: V0(3), V1(3), V2(3)
         real(R8):: P(3), Q(3)
         real(R8):: t, u, v
@@ -342,9 +322,20 @@
         ! Add if() judgment before each operation is no necessary, for 
         ! the reason that BBOX judgment leads to a high probability of 
         ! return value = .True.
-        if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>0) then
+        if (ios) then
+            if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. &
+                t>=0 .and. t<=A) then
+                MollerTrumbore=.true.; return
+            elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. &
+                t<=0 .and. t>=A) then
+                MollerTrumbore=.true.; return
+            else
+                MollerTrumbore=.false.; return
+            endif
+        endif
+        if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>=0) then
             MollerTrumbore=.true.; return
-        elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<0) then
+        elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<=0) then
             MollerTrumbore=.true.; return
         else
             MollerTrumbore=.false.; return
@@ -352,108 +343,102 @@
         endfunction MollerTrumbore
 !----------------------------------------------------------------------
         subroutine AABB(c)
-            use ModKDTree
-            use ModInpGlobal
-            use ModGeometry
-            implicit none
-            type(typOctCell),pointer :: c
-            type(triangle)        :: tri
-            real(R8)              :: boxCell(6)
-            type(KDT_node),pointer:: node
-            logical               :: aaa
-            type(typKDTtree), pointer   :: tp => null()
-            integer                     :: ng, i
+        use ModKDTree
+        use ModInpGlobal
+        use ModGeometry
+        implicit none
+        type(typOctCell),pointer :: c
+        type(triangle)           :: tri
+        real(R8)                 :: boxCell(6)
+        integer                  :: aaa
 
-            aaa=.false.
-            boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
-            boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
-            boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
-            boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
-            boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
-            boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
+        aaa=0
+        boxCell(1)=c%center(1)-BGCellSize(1)/2.**(c%lvl(1)+1)
+        boxCell(2)=c%center(2)-BGCellSize(2)/2.**(c%lvl(2)+1)
+        boxCell(3)=c%center(3)-BGCellSize(3)/2.**(c%lvl(3)+1)
+        boxCell(4)=c%center(1)+BGCellSize(1)/2.**(c%lvl(1)+1)
+        boxCell(5)=c%center(2)+BGCellSize(2)/2.**(c%lvl(2)+1)
+        boxCell(6)=c%center(3)+BGCellSize(3)/2.**(c%lvl(3)+1)
 
-            tp => kdtree(1)
-            node=>tp%root
-            if( boxCell(1)>node%box(4).or.boxCell(2)>node%box(5).or. &
-                boxCell(3)>node%box(6).or.boxCell(4)<node%box(1).or. &
-                boxCell(5)<node%box(2).or.boxCell(6)<node%box(3))then
-                c%cross = -4
-            else
-                call KdFindTri(c,boxCell,node,aaa)
-                if(.not.aaa)then
-                    c%cross = -4
-                endif        
-            endif
-            return
+        call AABBFindTri(c,boxCell,c%Father%CrossTri,aaa)
+        ! c%nCrossTri = aaa
+        if (aaa==0) then
+            c%cross = -4
+        else
+            c%cross = -3
+        endif
+        return
         end subroutine AABB
 !----------------------------------------------------------------------
         subroutine AABBTraverse(c)!1=intersect,0=no intersect
-            use ModKDTree
-            use ModInpGlobal
-            use ModGeometry
-            implicit none
-            type(typOctCell),pointer :: c
-            type(triangle)        :: tri
-            integer                     :: ng, i
-            real(R8)              ::boxCell(6)
+        use ModKDTree
+        use ModInpGlobal
+        use ModGeometry
+        implicit none
+        type(typOctCell),pointer :: c
+        type(triangle)        :: tri
+        integer                     :: ng, i
+        real(R8)              ::boxCell(6)
 
-            c%cross=-4
-            Loop1:do ng=1,nGeometry
-                do i=1, body(ng)%nse
-                    tri= body(ng)%se3d(i)
-                    if(TriBoxOverlap (c,tri))then
-                        boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
-                        boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
-                        boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
-                        boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
-                        boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
-                        boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
-                        call CrossCellInout(c,boxCell,tri)
-                        exit Loop1
-                    endif
-                enddo
-            enddo Loop1
-            return         
+        c%cross=-4
+        Loop1:do ng=1,nGeometry
+            do i=1, body(ng)%nse
+                tri= body(ng)%se3d(i)
+                if(TriBoxOverlap (c,tri))then
+                    boxCell(1)=c%center(1)-BGCellSize(1)/2**(c%lvl(1)+1)
+                    boxCell(2)=c%center(2)-BGCellSize(2)/2**(c%lvl(2)+1)
+                    boxCell(3)=c%center(3)-BGCellSize(3)/2**(c%lvl(3)+1)
+                    boxCell(4)=c%center(1)+BGCellSize(1)/2**(c%lvl(1)+1)
+                    boxCell(5)=c%center(2)+BGCellSize(2)/2**(c%lvl(2)+1)
+                    boxCell(6)=c%center(3)+BGCellSize(3)/2**(c%lvl(3)+1)
+                    exit Loop1
+                endif
+            enddo
+        enddo Loop1
+        return         
         end subroutine AABBTraverse
 !----------------------------------------------------------------------
-        recursive subroutine KdFindTri(c,boxCell,node,aaa)
-            use ModKDTree
-            implicit none
-            
-            real(R8),INTENT(IN)                     :: boxCell(6)
-            integer                                 :: i,split,splitmax,a
-            type(KDT_node), pointer,INTENT(IN)      :: node
-            type(KDT_node), pointer                 :: leftside,rightside
-            type(triangle)                          :: triright,trileft,tri
-            logical, INTENT(OUT)                    :: aaa
-            type(typOctCell),pointer                   :: c
-            
-            tri = node%the_data
-            aaa = TriBoxOverlap(c,tri)
-            !write(*,*) node%level
-            if(aaa)then
-                call CrossCellInout(c,boxCell,tri)
-                return
+        recursive subroutine AABBFindTri(c,boxCell,node,aaa)
+        use ModKDTree
+        implicit none
+        type(typOctCell),pointer    :: c
+        real(R8),INTENT(IN)         :: boxCell(6)
+        type(typCrossTri), pointer  :: node
+        integer, INTENT(INOUT)      :: aaa
+        integer                     :: i
+        type(typCrossTri), pointer  :: CrossTri
+
+        if (.not. ASSOCIATED(node)) return
+
+        if (boxCell(1)<=node%tri%box(4) .and. &
+            boxCell(4)>=node%tri%box(1) .and. &
+            boxCell(2)<=node%tri%box(5) .and. &
+            boxCell(5)>=node%tri%box(2) .and. &
+            boxCell(3)<=node%tri%box(6) .and. &
+            boxCell(6)>=node%tri%box(3) ) then
+            if (TriBoxOverlap(c,node%tri%the_data)) then
+                aaa = aaa + 1
+                CrossTri  => c%CrossTri
+                if (aaa==1) then
+                    ALLOCATE(c%CrossTri)
+                    c%CrossTri%tri => node%tri
+                    ! CrossTri%prev=> null()
+                    c%CrossTri%next=> null()
+                else
+                    do i = 1, aaa-2
+                        CrossTri => CrossTri%next
+                    enddo
+                    ALLOCATE(CrossTri%next)
+                    CrossTri%next%tri => node%tri
+                    ! CrossTri%next%prev=> CrossTri
+                    CrossTri%next%next=> null()
+                endif
             endif
-            
-            if(associated(node%right))then
-            if( boxCell(1)<=node%right%box(4).and.boxCell(4)>=node%right%box(1).and.&
-                boxCell(2)<=node%right%box(5).and.boxCell(5)>=node%right%box(2).and.&
-                boxCell(3)<=node%right%box(6).and.boxCell(6)>=node%right%box(3))then
-                    call KdFindTri(c,boxCell,node%right,aaa)
-                    if(aaa) return
-            endif
-            endif
-            
-            if(associated(node%left))then
-            if( boxCell(1)<=node%left%box(4).and.boxCell(4)>=node%left%box(1).and.&
-                boxCell(2)<=node%left%box(5).and.boxCell(5)>=node%left%box(2).and.&
-                boxCell(3)<=node%left%box(6).and.boxCell(6)>=node%left%box(3))then
-                    call KdFindTri(c,boxCell,node%left,aaa)
-                    if(aaa) return
-            endif
-            endif
-        end subroutine KdFindTri    
+        endif
+
+        call AABBFindTri(c,boxCell,node%next,aaa)
+
+        end subroutine AABBFindTri
 !----------------------------------------------------------------------
     ! use separating axis theorem to test overlap between triangle and box
     ! need to test for overlap in these directions:
@@ -547,7 +532,6 @@
                 TriBoxOverlap=.false.
                 return
             endif
-                        
             
             fex=abs(e1(1))
             fey=abs(e1(2))
@@ -726,53 +710,9 @@
             return
         end function
 !----------------------------------------------------------------------
-        subroutine CrossCellInout(c,box,tri)
-        use ModPrecision
-        use ModKDTree
-        use ModTypDef
-        use ModTools
-        implicit none
-        type(typOctCell),pointer     :: c
-        real(R8),INTENT(IN)       :: box(6)
-        type(triangle),INTENT(IN) :: tri
-
-        if (bbox(tri%P(1)%P,box)) then
-            call CellInout(c)
-        elseif (bbox(tri%P(2)%P,box)) then
-            call CellInout(c)
-        elseif (bbox(tri%P(3)%P,box)) then
-            call CellInout(c)
-        else
-            call DotProductInout(c,tri)
-        endif
-        endsubroutine CrossCellInout
-!----------------------------------------------------------------------
-        subroutine DotProductInout(c,tri)
-        use ModPrecision
-        use ModKDTree
-        use ModTypDef
-        use ModTools
-        implicit none
-        type(typOctCell),pointer     :: c
-        type(triangle),INTENT(IN) :: tri
-        real(R8)                  :: n(3), v0(3), v1(3), v2(3)
-
-        v1 = tri%P(2)%P-tri%P(1)%P
-        v2 = tri%P(3)%P-tri%P(2)%P
-        v0 = c%Center-tri%P(4)%P
-        n  = CROSS_PRODUCT_3(v1,v2)
-        if (DOT_PRODUCT(n,v0)<0) then
-            c%cross=1
-        else
-            c%cross=2
-        endif
-        endsubroutine DotProductInout
-!----------------------------------------------------------------------
         subroutine NewCell(c,split)
         use ModInpGlobal
         use ModNeighbor
-        ! Called by: many
-        ! Calls    : initNeighbor
         implicit none
         integer(I4),INTENT(IN):: split
         integer(I4)           :: spl
@@ -784,7 +724,7 @@
         select case (spl)
         case (0)
             ALLOCATE( c%son1, c%son2, c%son3, c%son4,   &
-                    c%son5, c%son6, c%son7, c%son8 )
+                      c%son5, c%son6, c%son7, c%son8 )
             c%son1%nBGCell=c%nBGCell
             c%son2%nBGCell=c%nBGCell
             c%son3%nBGCell=c%nBGCell
@@ -862,6 +802,22 @@
             c%son6%U=c%U
             c%son7%U=c%U
             c%son8%U=c%U
+            c%son1%Father=>c
+            c%son2%Father=>c
+            c%son3%Father=>c
+            c%son4%Father=>c
+            c%son5%Father=>c
+            c%son6%Father=>c
+            c%son7%Father=>c
+            c%son8%Father=>c
+            ! c%son1%nCrossTri=0
+            ! c%son2%nCrossTri=0
+            ! c%son3%nCrossTri=0
+            ! c%son4%nCrossTri=0
+            ! c%son5%nCrossTri=0
+            ! c%son6%nCrossTri=0
+            ! c%son7%nCrossTri=0
+            ! c%son8%nCrossTri=0
             if (c%cross==1 .or. c%cross==2 .or. c%cross==-3) then
                 call initCellCross(c%son1)
                 call initCellCross(c%son2)
@@ -881,14 +837,6 @@
                 c%son7%cross=c%cross
                 c%son8%cross=c%cross
             endif
-            c%son1%Father=>c
-            c%son2%Father=>c
-            c%son3%Father=>c
-            c%son4%Father=>c
-            c%son5%Father=>c
-            c%son6%Father=>c
-            c%son7%Father=>c
-            c%son8%Father=>c
             call NullifyCell(c%son1)
             call NullifyCell(c%son2)
             call NullifyCell(c%son3)
@@ -936,6 +884,10 @@
             end select
             c%son1%U=c%U
             c%son2%U=c%U
+            c%son1%Father=>c
+            c%son2%Father=>c
+            ! c%son1%nCrossTri=0
+            ! c%son2%nCrossTri=0
             if (c%cross==1 .or. c%cross==2 .or. c%cross==-3) then
                 call initCellCross(c%son1)
                 call initCellCross(c%son2)
@@ -943,8 +895,6 @@
                 c%son1%cross=c%cross
                 c%son2%cross=c%cross
             endif
-            c%son1%Father=>c
-            c%son2%Father=>c
             call NullifyCell(c%son1)
             call NullifyCell(c%son2)
             return
@@ -1012,6 +962,14 @@
             c%son2%U=c%U
             c%son3%U=c%U
             c%son4%U=c%U
+            c%son1%Father=>c
+            c%son2%Father=>c
+            c%son3%Father=>c
+            c%son4%Father=>c
+            ! c%son1%nCrossTri=0
+            ! c%son2%nCrossTri=0
+            ! c%son3%nCrossTri=0
+            ! c%son4%nCrossTri=0
             if (c%cross==1 .or. c%cross==2 .or. c%cross==-3) then
                 call initCellCross(c%son1)
                 call initCellCross(c%son2)
@@ -1023,10 +981,6 @@
                 c%son3%cross=c%cross
                 c%son4%cross=c%cross
             endif
-            c%son1%Father=>c
-            c%son2%Father=>c
-            c%son3%Father=>c
-            c%son4%Father=>c
             call NullifyCell(c%son1)
             call NullifyCell(c%son2)
             call NullifyCell(c%son3)
@@ -1142,6 +1096,471 @@
         ! c%mark=.false.
         ! endsubroutine InitialCellMark
 !----------------------------------------------------------------------
+        subroutine BGCellAABB(c)
+        use ModKDTree
+        use ModInpGlobal
+        use ModGeometry
+        implicit none
+        type(typOctCell),pointer    :: c
+        type(triangle)              :: tri
+        real(R8)                    :: boxCell(6)
+        integer                     :: aaa
+        integer                     :: ng
+        type(typCrossTri), pointer  :: CrossTri
+        INTEGER                     :: ii
+        type(typOctCell), pointer   :: cc
+
+        aaa      =  0
+        CrossTri => null()
+
+        boxCell(1)=c%center(1)-BGCellSize(1)/2.
+        boxCell(2)=c%center(2)-BGCellSize(2)/2.
+        boxCell(3)=c%center(3)-BGCellSize(3)/2.
+        boxCell(4)=c%center(1)+BGCellSize(1)/2.
+        boxCell(5)=c%center(2)+BGCellSize(2)/2.
+        boxCell(6)=c%center(3)+BGCellSize(3)/2.
+
+        do ii = 1, nGeometry
+            call BGCellFindTri(c,boxCell,kdtree(ii)%root,aaa)
+        enddo
+        ! c%nCrossTri = aaa
+        if (aaa==0) then
+            c%cross = -4
+        else
+            c%cross = -3
+        endif
+
+        end subroutine BGCellAABB
+!----------------------------------------------------------------------
+        recursive subroutine BGCellFindTri(c,boxCell,node,aaa)
+        use ModKDTree
+        implicit none
+        type(typOctCell),pointer    :: c
+        real(R8),INTENT(IN)         :: boxCell(6)
+        type(KDT_node), pointer     :: node
+        integer, INTENT(INOUT)      :: aaa
+        integer                     :: ii
+        type(typCrossTri), pointer  :: CrossTri
+
+        if (.not. ASSOCIATED(node)) return
+
+        if (boxCell(1)>node%box(4).or.boxCell(4)<node%box(1).or.&
+            boxCell(2)>node%box(5).or.boxCell(5)<node%box(2).or.&
+            boxCell(3)>node%box(6).or.boxCell(6)<node%box(3)) then
+            return
+        else
+            if (TriBoxOverlap(c,node%the_data)) then
+                aaa = aaa + 1
+                CrossTri  => c%CrossTri
+                if (aaa==1) then
+                    ALLOCATE(c%CrossTri)
+                    c%CrossTri%tri => node
+                    ! c%CrossTri%prev=> null()
+                    c%CrossTri%next=> null()
+                else
+                    do ii = 1, aaa-2
+                        CrossTri => CrossTri%next
+                    enddo
+                    ALLOCATE(CrossTri%next)
+                    CrossTri%next%tri => node
+                    ! CrossTri%next%prev=> CrossTri
+                    CrossTri%next%next=> null()
+                endif
+            endif
+
+            call BGCellFindTri(c,boxCell,node%right,aaa)
+            call BGCellFindTri(c,boxCell,node%left ,aaa)
+        endif
+
+        end subroutine BGCellFindTri
+!----------------------------------------------------------------------
+        recursive subroutine initCrossCellInout(t)
+        implicit none
+        type(typOctCell),pointer :: t
+
+        if(ASSOCIATED(t%son8))then
+            call initCrossCellInout(t%son1)
+            call initCrossCellInout(t%son2)
+            call initCrossCellInout(t%son3)
+            call initCrossCellInout(t%son4)
+            call initCrossCellInout(t%son5)
+            call initCrossCellInout(t%son6)
+            call initCrossCellInout(t%son7)
+            call initCrossCellInout(t%son8)
+            return
+        elseif(ASSOCIATED(t%son4))then
+            call initCrossCellInout(t%son1)
+            call initCrossCellInout(t%son2)
+            call initCrossCellInout(t%son3)
+            call initCrossCellInout(t%son4)
+            return
+        elseif(ASSOCIATED(t%son2))then
+            call initCrossCellInout(t%son1)
+            call initCrossCellInout(t%son2)
+            return
+        endif
+
+        if (t%cross==-3) call CrossCellInout(t)
+
+        endsubroutine initCrossCellInout
+!----------------------------------------------------------------------
+        subroutine CrossCellInout(c)
+        use ModGlobalConstants, only : epsR8
+        use ModTools, only: BBOX
+        implicit none
+        type(typOctCell),pointer :: c
+        INTEGER                  :: nTri ! Num. of CrossTri
+        INTEGER                  :: nDP  ! Num. of DotProductInout = F.
+        type(typCrossTri),pointer:: p
+        logical                  :: ios
+        type(typCrossTri),pointer:: pp
+        real(R8)                 :: n(3)
+        integer                  :: b ! counter for loop22
+        real(R8)                 :: boxCell(6)
+        integer                  :: i
+        integer                  :: pointOrder
+        real(R8)                 :: point(3)
+        type(triangle), pointer  :: tri
+        real(R8)                 :: derta
+        integer:: aia,aib
+        aia=0
+        aib=0
+
+        nTri = 1
+        p    => c%CrossTri
+        boxCell(1)=c%center(1)-BGCellSize(1)/2.**(c%lvl(1)+1)
+        boxCell(2)=c%center(2)-BGCellSize(2)/2.**(c%lvl(2)+1)
+        boxCell(3)=c%center(3)-BGCellSize(3)/2.**(c%lvl(3)+1)
+        boxCell(4)=c%center(1)+BGCellSize(1)/2.**(c%lvl(1)+1)
+        boxCell(5)=c%center(2)+BGCellSize(2)/2.**(c%lvl(2)+1)
+        boxCell(6)=c%center(3)+BGCellSize(3)/2.**(c%lvl(3)+1)
+
+        loop11: do while (ASSOCIATED(p))
+            tri => p%tri%the_data
+            ! Find a tri-vertex inside cell
+            pointOrder = 0
+            loop3: do i = 1, 3
+                if (BBOX(tri%P(i)%P, boxCell(:))==-1) then
+                    cycle loop3
+                elseif(BBOX(tri%P(i)%P, boxCell(:))==0) then
+                    if (pointOrder == 0)then
+                        pointOrder = -i
+                    else
+                        pointOrder = pointOrder - i - 5
+                    endif
+                else
+                    pointOrder = i
+                    exit loop3
+                endif
+            enddo loop3
+
+            if (pointOrder == 0) then ! No point inside cell.
+                derta = BGCellSize(3)/2.**c%lvl(3)
+                point = FindPointInsideCell(boxCell,tri,derta)
+            elseif (pointOrder < 0) then ! point on the cell face.
+                if (pointOrder >= -3) then ! only one point on the cell.
+                    if (pointOrder == -1) then
+                        point = tri%P(1)%P + &
+                                (tri%P(2)%P - tri%P(1)%P) * epsR8 + &
+                                (tri%P(3)%P - tri%P(1)%P) * epsR8
+                    elseif (pointOrder == -2) then
+                        point = tri%P(2)%P + &
+                                (tri%P(1)%P - tri%P(2)%P) * epsR8 + &
+                                (tri%P(3)%P - tri%P(2)%P) * epsR8
+                    else ! pointOrder == -3
+                        point = tri%P(3)%P + &
+                                (tri%P(1)%P - tri%P(3)%P) * epsR8 + &
+                                (tri%P(2)%P - tri%P(3)%P) * epsR8
+                    endif
+                elseif (pointOrder >= -15) then ! two point on the cell.
+                    if (pointOrder == -8) then ! point 1/2
+                        point = (tri%P(1)%P+tri%P(2)%P)/2
+                        point = (tri%P(3)%P-point)*epsR8+point
+                    elseif (pointOrder == -9) then ! point 1/3
+                        point = (tri%P(1)%P+tri%P(3)%P)/2
+                        point = (tri%P(2)%P-point)*epsR8+point
+                    else ! point 2/3
+                        point = (tri%P(2)%P+tri%P(3)%P)/2
+                        point = (tri%P(1)%P-point)*epsR8+point
+                    endif
+                else ! three point on the cell.
+                    point = tri%P(4)%P
+                endif
+            else ! Have a point inside cell.
+                if (pointOrder == 1) then
+                    point = tri%P(1)%P + &
+                            (tri%P(2)%P - tri%P(1)%P) * epsR8 + &
+                            (tri%P(3)%P - tri%P(1)%P) * epsR8
+                elseif (pointOrder == 2) then
+                    point = tri%P(2)%P + &
+                            (tri%P(1)%P - tri%P(2)%P) * epsR8 + &
+                            (tri%P(3)%P - tri%P(2)%P) * epsR8
+                else ! pointOrder == 3
+                    point = tri%P(3)%P + &
+                            (tri%P(1)%P - tri%P(3)%P) * epsR8 + &
+                            (tri%P(2)%P - tri%P(3)%P) * epsR8
+                endif
+            endif
+
+            n = point - c%Center
+            pp=> c%CrossTri
+            b = 1
+            loop22: do while (ASSOCIATED(pp))
+                ! if line_n cross with other tri, return.
+                if (b /= nTri) then
+                    tri => pp%tri%the_data
+                    if (MollerTrumbore(c%Center,n,tri,.true.)) then
+                        if (.not.ASSOCIATED(p%next)) print*,"error"
+                        p => p%next
+                        nTri = nTri + 1
+                        cycle loop11
+                    endif
+                endif
+                pp => pp%next
+                b = b + 1
+            enddo loop22
+            if (DotProductInout(c%Center,tri)) then
+                c%cross = 1
+            else
+                c%cross = 2
+            endif
+            return
+        enddo loop11
+        ! if (nTri<=1) stop 'error subroutine CrossCellInout'! nTri must >=1.
+        ! if (nDP == nTri) then
+        !     c%cross = 2 ! inside
+        ! else
+        !     c%cross = 1 ! outside
+        ! endif
+        ! return
+            ! If the normal vector not cross with any other tri,
+            ! this is the normal we are looking for.
+            ! c%cross = 2 ! inside
+            ! aia=aia+1
+            ! return
+
+
+
+
+                ! nDP = nDP + 1
+                ! pp=> c%CrossTri
+                ! b = 1
+                ! n = p%tri%the_data%P(4)%P - c%Center
+                ! ! n = n * 1.0000001 ! might have floot error
+                ! do while (ASSOCIATED(pp))
+                !     ! if normal cross with other tri, return.
+                !     if (b /= nTri) then
+                !         if (MollerTrumbore( c%Center, n, pp%tri%the_data, &
+                !                             .true.)) then
+                !             p => p%next
+                !             nTri = nTri + 1
+                !             cycle loop11
+                !         endif
+                !     endif
+                !     pp => pp%next
+                !     b = b + 1
+                ! enddo
+                ! ! If the normal vector not cross with any other tri,
+                ! ! this is the normal we are looking for.
+                ! c%cross = 2 ! inside
+                ! aib=aib+1
+                ! return
+        !     p => p%next
+        !     nTri = nTri + 1
+        ! enddo loop11
+        ! if (aia>=1.and.aib>=1)then
+        ! print*,'1252346'
+        ! endif
+        ! if (nTri<=1) stop 'error subroutine CrossCellInout'! nTri must >=1.
+        ! if (nDP == nTri) then
+        !     c%cross = 2 ! inside
+        ! else
+        !     c%cross = 1 ! outside
+        ! endif
+        ! return
+        endsubroutine CrossCellInout
+!----------------------------------------------------------------------
+        function FindPointInsideCell(box,tri,derta)
+        use ModPrecision
+        use ModTools, only: CrossPoint
+        implicit none
+        real(R8)                :: FindPointInsideCell(3)
+        real(R8),INTENT(IN)     :: box(6)
+        type(triangle),INTENT(IN):: tri
+        real(R8),INTENT(IN)     :: derta
+        real(R8)                :: V1(3), V2(3)
+        real(R8)                :: D(3)
+        real(R8)                :: point1(3,3) ! point cell cross with tri.
+        INTEGER                 :: i
+        real(R8)                :: p(4,3)
+        
+        i = 1
+        D = (/1,0,0/)
+        p(:,i) = CrossPoint(box(1:3),D*derta,tri)
+        if (p(4,i)==1) then
+            i = i + 1
+        endif
+        D = (/0,1,0/)
+        p(:,i) = CrossPoint(box(1:3),D*derta,tri)
+        if (p(4,i)==1) then
+            i = i + 1
+        endif
+        D = (/0,0,1/)
+        p(:,i) = CrossPoint(box(1:3),D*derta,tri)
+        if (p(4,i)==1) then
+            i = i + 1
+            if (i == 4) goto 10
+        endif
+        D = (/-1,0,0/)
+        p(:,i) = CrossPoint(box(4:6),D*derta,tri)
+        if (p(4,i)==1) then
+            i = i + 1
+            if (i == 4) goto 10
+        endif
+        D = (/0,-1,0/)
+        p(:,i) = CrossPoint(box(4:6),D*derta,tri)
+        if (p(4,i)==1) then
+            i = i + 1
+            if (i == 4) goto 10
+        endif
+        D = (/0,0,-1/)
+        p(:,i) = CrossPoint(box(4:6),D*derta,tri)
+        if (p(4,i)==1) then
+            i = i + 1
+        endif
+
+10      if (i /= 4) print*, 'error subroutine FindPointInsideCell i=', i
+        FindPointInsideCell(1) = (p(1,1) + p(1,2) + p(1,3)) / 3
+        FindPointInsideCell(2) = (p(2,1) + p(2,2) + p(2,3)) / 3
+        FindPointInsideCell(3) = (p(3,1) + p(3,2) + p(3,3)) / 3
+
+        endfunction FindPointInsideCell
+!----------------------------------------------------------------------
+        ! subroutine CCIspecial(c,a,tri,ios)
+        ! use ModTools, only: PtF_normal
+        ! implicit none
+        ! type(typOctCell),pointer :: c
+        ! integer,INTENT(IN)       :: a ! counter for loop11
+        ! type(typCrossTri),pointer:: tri
+        ! logical,INTENT(OUT)      :: ios ! statu, T: has changed c%cross
+        ! type(typCrossTri),pointer:: ptri
+        ! real(R8)                 :: n(3)
+        ! integer                  :: b ! counter for loop22
+
+        ! ios = .false.
+        ! ptri=> c%CrossTri
+        ! b = 1
+        ! n = tri%tri%the_data%P(4)%P - c%Center
+        ! n = n * 1.0000001 ! might have floot error
+        ! ! n = PtF_normal(c%center,tri%tri%the_data)
+        ! ! If foot point not on this tri, return.
+        ! ! if (.not.MollerTrumbore(c%Center,n,tri%tri%the_data,.true.)) then
+        ! !     print*,'!'
+        ! !     return
+        ! ! endif
+        ! loop22: do while (ASSOCIATED(ptri))
+        !     ! if normal cross with other tri, return.
+        !     if (a /= b) then
+        !     if (MollerTrumbore(c%Center,n,ptri%tri%the_data,.true.)) return
+        !     endif
+        !     ptri => ptri%next
+        !     b = b + 1
+        ! enddo loop22
+
+        ! ! If the normal vector not cross with any other tri, this is the
+        ! ! normal we are looking for.
+        ! c%cross = 2 ! inside
+        ! ios = .true.
+        ! return
+
+        ! ! stop 'subroutine CCIspecial special error'
+        ! endsubroutine CCIspecial
+! !----------------------------------------------------------------------
+!         subroutine CCIspecial(c)
+!         use ModTools, only: PtF_normal
+!         implicit none
+!         type(typOctCell),pointer :: c
+!         type(typCrossTri),pointer:: p, pp
+!         real(R8)                 :: n(3)
+!         real(R8)                 :: dist
+!         integer                  :: a, b ! counter for loop11 and loop22
+!         real(R8)                 :: maxdist
+!         type(triangle),pointer   :: maxtri
+
+
+!         p => c%CrossTri
+!         a = 1
+!         maxdist = 0
+!         loop11: do while (ASSOCIATED(p))
+!             pp=> c%CrossTri
+!             b = 1
+!             n = PtF_normal(c%center,p%tri%the_data)
+!             if (.not.MollerTrumbore(c%Center,n,p%tri%the_data,.true.)) return
+!             loop22: do while (.true.)
+!                 if (a /= b) then
+!                 if (MollerTrumbore(c%Center,n,pp%tri%the_data,.true.)) &
+!                     exit loop22
+!                 endif
+!                 pp => pp%next
+!                 b = b + 1
+!                 if (.not.ASSOCIATED(pp)) then !'That is my good boy!'
+!                     if (MollerTrumbore(c%Center,n,p%tri%the_data,.false.))then
+!                         ! Foot point on the tri.
+!                         if (DotProductInout(c%Center,p%tri%the_data))then
+!                             c%cross = 1
+!                         else
+!                             c%cross = 2
+!                         endif
+!                         return
+!                     else
+!                         dist = sqrt(n(1)*n(1)+n(2)*n(2)+n(3)*n(3))
+!                         if (maxdist<dist) then
+!                             maxdist = dist
+!                             maxtri  =>p%tri%the_data
+!                         endif
+!                         exit loop22
+!                     endif
+!                 endif
+!             enddo loop22
+!             p => p%next
+!             a = a + 1
+!         enddo loop11
+
+!         if (a == 1) stop 'subroutine CCIspecial no c%CrossTri'
+
+!         if (DotProductInout(c%Center,maxtri))then
+!             c%cross = 1
+!         else
+!             c%cross = 2
+!         endif
+!         return
+
+!         ! stop 'subroutine CCIspecial special error'
+!         endsubroutine CCIspecial
+!----------------------------------------------------------------------
+        logical function DotProductInout(p,tri)
+        ! Dot Poduct Method to discriminate in/out cell.
+        ! T: outside; F: inside.
+        use ModPrecision
+        use ModKDTree
+        use ModTypDef
+        use ModTools, only: CROSS_PRODUCT_3
+        implicit none
+        real(R8),INTENT(IN)       :: p(3)
+        type(triangle),INTENT(IN) :: tri
+        real(R8)                  :: n(3), v0(3), v1(3), v2(3)
+
+        v1 = tri%P(2)%P-tri%P(1)%P
+        v2 = tri%P(3)%P-tri%P(2)%P
+        v0 = p-tri%P(4)%P
+        n  = CROSS_PRODUCT_3(v1,v2)
+
+        if (DOT_PRODUCT(n,v0)>=0) then
+            DotProductInout=.true.
+        else
+            DotProductInout=.false.
+        endif
+        endfunction DotProductInout
     end module ModMeshTools
 !======================================================================
     subroutine GenerateBGMesh   ! BG -- back-ground
@@ -1174,6 +1593,7 @@
                               DomainMin(3)+(k-0.5)*BGCellSize(3)/)
             t%U           = 0
             t%cross       = -5
+            ! t%nCrossTri   = 0
             NULLIFY(t%Father,                                       &
                     t%son1, t%son2, t%son3, t%son4,                 &
                     t%son5, t%son6, t%son7, t%son8,                 &
@@ -1271,8 +1691,7 @@
             return
         endif
 
-        if (c%cross/=-4) return
-        call CellInout(c)
+        if (c%cross==-4 .or. c%cross==-3) call CellInout(c)
 
         endsubroutine initCellInout2
     endsubroutine initCellInout
@@ -1291,7 +1710,7 @@
     integer :: step=0   ! Counter, print progress precentage
 
     call CPU_TIME(tStart)
-    write(6,'(1X,A,12X,A)',advance='no') 'OctCell cross progress:', ''
+    write(6,'(1X,A,12X,A)',advance='no') 'Cell cross progress:', ''
     flush(6)
     select case (cIntersectMethod)
     case (1)    ! Ray-cast with Painting Algorithm Method
@@ -1300,7 +1719,7 @@
         do i = 1, nCell(1)
             t       =>OctCell(i,j,k)
             call CellCast(t)
-            if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
+            if (t%cross == -3) call SurfaceAdapt(t)
             step=step+1
             p=step/real(nBGCells,R8)*100
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
@@ -1309,8 +1728,11 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call CPU_TIME(tEnd)
+        write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
         call initFindNeighbor
         call initPaintingAlgorithm2 ! Painting Algorithm Method
+        call initCellInout
         cIntersectMethod = 7 ! Close the Painting Algorithm Method
         call initSmoothMesh
 
@@ -1320,7 +1742,7 @@
         do i = 1, nCell(1)
             t       =>OctCell(i,j,k)
             call CellCast(t)
-            if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
+            if (t%cross == -3) call SurfaceAdapt(t)
             step=step+1
             p=step/real(nBGCells,R8)*100
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
@@ -1329,6 +1751,8 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call CPU_TIME(tEnd)
+        write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
         call initFindNeighbor
         call initCellInout
         cIntersectMethod = 7 ! Close the Painting Algorithm Method
@@ -1339,8 +1763,9 @@
         do j = 1, nCell(2)
         do i = 1, nCell(1)
             t       =>OctCell(i,j,k)
-            call AABB(t)
-            if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
+            call BGCellAABB(t)
+            if (t%cross == -3) call SurfaceAdapt(t)
+            call initCrossCellInout(t)
             step=step+1
             p=step/real(nBGCells,R8)*100
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
@@ -1349,6 +1774,8 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call CPU_TIME(tEnd)
+        write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
         call initFindNeighbor
         call initPaintingAlgorithm2 ! Painting Algorithm Method
         cIntersectMethod = 8 ! Close the Painting Algorithm Method
@@ -1359,16 +1786,20 @@
         do j = 1, nCell(2)
         do i = 1, nCell(1)
             t       =>OctCell(i,j,k)
-            call AABB(t)
-            if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
+            call BGCellAABB(t)
+            if (t%cross == -3) call SurfaceAdapt(t)
+            call initCrossCellInout(t)
             step=step+1
             p=step/real(nBGCells,R8)*100
+            ! if (p>50) return
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
             flush(6)
         enddo
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call CPU_TIME(tEnd)
+        write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
         call initFindNeighbor
         call initCellInout
         cIntersectMethod = 8 ! Close the Painting Algorithm Method
@@ -1380,7 +1811,8 @@
         do i = 1, nCell(1)
             t       =>OctCell(i,j,k)
             call AABBTraverse(t)
-            if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
+            if (t%cross == -3) call SurfaceAdapt(t)
+            call initCrossCellInout(t)
             step=step+1
             p=step/real(nBGCells,R8)*100
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
@@ -1389,6 +1821,8 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call CPU_TIME(tEnd)
+        write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
         call initFindNeighbor
         call initCellInout
         call initSmoothMesh
@@ -1399,7 +1833,8 @@
         do i = 1, nCell(1)
             t       =>OctCell(i,j,k)
             call CellCast(t)
-            if (t%cross == 1 .or. t%cross == 2) call SurfaceAdapt(t)
+            if (t%cross == -3) call SurfaceAdapt(t)
+            call initCrossCellInout(t)
             step=step+1
             p=step/real(nBGCells,R8)*100
             write(6,'(A,F5.1,A)',advance='no') '\b\b\b\b\b\b', p, '%'
@@ -1408,13 +1843,13 @@
         enddo
         enddo
         write(*,*) '' ! Stop write with advance='no'
+        call CPU_TIME(tEnd)
+        write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
         call initFindNeighbor
         call initCellInout
         call initSmoothMesh
     end select
 
-    call CPU_TIME(tEnd)
-    write(*,'(1X,A,F10.2)') "SurfaceAdapt time: ", tEnd-tStart
     contains
 !----------------------------------------------------------------------
         recursive subroutine SurfaceAdapt(c)
@@ -1549,225 +1984,225 @@
         if (c%cross/=-4) return ! OctCell has been paintted
 
         if (ASSOCIATED(c%NeighborX1)) then
-            if (c%NeighborX1%cross==0) then
-                goto 10
-            elseif (c%NeighborX1%cross/=-4) then
-                if (ASSOCIATED(c%NeighborX1%son1)) then
-                    if (c%NeighborX1%son1%cross==0) then
-                    if (c%NeighborX1%son1%NeighborX2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX1%son2%cross==0) then
-                    if (c%NeighborX1%son2%NeighborX2%nCell==c%nCell) goto 10
-                    endif
+        if (c%NeighborX1%cross==0) then
+            goto 10
+        elseif (c%NeighborX1%cross/=-4) then
+            if (ASSOCIATED(c%NeighborX1%son1)) then
+                if (c%NeighborX1%son1%cross==0) then
+                if (c%NeighborX1%son1%NeighborX2%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborX1%son3)) then
-                    if (c%NeighborX1%son3%cross==0) then
-                    if (c%NeighborX1%son3%NeighborX2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX1%son4%cross==0) then
-                    if (c%NeighborX1%son4%NeighborX2%nCell==c%nCell) goto 10
-                    endif
-                endif
-                if (ASSOCIATED(c%NeighborX1%son5)) then
-                    if (c%NeighborX1%son5%cross==0) then
-                    if (c%NeighborX1%son5%NeighborX2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX1%son6%cross==0) then
-                    if (c%NeighborX1%son6%NeighborX2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX1%son7%cross==0) then
-                    if (c%NeighborX1%son7%NeighborX2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX1%son8%cross==0) then
-                    if (c%NeighborX1%son8%NeighborX2%nCell==c%nCell) goto 10
-                    endif
+                if (c%NeighborX1%son2%cross==0) then
+                if (c%NeighborX1%son2%NeighborX2%nCell==c%nCell) goto 10
                 endif
             endif
+            if (ASSOCIATED(c%NeighborX1%son3)) then
+                if (c%NeighborX1%son3%cross==0) then
+                if (c%NeighborX1%son3%NeighborX2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX1%son4%cross==0) then
+                if (c%NeighborX1%son4%NeighborX2%nCell==c%nCell) goto 10
+                endif
+            endif
+            if (ASSOCIATED(c%NeighborX1%son5)) then
+                if (c%NeighborX1%son5%cross==0) then
+                if (c%NeighborX1%son5%NeighborX2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX1%son6%cross==0) then
+                if (c%NeighborX1%son6%NeighborX2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX1%son7%cross==0) then
+                if (c%NeighborX1%son7%NeighborX2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX1%son8%cross==0) then
+                if (c%NeighborX1%son8%NeighborX2%nCell==c%nCell) goto 10
+                endif
+            endif
+        endif
         endif
 
         if (ASSOCIATED(c%NeighborX2)) then
-            if (c%NeighborX2%cross==0) then
-                goto 10
-            elseif (c%NeighborX2%cross/=-4) then
-                if (ASSOCIATED(c%NeighborX2%son1)) then
-                    if (c%NeighborX2%son1%cross==0) then
-                    if (c%NeighborX2%son1%NeighborX1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX2%son2%cross==0) then
-                    if (c%NeighborX2%son2%NeighborX1%nCell==c%nCell) goto 10
-                    endif
+        if (c%NeighborX2%cross==0) then
+            goto 10
+        elseif (c%NeighborX2%cross/=-4) then
+            if (ASSOCIATED(c%NeighborX2%son1)) then
+                if (c%NeighborX2%son1%cross==0) then
+                if (c%NeighborX2%son1%NeighborX1%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborX2%son3)) then
-                    if (c%NeighborX2%son3%cross==0) then
-                    if (c%NeighborX2%son3%NeighborX1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX2%son4%cross==0) then
-                    if (c%NeighborX2%son4%NeighborX1%nCell==c%nCell) goto 10
-                    endif
-                endif
-                if (ASSOCIATED(c%NeighborX2%son5)) then
-                    if (c%NeighborX2%son5%cross==0) then
-                    if (c%NeighborX2%son5%NeighborX1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX2%son6%cross==0) then
-                    if (c%NeighborX2%son6%NeighborX1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX2%son7%cross==0) then
-                    if (c%NeighborX2%son7%NeighborX1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborX2%son8%cross==0) then
-                    if (c%NeighborX2%son8%NeighborX1%nCell==c%nCell) goto 10
-                    endif
+                if (c%NeighborX2%son2%cross==0) then
+                if (c%NeighborX2%son2%NeighborX1%nCell==c%nCell) goto 10
                 endif
             endif
+            if (ASSOCIATED(c%NeighborX2%son3)) then
+                if (c%NeighborX2%son3%cross==0) then
+                if (c%NeighborX2%son3%NeighborX1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX2%son4%cross==0) then
+                if (c%NeighborX2%son4%NeighborX1%nCell==c%nCell) goto 10
+                endif
+            endif
+            if (ASSOCIATED(c%NeighborX2%son5)) then
+                if (c%NeighborX2%son5%cross==0) then
+                if (c%NeighborX2%son5%NeighborX1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX2%son6%cross==0) then
+                if (c%NeighborX2%son6%NeighborX1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX2%son7%cross==0) then
+                if (c%NeighborX2%son7%NeighborX1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborX2%son8%cross==0) then
+                if (c%NeighborX2%son8%NeighborX1%nCell==c%nCell) goto 10
+                endif
+            endif
+        endif
         endif
 
         if (ASSOCIATED(c%NeighborY1)) then
-            if (c%NeighborY1%cross==0) then
-                goto 10
-            elseif (c%NeighborY1%cross/=-4) then
-                if (ASSOCIATED(c%NeighborY1%son1)) then
-                    if (c%NeighborY1%son1%cross==0) then
-                    if (c%NeighborY1%son1%NeighborY2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY1%son2%cross==0) then
-                    if (c%NeighborY1%son2%NeighborY2%nCell==c%nCell) goto 10
-                    endif
+        if (c%NeighborY1%cross==0) then
+            goto 10
+        elseif (c%NeighborY1%cross/=-4) then
+            if (ASSOCIATED(c%NeighborY1%son1)) then
+                if (c%NeighborY1%son1%cross==0) then
+                if (c%NeighborY1%son1%NeighborY2%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborY1%son3)) then
-                    if (c%NeighborY1%son3%cross==0) then
-                    if (c%NeighborY1%son3%NeighborY2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY1%son4%cross==0) then
-                    if (c%NeighborY1%son4%NeighborY2%nCell==c%nCell) goto 10
-                    endif
-                endif
-                if (ASSOCIATED(c%NeighborY1%son5)) then
-                    if (c%NeighborY1%son5%cross==0) then
-                    if (c%NeighborY1%son5%NeighborY2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY1%son6%cross==0) then
-                    if (c%NeighborY1%son6%NeighborY2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY1%son7%cross==0) then
-                    if (c%NeighborY1%son7%NeighborY2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY1%son8%cross==0) then
-                    if (c%NeighborY1%son8%NeighborY2%nCell==c%nCell) goto 10
-                    endif
+                if (c%NeighborY1%son2%cross==0) then
+                if (c%NeighborY1%son2%NeighborY2%nCell==c%nCell) goto 10
                 endif
             endif
+            if (ASSOCIATED(c%NeighborY1%son3)) then
+                if (c%NeighborY1%son3%cross==0) then
+                if (c%NeighborY1%son3%NeighborY2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY1%son4%cross==0) then
+                if (c%NeighborY1%son4%NeighborY2%nCell==c%nCell) goto 10
+                endif
+            endif
+            if (ASSOCIATED(c%NeighborY1%son5)) then
+                if (c%NeighborY1%son5%cross==0) then
+                if (c%NeighborY1%son5%NeighborY2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY1%son6%cross==0) then
+                if (c%NeighborY1%son6%NeighborY2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY1%son7%cross==0) then
+                if (c%NeighborY1%son7%NeighborY2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY1%son8%cross==0) then
+                if (c%NeighborY1%son8%NeighborY2%nCell==c%nCell) goto 10
+                endif
+            endif
+        endif
         endif
 
         if (ASSOCIATED(c%NeighborY2)) then
-            if (c%NeighborY2%cross==0) then
-                goto 10
-            elseif (c%NeighborY2%cross/=-4) then
-                if (ASSOCIATED(c%NeighborY2%son1)) then
-                    if (c%NeighborY2%son1%cross==0) then
-                    if (c%NeighborY2%son1%NeighborY1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY2%son2%cross==0) then
-                    if (c%NeighborY2%son2%NeighborY1%nCell==c%nCell) goto 10
-                    endif
+        if (c%NeighborY2%cross==0) then
+            goto 10
+        elseif (c%NeighborY2%cross/=-4) then
+            if (ASSOCIATED(c%NeighborY2%son1)) then
+                if (c%NeighborY2%son1%cross==0) then
+                if (c%NeighborY2%son1%NeighborY1%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborY2%son3)) then
-                    if (c%NeighborY2%son3%cross==0) then
-                    if (c%NeighborY2%son3%NeighborY1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY2%son4%cross==0) then
-                    if (c%NeighborY2%son4%NeighborY1%nCell==c%nCell) goto 10
-                    endif
-                endif
-                if (ASSOCIATED(c%NeighborY2%son5)) then
-                    if (c%NeighborY2%son5%cross==0) then
-                    if (c%NeighborY2%son5%NeighborY1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY2%son6%cross==0) then
-                    if (c%NeighborY2%son6%NeighborY1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY2%son7%cross==0) then
-                    if (c%NeighborY2%son7%NeighborY1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborY2%son8%cross==0) then
-                    if (c%NeighborY2%son8%NeighborY1%nCell==c%nCell) goto 10
-                    endif
+                if (c%NeighborY2%son2%cross==0) then
+                if (c%NeighborY2%son2%NeighborY1%nCell==c%nCell) goto 10
                 endif
             endif
+            if (ASSOCIATED(c%NeighborY2%son3)) then
+                if (c%NeighborY2%son3%cross==0) then
+                if (c%NeighborY2%son3%NeighborY1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY2%son4%cross==0) then
+                if (c%NeighborY2%son4%NeighborY1%nCell==c%nCell) goto 10
+                endif
+            endif
+            if (ASSOCIATED(c%NeighborY2%son5)) then
+                if (c%NeighborY2%son5%cross==0) then
+                if (c%NeighborY2%son5%NeighborY1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY2%son6%cross==0) then
+                if (c%NeighborY2%son6%NeighborY1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY2%son7%cross==0) then
+                if (c%NeighborY2%son7%NeighborY1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborY2%son8%cross==0) then
+                if (c%NeighborY2%son8%NeighborY1%nCell==c%nCell) goto 10
+                endif
+            endif
+        endif
         endif
 
         if (ASSOCIATED(c%NeighborZ1)) then
-            if (c%NeighborZ1%cross==0) then
-                goto 10
-            elseif (c%NeighborZ1%cross/=-4) then
-                if (ASSOCIATED(c%NeighborZ1%son1)) then
-                    if (c%NeighborZ1%son1%cross==0) then
-                    if (c%NeighborZ1%son1%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ1%son2%cross==0) then
-                    if (c%NeighborZ1%son2%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
+        if (c%NeighborZ1%cross==0) then
+            goto 10
+        elseif (c%NeighborZ1%cross/=-4) then
+            if (ASSOCIATED(c%NeighborZ1%son1)) then
+                if (c%NeighborZ1%son1%cross==0) then
+                if (c%NeighborZ1%son1%NeighborZ2%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborZ1%son3)) then
-                    if (c%NeighborZ1%son3%cross==0) then
-                    if (c%NeighborZ1%son3%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ1%son4%cross==0) then
-                    if (c%NeighborZ1%son4%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
+                if (c%NeighborZ1%son2%cross==0) then
+                if (c%NeighborZ1%son2%NeighborZ2%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborZ1%son5)) then
-                    if (c%NeighborZ1%son5%cross==0) then
-                    if (c%NeighborZ1%son5%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ1%son6%cross==0) then
-                    if (c%NeighborZ1%son6%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ1%son7%cross==0) then
-                    if (c%NeighborZ1%son7%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ1%son8%cross==0) then
-                    if (c%NeighborZ1%son8%NeighborZ2%nCell==c%nCell) goto 10
-                    endif
+            endif
+            if (ASSOCIATED(c%NeighborZ1%son3)) then
+                if (c%NeighborZ1%son3%cross==0) then
+                if (c%NeighborZ1%son3%NeighborZ2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ1%son4%cross==0) then
+                if (c%NeighborZ1%son4%NeighborZ2%nCell==c%nCell) goto 10
+                endif
+            endif
+            if (ASSOCIATED(c%NeighborZ1%son5)) then
+                if (c%NeighborZ1%son5%cross==0) then
+                if (c%NeighborZ1%son5%NeighborZ2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ1%son6%cross==0) then
+                if (c%NeighborZ1%son6%NeighborZ2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ1%son7%cross==0) then
+                if (c%NeighborZ1%son7%NeighborZ2%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ1%son8%cross==0) then
+                if (c%NeighborZ1%son8%NeighborZ2%nCell==c%nCell) goto 10
                 endif
             endif
         endif
+        endif
 
         if (ASSOCIATED(c%NeighborZ2)) then
-            if (c%NeighborZ2%cross==0) then
-                goto 10
-            elseif (c%NeighborZ2%cross/=-4) then
-                if (ASSOCIATED(c%NeighborZ2%son1)) then
-                    if (c%NeighborZ2%son1%cross==0) then
-                    if (c%NeighborZ2%son1%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ2%son2%cross==0) then
-                    if (c%NeighborZ2%son2%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
+        if (c%NeighborZ2%cross==0) then
+            goto 10
+        elseif (c%NeighborZ2%cross/=-4) then
+            if (ASSOCIATED(c%NeighborZ2%son1)) then
+                if (c%NeighborZ2%son1%cross==0) then
+                if (c%NeighborZ2%son1%NeighborZ1%nCell==c%nCell) goto 10
                 endif
-                if (ASSOCIATED(c%NeighborZ2%son3)) then
-                    if (c%NeighborZ2%son3%cross==0) then
-                    if (c%NeighborZ2%son3%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ2%son4%cross==0) then
-                    if (c%NeighborZ2%son4%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
-                endif
-                if (ASSOCIATED(c%NeighborZ2%son5)) then
-                    if (c%NeighborZ2%son5%cross==0) then
-                    if (c%NeighborZ2%son5%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ2%son6%cross==0) then
-                    if (c%NeighborZ2%son6%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ2%son7%cross==0) then
-                    if (c%NeighborZ2%son7%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
-                    if (c%NeighborZ2%son8%cross==0) then
-                    if (c%NeighborZ2%son8%NeighborZ1%nCell==c%nCell) goto 10
-                    endif
+                if (c%NeighborZ2%son2%cross==0) then
+                if (c%NeighborZ2%son2%NeighborZ1%nCell==c%nCell) goto 10
                 endif
             endif
+            if (ASSOCIATED(c%NeighborZ2%son3)) then
+                if (c%NeighborZ2%son3%cross==0) then
+                if (c%NeighborZ2%son3%NeighborZ1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ2%son4%cross==0) then
+                if (c%NeighborZ2%son4%NeighborZ1%nCell==c%nCell) goto 10
+                endif
+            endif
+            if (ASSOCIATED(c%NeighborZ2%son5)) then
+                if (c%NeighborZ2%son5%cross==0) then
+                if (c%NeighborZ2%son5%NeighborZ1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ2%son6%cross==0) then
+                if (c%NeighborZ2%son6%NeighborZ1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ2%son7%cross==0) then
+                if (c%NeighborZ2%son7%NeighborZ1%nCell==c%nCell) goto 10
+                endif
+                if (c%NeighborZ2%son8%cross==0) then
+                if (c%NeighborZ2%son8%NeighborZ1%nCell==c%nCell) goto 10
+                endif
+            endif
+        endif
         endif
         return
 
@@ -1945,7 +2380,7 @@
             return
         endif
 
-        if (c%cross/=-3 .and. c%cross/=-4) return ! OctCell has been paintted
+        if (c%cross/=-3 .and. c%cross/=-4) return ! Cell has been paintted
 
         if (iosIn) then
             if (c%cross==-4)then ! This OctCell is a outside OctCell too.

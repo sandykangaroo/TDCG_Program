@@ -39,6 +39,7 @@
         integer :: InitRefineLVL
         integer :: AdaptRefineLVL
         integer :: cIntersectMethod
+        logical :: useKDT
     end module ModInpMesh
 !----------------------------------------------------------------------
     module ModInpInflow
@@ -105,48 +106,50 @@
             type(typPoint):: P(4)  
             !p(1) = p1, p(2) = p2, p(3) = p3, p(4) = center
         end type triangle
-! ! Triangle's three vertexs��odered by right-hand rule
-!         type triangle
-!             type(typPoint)::tripoint1, tripoint2, tripoint3
-!         end type triangle
-    
+    type typCrossTri
+        type(KDT_node),   pointer :: tri
+        type(typCrossTri),pointer :: next, prev
+    end type typCrossTri
+
 ! Cartesian grid data structure
-! nBGCell    = number of the back-ground cells (root node)
-! nCell      = number of the cells (leaf node) 
-! levelx     = x-direct level
-! levely     = y-direct level
-! levelz     = z-direct level
-! cross      relationship between OctCell and the object surface.
-!            = -5 Initial
-!            = -4 Not intersect OctCell.
-!            = -3 Intersect OctCell.
-!            =  0 OctCell outside the object surface.
-!            =  1 Intersect while OctCell center outside the object surface
-!            =  2 Intersect while OctCell center inside the object surface
-!            =  3 OctCell inside the object surface
-!            = -1 NRR: ray region
-!            = -2 NRR: region between ray-ray
-! fSplitType = 0 OctCell is isotropical 
-!            = 1 OctCell is obtained by refined in x-direction
-!            = 2 OctCell is obtained by refined in y-direction
-!            = 3 OctCell is obtained by refined in z-direction
-!            = 4 OctCell is obtained by refined in xy-direction
-!            = 5 OctCell is obtained by refined in xz-direction
-!            = 6 OctCell is obtained by refined in yz-direction
-! Location   = 0 OctCell does not have a son 
-!            = 1,2,3,...8 OctCell's location among siblings
-! Node       number of the eight vertexs
-! U          1 rou*u
-!            2 rou*v
-!            3 rou*w
-!            4 rou
-!            5 T
-! Mark       Mark in subroutine SmoothMesh
-! Center     1 x
-!            2 y
-!            3 z
-! Neighbor   1 minus
-!            2 plus
+        ! nBGCell    = number of the back-ground cells (root node)
+        ! nCell      = number of the cells (leaf node) 
+        ! levelx     = x-direct level
+        ! levely     = y-direct level
+        ! levelz     = z-direct level
+        ! cross      relationship between Cell and the object surface.
+        !            = -5 Initial
+        !            = -4 Not intersect Cell.
+        !            = -3 Intersect Cell.
+        !            =  0 Cell outside the object surface.
+        !            =  1 Intersect while Cell center outside the object surface
+        !            =  2 Intersect while Cell center inside the object surface
+        !            =  3 Cell inside the object surface
+        !            = -1 NRR: ray region
+        !            = -2 NRR: region between ray-ray
+        ! fSplitType = 0 Cell is isotropical 
+        !            = 1 Cell is obtained by refined in x-direction
+        !            = 2 Cell is obtained by refined in y-direction
+        !            = 3 Cell is obtained by refined in z-direction
+        !            = 4 Cell is obtained by refined in xy-direction
+        !            = 5 Cell is obtained by refined in xz-direction
+        !            = 6 Cell is obtained by refined in yz-direction
+        ! Location   = 0 Cell does not have a son 
+        !            = 1,2,3,...8 Cell's location among siblings
+        ! Node       number of the eight vertexs
+        ! U          1 rou*u
+        !            2 rou*v
+        !            3 rou*w
+        !            4 rou
+        !            5 T
+        ! Mark       Mark in subroutine SmoothMesh
+        ! Center     1 x
+        !            2 y
+        !            3 z
+        ! Neighbor   1 minus
+        !            2 plus
+        ! nCrossTri  Size of CrossTri(:)
+        ! CrossTri   KDT pointer for the triangle cross the cell
         type typOctCell
             integer :: nBGCell(3)
             integer :: nCell
@@ -159,11 +162,12 @@
             logical :: Mark(6)
             type(typOctCell),pointer :: Father
             type(typOctCell),pointer :: son1, son2, son3, son4,    &
-                                     son5, son6, son7, son8
+                                        son5, son6, son7, son8
             type(typOctCell),pointer :: NeighborX1, NeighborX2,    &
-                                     NeighborY1, NeighborY2,    &
-                                     NeighborZ1, NeighborZ2
-
+                                        NeighborY1, NeighborY2,    &
+                                        NeighborZ1, NeighborZ2
+            ! INTEGER                  :: nCrossTri
+            type(typCrossTri),pointer:: CrossTri
         end type typOctCell
 
         ! type BlockCell
@@ -173,12 +177,23 @@
             real(R8):: Center(3)
             real(R8):: U(5)
         end type typStructCell
+
+        type KDT_node
+            type(triangle), pointer:: the_data
+            integer                :: SplitAxis ! The dimension of split.
+                                        !  =1 x_axis; =2 y_axis; =3 z_axis
+            real(R8)               :: box(6) ! Bounding box of The_data.
+                ! box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax
+            integer                :: level ! depth of KDTree
+            type(KDT_node), pointer:: left, right, parent
+        end type KDT_node
+
     end module ModTypDef
 !======================================================================
 ! Define globally share constants
-!     module ModGlobalConstants
-!         use ModPrecision
-!         implicit none
+    module ModGlobalConstants
+        use ModPrecision
+        implicit none
 ! ! constants used in sutherlan'law, =110.3 in NSMB5.0
 ! !        real(R8),parameter:: C00=100.4
 ! !        real(R8),parameter:: gama=1.4, gama1=gama-1.0
@@ -189,22 +204,14 @@
 !         integer,parameter:: BCWall=2, BCSymmetry=3, BCFarfield=4
 !         integer,parameter:: TimeRK3=1,TimeLUSGS=0
 !         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
-!     end module ModGlobalConstants
+        real(R4),parameter :: epsR4 = 0.00001
+        real(R8),parameter :: epsR8 = 0.00000000000001
+    end module ModGlobalConstants
 !======================================================================
     module ModKDTree
     use ModPrecision
     use ModTypDef
     implicit none
-
-    type KDT_node
-        type(triangle), pointer:: the_data
-        integer                :: SplitAxis ! The dimension of split.
-                                    !  =1 x_axis; =2 y_axis; =3 z_axis
-        real(R8)               :: box(6) ! Bounding box of The_data.
-            ! box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax
-        integer                :: level ! depth of KDTree
-        type(KDT_node), pointer:: left, right, parent
-    end type KDT_node
 
     type typKDTtree 
         type(KDT_node), pointer:: root=>null()

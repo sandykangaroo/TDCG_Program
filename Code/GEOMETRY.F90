@@ -53,6 +53,7 @@
 !----------------------------------------------------------------------
 
     recursive function build_tree(res, p, box, depth) result (td)
+        use ModInpMesh,only : useKDT
     ! .. Return Value ..
         type(KDT_node), pointer              :: td
     ! .. Input Arguments .. 
@@ -93,18 +94,21 @@
                 td%right => build_tree(resB, pt, b, depth2)
             end if
         else
-            !find the most_spread_direction and define it as split direction 
-            call find_split_direction(res, td%splitaxis)
-            
-            !define the split direction alternative     
-            !if ( mod(td%level,3) == 1 ) then
-            !    td%splitaxis = 1
-            !else if ( mod(td%level,3) == 2 ) then
-            !    td%splitaxis = 2
-            !else if ( mod(td%level,3) == 0 ) then
-            !     td%splitaxis = 3
-            !end if
-            call sort_under_split_direction(res, td%splitaxis)
+            if (useKDT) then
+                !find the most_spread_direction and define it as split direction
+                ! td%SplitAxis = mod(depth,3)+1
+                call find_split_direction(res, td%splitaxis)
+                call sort_under_split_direction(res, td%splitaxis)
+            else
+            ! define the split direction alternative
+                if ( mod(td%level,3) == 1 ) then
+                td%splitaxis = 1
+                else if ( mod(td%level,3) == 2 ) then
+                td%splitaxis = 2
+                else if ( mod(td%level,3) == 0 ) then
+                    td%splitaxis = 3
+                end if
+            endif
             td%the_data = res(mid)
             !       build left child 
             resB => res(1:mid - 1)
@@ -620,6 +624,7 @@
     real(R4)                    :: Vertex(3)
     integer(I2)                 :: unknown
     real(R8)                    :: tstart,tend
+    real(R8)                    :: tmp(3)
 
     allocate(body(nGeometry), kdtree(nGeometry))
 
@@ -654,7 +659,7 @@
         body(ng)%nse = nse
         body(ng)%nsp = nse*3
 
-        read(1) (normal(k), k=1,3)
+        read(1) (Normal(k), k=1,3)
         do i = 1, 3
             do k = 1, 3
                 read(1) Vertex(k)
@@ -674,10 +679,18 @@
         box(4) = box(1)
         box(5) = box(2)
         box(6) = box(3)
+        body(ng)%se3d(1)%p(4)%P(:) = (body(ng)%se3d(1)%p(1)%P(:) + &
+                                      body(ng)%se3d(1)%p(2)%P(:) + &
+                                      body(ng)%se3d(1)%p(3)%P(:))/3.
         body(ng)%se3d(1)%p(4)%label = 1
+        if (checkvec(body(ng)%se3d(1),real(Normal,R8))) then
+            tmp(:) = body(ng)%se3d(1)%p(2)%P(:)
+            body(ng)%se3d(1)%p(2)%P(:) = body(ng)%se3d(1)%p(3)%P(:)
+            body(ng)%se3d(1)%p(3)%P(:) = tmp(:)
+        endif
 
         do i = 2, nse
-            read(1) (normal(k), k=1,3)
+            read(1) (Normal(k), k=1,3)
             do j = 1, 3
                 do k = 1, 3
                     read(1) Vertex(k)
@@ -695,6 +708,11 @@
                                           body(ng)%se3d(i)%p(2)%P(:) + &
                                           body(ng)%se3d(i)%p(3)%P(:))/3.
             body(ng)%se3d(i)%p(4)%label = i
+            if (checkvec(body(ng)%se3d(i),real(Normal,R8))) then
+                tmp(:) = body(ng)%se3d(i)%p(2)%P(:)
+                body(ng)%se3d(i)%p(2)%P(:) = body(ng)%se3d(i)%p(3)%P(:)
+                body(ng)%se3d(i)%p(3)%P(:) = tmp(:)
+            endif
         end do
         body(ng)%box(:) = box(:)
 
@@ -736,6 +754,93 @@
 
     DEALLOCATE(body)
     return
+    contains
+!----------------------------------------------------------------------
+        logical function checkvec(tri,Nin)
+        ! T: Inconsistent
+        use ModPrecision
+        use ModTypDef
+        use ModTools, only: CROSS_PRODUCT_3
+        implicit none
+        type(triangle)          :: tri
+        real(R8),INTENT(IN)     :: Nin(3)
+        real(R8)                :: Nnow(3)
+        real(R8)                :: n(3), v1(3), v2(3)
+        real(R8)                :: a
 
+        checkvec = .false.
+        v1 = tri%P(2)%P - tri%P(1)%P
+        v2 = tri%P(3)%P - tri%P(2)%P
+        Nnow  = CROSS_PRODUCT_3(v1,v2)
+        a  = DOT_PRODUCT(Nin,Nnow)
+
+        ! a = 0
+        ! if (Nnow(1)>=0.and.Nin(1)>=0)then
+        ! continue
+        ! elseif (Nnow(1)<0.and.Nin(1)<0)then
+        ! continue
+        ! else
+        !     a = a
+        ! endif
+        ! if (Nnow(2)>=0.and.Nin(2)>=0)then
+        ! continue
+        ! elseif (Nnow(2)<0.and.Nin(2)<0)then
+        ! continue
+        ! else
+        ! continue
+        !     a = a
+        ! endif
+        ! if (Nnow(3)>=0.and.Nin(3)>=0)then
+        ! continue
+        ! elseif (Nnow(3)<0.and.Nin(3)<0)then
+        ! continue
+        ! else
+        !     a = a 
+        ! endif
+
+        if (a<=0) then
+            print*,'Inconsistent geometry vector has modified.'
+            checkvec = .true.
+        endif
+        endfunction checkvec
     endsubroutine ReadStl
+!======================================================================
+    subroutine initCheckVector
+    ! use ModPrecision
+    use ModInpGlobal,only: nGeometry
+    use ModKDTree
+    implicit none
+    integer                     :: i
+
+    do i= 1, nGeometry
+        call CheckVector(kdtree(i)%root)
+    enddo
+    contains
+!----------------------------------------------------------------------
+        recursive subroutine CheckVector(kdnode)
+        use ModPrecision
+        use ModGeometry
+        use ModTypDef
+        use ModTools, only : CROSS_PRODUCT_3
+        implicit none
+        type(KDT_node),pointer      :: kdnode
+        real(R8)                    :: n(3), v1(3), v2(3)
+        real(R8)                    :: p(3), p1(3)
+        real(R8)                    :: dp, dp1
+
+        if (.not.ASSOCIATED(kdnode)) return
+
+        p1 = kdnode%the_data%P(1)%P
+        v1 = kdnode%the_data%P(2)%P - kdnode%the_data%P(1)%P
+        v2 = kdnode%the_data%P(3)%P - kdnode%the_data%P(2)%P
+        n  = CROSS_PRODUCT_3(v1,v2)
+        p  = p1 + n ! p(x,y,z)=p1(x,y,z)+n(x,y,z)
+        dp = sqrt(p(1)*p(1)+p(2)*p(2)+p(3)*p(3)) ! Distance from np to orgin.
+        dp1= sqrt(p1(1)*p1(1)+p1(2)*p1(2)+p1(3)*p1(3))
+        if (dp<dp1) print*,"error geometry vector"
+        call CheckVector(kdnode%left)
+        call CheckVector(kdnode%right)
+
+        endsubroutine CheckVector
+    endsubroutine initCheckVector
 !======================================================================
