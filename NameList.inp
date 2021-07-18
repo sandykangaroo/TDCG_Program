@@ -6,10 +6,16 @@
 $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
-    Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/sphere_408394_',
-    OutputNameStr = './Data/test',
-    OutputFormat  = '.plt'
+    Limiter = 1, Restart = .f., nGeometry = 1, MeshOnly  = .t.
+    ! GeometryName  = './Data/11/bogie_8W',
+    ! GeometryName  = './Data/sphere10k',
+    ! GeometryName  = './Data/pantograph',
+    GeometryName  = './Data/zxj2',
+    ! GeometryName  = './Data/LamborghiniB',
+    ! GeometryFormat = 'facet',
+    GeometryFormat = 'stl',
+    OutputName = './Data/test',
+    OutputFormat  = 'plt'
 $END
 
 ! nCell
@@ -22,25 +28,40 @@ $END
 !                     3 AABB Painting Algorithm
 !                     4 AABB KDT
 !                     5 AABB Traverse
+!                     6 Ray-cast Traverse
 $Mesh
-    nCell = 20, 20, 20,
+    InitRefineLVL = 5 AdaptRefineLVL  =  2,
+    cIntersectMethod = 3
 !bogie  
+!    nCell = 30,30,20,
 !   DomainMin = -100.0, -100.0, -100.0,
 !   DomainMax =  200.0,  200.0,  100.0,
 !    DomainMin = -200.0, -100.0, -50.0,
 !    DomainMax =  350.0,  100.0,  50.0,
 !sphere   
-   DomainMin = -2000.0, -2000.0, -2000.0,
-   DomainMax = 2000.0,  2000.0,  2000.0,
-!   DomainMin = 0.0, -1200.0, 0.0,
-!   DomainMax = 500.0,  -700.0,  500.0,
+!	DomainMin = -2000.0, -2000.0, -2000.0,
+!   DomainMax = 2000.0,  2000.0,  2000.0,
 !pantograph  
-!   DomainMin = -1000.0, -150.0, 0.0,
-!   DomainMax = -400.0,  150.0,  300.0,
-
-	
-    InitRefineLVL = 3 AdaptRefineLVL  =  1,
-    cIntersectMethod = 2
+    ! nCell = 25, 10, 10,
+	! DomainMin = -40000.0, -1700.0, 3000.0,
+    ! DomainMax = -26000.0,  1700.0, 5500.0,
+!sphere
+!    nCell = 2,2,2,
+!    DomainMin = -100, -100, -100,
+!    DomainMax =  100,  100,  100,
+!    nCell = 20,20,20,
+!    DomainMin = -150.0, -150.0, -150,
+!    DomainMax =  150.0,  150.0,  150.0,
+!wheel
+!    nCell = 30,30,10,
+!    DomainMin = -1., -0.5, -0.5,
+!    DomainMax =  5.,  6.5,  2.,
+!    DomainMin = 0, 0, 0,
+!    DomainMax =  3.5,  6.0,  1.5,
+!zxj2
+   nCell = 20,20,10,
+   DomainMin = -1200., -700.,  1500,
+   DomainMax =  1200.,  700.,  2400.,
 $END
 
 $NRRset

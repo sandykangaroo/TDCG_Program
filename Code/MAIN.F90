@@ -58,14 +58,25 @@
     end program TDCGmain
 !======================================================================
     subroutine TDCGRead
+    use ModPrecision
+    use ModInpGlobal,only: GeometryFormat
     implicit none
+    real(R8):: tStart
+    real(R8):: tEnd
 
-    print*, 'Reading input file NameList.inp......'
+    call CPU_TIME(tStart)
+
         call ReadInp
-    print*,'Done'
-    print*,'Reading geometry file......'
-        call ReadGeometry
-    print*,'Done'
+    if (GeometryFormat=='stl') then
+        CALL ReadStl
+    elseif (GeometryFormat=='facet') then
+        CALL ReadFacet
+    else
+        stop 'error GeometryFormat'
+    endif
+
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "Total read time: ", tEnd-tStart
 
     endsubroutine TDCGRead
 !======================================================================
@@ -88,31 +99,17 @@
     real(R8):: tStartG   ! Start time
     real(R8):: tEndG     ! End time
     print*,'Generating mesh......'
-    
+
     call memorymonitor(ii)
 
     call CPU_TIME(tStart)
     if (Restart) return
-    call CPU_TIME(tStartG)
     call GenerateBGMesh
-    call CPU_TIME(tEndG)
-    call initFindNeighbor
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
 
-    !call GetMinDistance
-    b=0
-     !inquire( file = fort , exist = file_exist )
- !    open(1,file='fort.102')
- !    do i=1,6990126
- !    read(1,*) a
- !    b=b+a
- !enddo
- !write(*,*)b
- !close(1)
-     
+    ! call GetMinDistance
 
-    write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
     print*,'Done'
 
@@ -141,17 +138,19 @@
     integer(DWORDLONG)  ::i 
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
-    
+
     call memorymonitor(i)
     !write(*,*)"There is  ",i,"MB of memory in use." 
 
     call CPU_TIME(tStart)
-    if (OutputFormat=='.plt') then
+    if (OutputFormat=='plt') then
         CALL OutputFlowFieldBinary(TimeStepStr,0)
-    elseif (OutputFormat=='.szplt') then
+    elseif (OutputFormat=='szplt') then
         CALL OutputFlowFieldBinary(TimeStepStr,1)
-    else
+    elseif (OutputFormat=='dat') then
         CALL OutputFlowFieldASCII(TimeStepStr)
+    else
+        stop 'error OutputFormat'
     endif
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "Subroutine-Output time: ", tEnd-tStart

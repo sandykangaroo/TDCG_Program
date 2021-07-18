@@ -18,14 +18,16 @@
         integer :: nAdaptStep
         integer :: Debug
         Real(R8):: CFL
+        logical :: MeshOnly
         logical :: NRR
         logical :: Chimera
         integer :: Limiter
         logical :: Restart
         integer :: DimensionALL ! 20, 2D; 30, 3D
         integer :: nGeometry ! Number of body
-        character(50):: OutputNameStr
         character(50):: GeometryName
+        character(50):: GeometryFormat
+        character(50):: OutputName
         character(10):: OutputFormat
     end module ModInpGlobal
 !----------------------------------------------------------------------
@@ -89,7 +91,7 @@
 !             integer::I2D(:,:)
 !         end type Integer2DArray
     
-! Cartesian Cell's point coordinate
+! Cartesian OctCell's point coordinate
         type typPoint
             real(R8):: P(3)
             integer :: label
@@ -114,25 +116,25 @@
 ! levelx     = x-direct level
 ! levely     = y-direct level
 ! levelz     = z-direct level
-! cross      relationship between cell and the object surface.
+! cross      relationship between OctCell and the object surface.
 !            = -5 Initial
-!            = -4 Not intersect cell.
-!            = -3 Intersect cell.
-!            =  0 Cell outside the object surface.
-!            =  1 Intersect while cell center outside the object surface
-!            =  2 Intersect while cell center inside the object surface
-!            =  3 Cell inside the object surface
+!            = -4 Not intersect OctCell.
+!            = -3 Intersect OctCell.
+!            =  0 OctCell outside the object surface.
+!            =  1 Intersect while OctCell center outside the object surface
+!            =  2 Intersect while OctCell center inside the object surface
+!            =  3 OctCell inside the object surface
 !            = -1 NRR: ray region
 !            = -2 NRR: region between ray-ray
-! fSplitType = 0 Cell is isotropical 
-!            = 1 Cell is obtained by refined in x-direction
-!            = 2 Cell is obtained by refined in y-direction
-!            = 3 Cell is obtained by refined in z-direction
-!            = 4 Cell is obtained by refined in xy-direction
-!            = 5 Cell is obtained by refined in xz-direction
-!            = 6 Cell is obtained by refined in yz-direction
-! Location   = 0 Cell does not have a son 
-!            = 1,2,3,...8 Cell's location among siblings
+! fSplitType = 0 OctCell is isotropical 
+!            = 1 OctCell is obtained by refined in x-direction
+!            = 2 OctCell is obtained by refined in y-direction
+!            = 3 OctCell is obtained by refined in z-direction
+!            = 4 OctCell is obtained by refined in xy-direction
+!            = 5 OctCell is obtained by refined in xz-direction
+!            = 6 OctCell is obtained by refined in yz-direction
+! Location   = 0 OctCell does not have a son 
+!            = 1,2,3,...8 OctCell's location among siblings
 ! Node       number of the eight vertexs
 ! U          1 rou*u
 !            2 rou*v
@@ -143,59 +145,51 @@
 ! Center     1 x
 !            2 y
 !            3 z
-! Neighbor   1 plus
-!            2 minus
-        type octCell
+! Neighbor   1 minus
+!            2 plus
+        type typOctCell
             integer :: nBGCell(3)
             integer :: nCell
             integer :: lvl(3)
             integer :: cross
             integer :: fSplitType, Location
-            integer :: Node(8)
+            ! integer :: Node(8)
             real(R8):: Center(3)
             real(R8):: U(5)
             logical :: Mark(6)
-            type(octCell),pointer :: Father
-            type(octCell),pointer :: son1, son2, son3, son4,    &
+            type(typOctCell),pointer :: Father
+            type(typOctCell),pointer :: son1, son2, son3, son4,    &
                                      son5, son6, son7, son8
-            type(octCell),pointer :: NeighborX1, NeighborX2,    &
+            type(typOctCell),pointer :: NeighborX1, NeighborX2,    &
                                      NeighborY1, NeighborY2,    &
                                      NeighborZ1, NeighborZ2
 
-        end type octCell
+        end type typOctCell
+
+        ! type BlockCell
+
+        type typStructCell
+            integer :: cross
+            real(R8):: Center(3)
+            real(R8):: U(5)
+        end type typStructCell
     end module ModTypDef
 !======================================================================
 ! Define globally share constants
-    module ModGlobalConstants
-        use ModPrecision
-        implicit none
-! constants used in sutherlan'law, =110.3 in NSMB5.0
-!        real(R8),parameter:: C00=100.4
-!        real(R8),parameter:: gama=1.4, gama1=gama-1.0
-!        real(R8),parameter:: pr=0.72, prt=0.9
-        real(R8),parameter:: PI=3.14159265358979
-        integer,parameter:: SchemeNND2=1,SchemeWENO3=3
-        integer,parameter:: FluxRoe=1,Fluxcentral=2
-        integer,parameter:: BCWall=2, BCSymmetry=3, BCFarfield=4
-        integer,parameter:: TimeRK3=1,TimeLUSGS=0
-        integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
-    end module ModGlobalConstants
-!======================================================================
-    module ModGeometry
-    ! Define geometry discreted points and elements.
-       use ModPrecision
-       use ModTypDef
-       implicit none
-
-       type geom
-            integer                          :: nsp, nse
-            type(triangle) , allocatable     :: se3d(:)
-            real(R8)                         :: box(6)
-        end type geom
-
-        type(geom), allocatable, target     :: body(:) 
-
-    end module ModGeometry
+!     module ModGlobalConstants
+!         use ModPrecision
+!         implicit none
+! ! constants used in sutherlan'law, =110.3 in NSMB5.0
+! !        real(R8),parameter:: C00=100.4
+! !        real(R8),parameter:: gama=1.4, gama1=gama-1.0
+! !        real(R8),parameter:: pr=0.72, prt=0.9
+!         real(R8),parameter:: PI=3.14159265358979
+!         integer,parameter:: SchemeNND2=1,SchemeWENO3=3
+!         integer,parameter:: FluxRoe=1,Fluxcentral=2
+!         integer,parameter:: BCWall=2, BCSymmetry=3, BCFarfield=4
+!         integer,parameter:: TimeRK3=1,TimeLUSGS=0
+!         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
+!     end module ModGlobalConstants
 !======================================================================
     module ModKDTree
     use ModPrecision
@@ -204,7 +198,7 @@
 
     type KDT_node
         type(triangle), pointer:: the_data
-        integer                :: splitaxis ! The dimension of split.
+        integer                :: SplitAxis ! The dimension of split.
                                     !  =1 x_axis; =2 y_axis; =3 z_axis
         real(R8)               :: box(6) ! Bounding box of The_data.
             ! box(1:3) = xmin, ymin, zmin; box(4:6) = xmax, ymax, zmax

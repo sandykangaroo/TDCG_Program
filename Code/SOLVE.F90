@@ -17,8 +17,8 @@
     use geometry_mod2
     implicit none
     
-    integer :: i, j, k, l, h, m,b
-    type(octCell),pointer           :: t
+    integer :: i, j, k, l, h, m
+    type(typOctCell),pointer           :: t
     type(typKDTtree),pointer        :: tp => null()
     real(R8)                        :: tempoint(3),mindis
     real(R8)                        :: tstart,tend
@@ -36,6 +36,12 @@
                 !do l=1,body(1)%nse
                 !    mindis=min(mindis,distance(tem,body(1)%se3d(l)%p(4)))
                 !enddo
+                t=>OctCell(i,j,k)
+                tem%P(:)=t%center(:)
+                mindis=1000000
+                do l=1,body(1)%nse
+                    mindis=min(mindis,distance(tem,body(1)%se3d(l)%p(4)))
+                enddo
                 !write(3,*) mindis
                 !call GetMinDistanceTraverse(t)
             enddo
@@ -100,10 +106,10 @@
         
         tp=>kdtree(1)
         tem%P(:)=c%center(:)
-        nearest => tp%root
-        h=0
-        call nearest_search(tem, tp%root, nearest, h)
-        mindis=distance(tem,nearest%the_data%p(4))
+                nearest => tp%root
+                h=0
+                call nearest_search(tem, tp%root, nearest, h)
+                mindis=distance(tem,nearest%the_data%p(4))
         write(102,*)h
   end subroutine GetMinDistanceKDT
     
@@ -141,14 +147,14 @@
         mindis=1000000
         do l=1,body(1)%nse
             mindis=min(mindis,distance(tem,body(1)%se3d(l)%p(4)))
-        enddo
+    enddo
         !write(3,*) mindis
  end subroutine GetMinDistanceTraverse
- 
-
-     
- 
-end subroutine GetMinDistance
+        
+    
+    
+    
+    end subroutine GetMinDistance
 !----------------------------------------------------------------------    
     
 !======================================================================

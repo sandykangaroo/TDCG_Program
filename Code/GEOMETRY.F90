@@ -1,4 +1,20 @@
 !======================================================================
+    module ModGeometry
+    ! Define geometry discreted points and elements.
+    use ModPrecision
+    use ModTypDef
+    implicit none
+
+    type geom
+        integer                          :: nsp, nse
+        type(triangle) , allocatable     :: se3d(:)
+        real(R8)                         :: box(6)
+    end type geom
+
+    type(geom), allocatable, target     :: body(:) 
+
+    end module ModGeometry
+!======================================================================
     module geometry_mod2
     use ModPrecision
     use ModTypDef
@@ -20,7 +36,7 @@
         integer                :: depth  ! level of node in the tree
         type(triangle), pointer:: res(:) ! store triangles on surface of body i
         type(KDT_node), pointer:: p
-        real(R8)               :: box(6), aa
+        real(R8)               :: box(6)
 
         n =  body(i)%nse
         depth = 1
@@ -46,7 +62,6 @@
         real(R8)                           :: box(6), b(6), bt
     ! .. Local Arguments ..
         integer                              :: n, j, mid
-        real(R8)                           :: aa
 
         n = size(res)
         allocate(td)
@@ -72,18 +87,15 @@
                 b(4) = max(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))    
                 td%left => build_tree(resB, pt, b, depth2)
                 td%right => null()
-            end if  
-            if ( res(2)%p(4)%P(1) >= res(2)%p(4)%P(1) ) then
+            else ! if ( res(2)%p(4)%P(1) >= res(2)%p(4)%P(1) ) then
                 b(1) = min(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 td%left => null()
                 td%right => build_tree(resB, pt, b, depth2)
             end if
         else
-!-------------------------------------------------------------------------------
 !find the most_spread_direction and define it as split direction 
         call find_split_direction(res, td%splitaxis)
         
-!-------------------------------------------------------------------------------        
 !define the split direction alternative     
         !if ( mod(td%level,3) == 1 ) then
         !    td%splitaxis = 1
@@ -92,7 +104,6 @@
         !else if ( mod(td%level,3) == 0 ) then
         !     td%splitaxis = 3
         !end if
-!-------------------------------------------------------------------------------            
         call sort_under_split_direction(res, td%splitaxis)
         td%the_data = res(mid)
 !       build left child 
@@ -103,15 +114,13 @@
                 do j = 2, mid - 1
                     b(4) = max(b(4), resB(j)%p(1)%P(1), resB(j)%p(2)%P(1), resB(j)%p(3)%P(1))
                 end do
-            end if
-            if ( td%splitaxis == 2 ) then
+            elseif ( td%splitaxis == 2 ) then
                 bt = b(5)
                 b(5) = max(resB(1)%p(1)%P(2), resB(1)%p(2)%P(2), resB(1)%p(3)%P(2))
                 do j = 2, mid - 1
                     b(5) = max(b(5), resB(j)%p(1)%P(2), resB(j)%p(2)%P(2), resB(j)%p(3)%P(2))
                 end do
-            end if
-            if ( td%splitaxis == 3 ) then
+            elseif ( td%splitaxis == 3 ) then
                 bt = b(6)
                 b(6) = max(resB(1)%p(1)%P(3), resB(1)%p(2)%P(3), resB(1)%p(3)%P(3))
                 do j = 2, mid - 1
@@ -121,22 +130,19 @@
             td%left => build_tree(resB, pt, b, depth2)
 !       build right child 
            resB => res(mid + 1 : n)
-           aa = 1.d0
             if ( td%splitaxis == 1 ) then            
                 b(4) = bt
                 b(1) = min(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 do j = 2, n - mid
                     b(1) = min(b(1), resB(j)%p(1)%P(1), resB(j)%p(2)%P(1), resB(j)%p(3)%P(1))
                 end do
-            end if
-            if ( td%splitaxis == 2 ) then
+            elseif ( td%splitaxis == 2 ) then
                 b(5) = bt
                 b(2) = min(resB(1)%p(1)%P(2), resB(1)%p(2)%P(2), resB(1)%p(3)%P(2))
                 do j = 2, n - mid
                     b(2) = min(b(2), resB(j)%p(1)%P(2), resB(j)%p(2)%P(2), resB(j)%p(3)%P(2))
                 end do
-            end if
-            if ( td%splitaxis == 3 ) then
+            elseif ( td%splitaxis == 3 ) then
                 b(6) = bt
                 b(3) = min(resB(1)%p(1)%P(3), resB(1)%p(2)%P(3), resB(1)%p(3)%P(3))
                 do j = 2, n - mid
@@ -144,13 +150,10 @@
                 end do    
             end if
             td%right => build_tree(resB, pt, b, depth2)
-
         end if
 
 !        write(*,*) depth
-        aa = 1.d0
         return
-
     end function build_tree
 !----------------------------------------------------------------------
 
@@ -169,9 +172,7 @@
         average = 0.d0
         variance = 0.d0
         do j = 1, n
-            summ(1) = summ(1) + res(j)%p(4)%P(1)
-            summ(2) = summ(2) + res(j)%p(4)%P(2)
-            summ(3) = summ(3) + res(j)%p(4)%P(3)
+            summ(:) = summ(:) + res(j)%p(4)%P(:)
         end do
         average = summ / n
         do j = 1, n
@@ -424,7 +425,7 @@
 !        aa = 1.d0
 !    
 !    end subroutine nearest_search   
-    
+
 !----------------------------------------------------------------------    
     recursive subroutine nearest_search(Tar, node, nearest, i)
     ! Find the nearest triangle of space point Tar in the KDTree begin with node
@@ -526,14 +527,14 @@
             z0 = (node%box(2) + node%box(5))/2
             SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
             if(dist > abs(dist1) .and. SSC)then
-                dist2 = distance(Tar, node%the_data%p(4))
-                if ( dist2 - dist < 0.d0 ) then
-                    nearest => node
-                    dist = dist2
-                end if
-                if ( associated(far) ) then
-                    call nearest_search(Tar, far, nearest, i) 
-                end if
+            dist2 = distance(Tar, node%the_data%p(4))
+            if ( dist2 - dist < 0.d0 ) then
+                nearest => node
+                dist = dist2
+            end if
+            if ( associated(far) ) then
+                call nearest_search(Tar, far, nearest, i) 
+            end if
             endif
         end if
         aa = 1.d0
@@ -599,7 +600,7 @@
 !   3. Find nearest triangle in the Geometry surface for an arbitrary point in 3D space
 !   Copyright@BI LIN��2019.06.21
 !======================================================================
-    subroutine ReadGeometry
+    subroutine ReadFacet
     use ModPrecision
     use ModInpGlobal
     use ModGeometry
@@ -609,7 +610,7 @@
     implicit none
     
     integer                     :: i, j, k, l
-    integer                     :: vertex(3), ng, nsp, nse, a, inout
+    integer                     :: vertex(3), ng, nsp, nse, a
     character(80)               :: FileName
     character(20)               :: dd
     logical                     :: file_exist
@@ -719,15 +720,160 @@
     write(*,*) 'Total surface   points number of all objects is : ', nsp
     write(*,*) 'Total surface elements number of all objects is : ', nse
 
+    tp => kdtree(1)
+    call CPU_TIME(tStart)
+    call create_KDT_tree_for_body_i(tp, 1)
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "creat tree time:",tEnd-tStart
+
+    call CPU_TIME(tStart)
+    call KDTree_out(tp%root)
+    call CPU_TIME(tEnd)
+    write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
+    DEALLOCATE(body)
+
+    return
+    end subroutine ReadFacet
+!======================================================================
+    subroutine ReadStl
+    use ModPrecision
+    use ModInpGlobal
+    use ModGeometry
+    use geometry_mod2
+    use ModTypDef
+    use ModKDTree
+    implicit none
+    integer                     :: i, j, k
+    integer                     :: ng  ! Geometry number
+    integer                     :: nsp ! Point number
+    integer(I4)                 :: nse ! Element number
+    character(80)               :: FileName
+    character(20)               :: dd
+    logical                     :: file_exist
+    type(typPoint), allocatable :: sp(:)
+    type(typKDTtree), pointer   :: tp => null()
+    real(R8)                    :: box(6)
+    character(80)               :: Header
+    real(R4)                    :: Normal(3)
+    real(R4)                    :: Vertex(3)
+    integer(I2)                 :: unknown
+    real(R8)                    :: tstart,tend
+
+    allocate(body(nGeometry), kdtree(nGeometry))
+
+    open(22, file='./Data/Geometry.dat', status='unknown', form='formatted')
+
+    do ng = 1, nGeometry
+        if (ng == 0) then
+        elseif (ng .LT. 10) then
+            write(dd,'(g0)') ng
+            dd = '00'//adjustl(dd)
+        elseif (ng .LT. 100) then
+            write(dd,*) ng
+            dd = '0'//adjustl(dd)
+        else
+            write(dd,*) ng
+            dd = adjustl(dd)
+        end if
+
+        FileName = trim(GeometryName)//trim(dd)//'.stl'
+        print*,"Read file: ", FileName
+        inquire( file = FileName , exist = file_exist )
+            if(.not. file_exist) stop "Error====> Error geometry file name"
+        open(1, file=FileName, status='old', form='unformatted', &
+                access='stream')
+
+        read(1) Header
+        print*,'Header=',Header
+        read(1) nse
+        print*,'elements=',nse
+
+        allocate(body(ng)%se3d(nse))
+        body(ng)%nse = nse
+        body(ng)%nsp = nse*3
+
+        read(1) (normal(k), k=1,3)
+        do i = 1, 3
+            do k = 1, 3
+                read(1) Vertex(k)
+                body(ng)%se3d(1)%P(i)%p(k) = Vertex(k)
+            enddo
+        enddo
+        read(1) unknown
+        box(1) = min(body(ng)%se3d(1)%p(1)%P(1), &
+                     body(ng)%se3d(1)%p(2)%P(1), &
+                     body(ng)%se3d(1)%p(3)%P(1))
+        box(2) = min(body(ng)%se3d(1)%p(1)%P(2), &
+                     body(ng)%se3d(1)%p(2)%P(2), &
+                     body(ng)%se3d(1)%p(3)%P(2))
+        box(3) = min(body(ng)%se3d(1)%p(1)%P(3), &
+                     body(ng)%se3d(1)%p(2)%P(3), &
+                     body(ng)%se3d(1)%p(3)%P(3))
+        box(4) = box(1)
+        box(5) = box(2)
+        box(6) = box(3)
+        body(ng)%se3d(1)%p(4)%label = 1
+
+        do i = 2, nse
+            read(1) (normal(k), k=1,3)
+            do j = 1, 3
+                do k = 1, 3
+                    read(1) Vertex(k)
+                    body(ng)%se3d(i)%P(j)%p(k) = Vertex(k)
+                enddo
+                box(1) = min(box(1), body(ng)%se3d(i)%p(j)%P(1))
+                box(2) = min(box(2), body(ng)%se3d(i)%p(j)%P(2))
+                box(3) = min(box(3), body(ng)%se3d(i)%p(j)%P(3))
+                box(4) = max(box(4), body(ng)%se3d(i)%p(j)%P(1))
+                box(5) = max(box(5), body(ng)%se3d(i)%p(j)%P(2))
+                box(6) = max(box(6), body(ng)%se3d(i)%p(j)%P(3))
+            enddo
+            read(1) unknown
+            body(ng)%se3d(i)%p(4)%P(:) = (body(ng)%se3d(i)%p(1)%P(:) + &
+                                          body(ng)%se3d(i)%p(2)%P(:) + &
+                                          body(ng)%se3d(i)%p(3)%P(:))/3.
+            body(ng)%se3d(i)%p(4)%label = i
+        end do
+        body(ng)%box(:) = box(:)
+
+        write(22, *)'VARIABLES="X",        "Y",        "Z"'
+        write(22, *)'ZONE N=', body(ng)%nsp, 'E=', nse
+        write(22, *)'F=FEPOINT,', 'ET=TRIANGLE'
+        do i = 1, nse
+            do j = 1, 3
+                write(22,*) (body(ng)%se3d(i)%p(j)%P(k), k=1,3)
+            enddo
+        end do
+        do i = 0, nse*3, 3
+            write(22,*) i+1, i+2, i+3
+        end do
+        close(1)
+    end do
+    close(22)
+
+    nsp = 0
+    nse = 0
+    do ng = 1, nGeometry
+        nsp = nsp + body(ng)%nsp
+        nse = nse + body(ng)%nse
+    end do
+    write(*,*) 'Total surface   points number of all objects is : ', nsp
+    write(*,*) 'Total surface elements number of all objects is : ', nse
+
 
     tp => kdtree(1)
     call CPU_TIME(tStart)
     call create_KDT_tree_for_body_i(tp, 1)
     call CPU_TIME(tEnd)
-    write(*,'(1X,A,F10.5)') "creat tree time:",tEnd-tStart
-    call CPU_TIME(tStart)
-    call KDTree_out(tp%root)
-    call CPU_TIME(tEnd)
-    write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
+    write(*,'(1X,A,F10.2)') "creat tree time:",tEnd-tStart
+
+    ! call CPU_TIME(tStart)
+    ! call KDTree_out(tp%root)
+    ! call CPU_TIME(tEnd)
+    ! write(*,'(1X,A,F10.2)') "output tree time:",tEnd-tStart
+
+    DEALLOCATE(body)
     return
-    end subroutine ReadGeometry
+
+    endsubroutine ReadStl
+!======================================================================
