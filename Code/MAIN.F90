@@ -66,7 +66,7 @@
 
     call CPU_TIME(tStart)
 
-    call ReadInp
+        call ReadInp
     if (GeometryFormat=='stl') then
         CALL ReadStl
     elseif (GeometryFormat=='facet') then
@@ -89,13 +89,19 @@
     use ModPrecision
     use ModInpGlobal
     use ModInpMesh
+    use ModMemoryMonitor
+    use Kernel32
+    use ISO_C_Binding 
     implicit none
-    integer::i
+    integer::i,a,b
+    integer(DWORDLONG)  ::ii
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
     real(R8):: tStartG   ! Start time
     real(R8):: tEndG     ! End time
     print*,'Generating mesh......'
+
+    call memorymonitor(ii)
 
     call CPU_TIME(tStart)
     if (Restart) return
@@ -119,17 +125,23 @@
     use ModMesh
     use ModInpMesh
     implicit none
-    !call GetMinDistance
     TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
     use ModPrecision
     use ModInpGlobal
+    use ModMemoryMonitor
+    use Kernel32
+    use ISO_C_Binding 
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
+    integer(DWORDLONG)  ::i 
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
+
+    call memorymonitor(i)
+    !write(*,*)"There is  ",i,"MB of memory in use." 
 
     call CPU_TIME(tStart)
     if (OutputFormat=='plt') then

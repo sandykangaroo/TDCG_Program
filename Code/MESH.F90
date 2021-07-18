@@ -84,7 +84,7 @@
                     else
                         call RayCastTraverse(CSHIFT(p(i)%P,iii-1), &
                                     KDTree(ii)%root,k,nIntersect,iii)
-                    endif
+            endif
                     ! If no intersect, must be a outside point, so return.
                     if (nIntersect == 0) then
                         Pintersect=Pintersect+0
@@ -188,7 +188,7 @@
                 if (cIntersectMethod/=6) then
                     call RayCast(CSHIFT(c%Center,iii-1), &
                                 KDTree(1)%root,k,nIntersect,iii)
-                else
+        else
                     call RayCastTraverse(CSHIFT(c%Center,iii-1), &
                                 KDTree(1)%root,k,nIntersect,iii)
                 endif
@@ -213,6 +213,7 @@
                 endif
             endif
         endif
+        endif
         endsubroutine CellInout
 !----------------------------------------------------------------------
         recursive subroutine RayCast(point,tree,k,nIntersect,i)
@@ -231,31 +232,31 @@
 
         ! Quick Bounding-BOX identify
         select case (i) ! faster than cshift.
-        case (1)
+                case (1)
             box(1) = tree%box(1)
             box(2) = tree%box(2)
             box(4) = tree%box(4)
             box(5) = tree%box(5)
             box(6) = tree%box(6)
-        case (2)
+                case (2)
             box(1) = tree%box(2)
             box(2) = tree%box(3)
             box(4) = tree%box(5)
             box(5) = tree%box(6)
             box(6) = tree%box(4)
-        case (3)
+                case (3)
             box(1) = tree%box(3)
             box(2) = tree%box(1)
             box(4) = tree%box(6)
             box(5) = tree%box(4)
             box(6) = tree%box(5)
-        end select
+                end select
         if (point(1)>box(1).and.point(2)>box(2).and. &
             point(1)<box(4).and.point(2)<box(5).and. & ! Box max
             point(3)<box(6)) then ! Positive direction
                 if (MollerTrumbore(CSHIFT(point,1-i),k,tree%the_data,.false.)) then
                     nIntersect = nIntersect + 1
-                endif
+            endif
                 ! Into the next tree
                 call RayCast(point,tree%right,k,nIntersect,i)
                 call RayCast(point,tree%left,k,nIntersect,i)
@@ -273,7 +274,7 @@
         !         call RayCast(point,tree%left,k,nIntersect,i)
         !     endif
         ! endif
-
+        
         endsubroutine RayCast
 !----------------------------------------------------------------------
         recursive subroutine RayCastTraverse(point,tree,k,nIntersect,i)
@@ -482,8 +483,8 @@
             e1(:)=v2-v1
             e2(:)=v0-v2
             
-            !/* Bullet 3: */
-            !/* test the 9 tests first (this was faster) */
+!/* Bullet 3: */
+!/* test the 9 tests first (this was faster) */
             fex=abs(e0(1))
             fey=abs(e0(2))
             fez=abs(e0(3))
@@ -634,11 +635,11 @@
             endif
             
             
-    !/* Bullet 1: */
-    !/* first test overlap in the {x,y,z}-directions */
-    !/* find min, max of the triangle each direction, and test for overlap in */
-    !/* that direction -- this is equivalent to testing a minimal AABB around */
-    !/*  the triangle against the AABB */
+!/* Bullet 1: */
+!/* first test overlap in the {x,y,z}-directions */
+!/* find min, max of the triangle each direction, and test for overlap in */
+!/* that direction -- this is equivalent to testing a minimal AABB around */
+!/*  the triangle against the AABB */
             
             !/* test in X-direction */ 
             minvlue=Min(v0(1),v1(1),v2(1))
@@ -664,9 +665,9 @@
                 return
             endif
             
-    !/* Bullet 2: */
-    !/* test if the box intersects the plane of the triangle */
-    !/* compute plane equation of triangle: normal*x+d=0 */   
+!/* Bullet 2: */
+!/* test if the box intersects the plane of the triangle */
+!/* compute plane equation of triangle: normal*x+d=0 */   
             normal = CROSS_PRODUCT_3(e0,e1)
             if(.not.planeBoxOverlap(normal,v0,boxhalfsize)) then
                 TriBoxOverlap=.false.
@@ -675,7 +676,7 @@
             
             TriBoxOverlap=.true.
             return
-        end function TriBoxOverlap
+        end function TriBoxOverlap   
 !---------------------------------------------------------------------- 
         Logical function planeBoxOverlap(normal,vert,maxbox)
             use ModPrecision   
@@ -700,7 +701,7 @@
                 planeBoxOverlap =.false.
                 return
             endif
-            iii= DOT_PRODUCT(normal, vmax)
+            iii= DOT_PRODUCT(normal, vmax)          
             if(iii>=0)then
                 planeBoxOverlap =.true.
                 return
@@ -1797,6 +1798,7 @@
         enddo
         enddo
         enddo
+        !call TDCGOutput('OK')
         write(*,*) '' ! Stop write with advance='no'
         call CPU_TIME(tEnd)
         write(*,'(1X,A,F10.2)') "CrossCell time: ", tEnd-tStart
@@ -2466,7 +2468,7 @@
         enddo
         enddo
         enddo
-
+        
         iost = .false.
         do k = 1, nCell(3)
         do j = 1, nCell(2)
@@ -2551,8 +2553,8 @@
         type(typOctCell),POINTER :: c
         logical,INTENT(INOUT) :: iosout
         logical               :: ios
-        ! mark(6)  1 x refine; 2 y refine; 3 z refine;
-        !          4 x coarse; 5 y coarse; 6 z coarse;
+        ! mark(6)  1 x refine; 2 y refine; 3 z refine; 
+        !          4 x coarse; 5 y coarse; 6 z coarse; 
 
         if (maxval(c%lvl)>=InitRefineLVL) return
 
@@ -2577,7 +2579,7 @@
             call SmoothMesh(c%son2,ios)
             return
         endif
-
+        
         if (c%cross/=0) return
         ! Refine
         ios = .false.

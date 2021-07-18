@@ -58,6 +58,7 @@
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath=".\Code\GEOMETRY.F90"/>
 		<File RelativePath=".\Code\MAIN.F90"/>
+		<File RelativePath=".\MemoryMonitor.f90"/>
 		<File RelativePath=".\Code\MESH.F90"/>
 		<File RelativePath=".\Code\MODULE.F90"/>
 		<File RelativePath=".\Code\NEIGHBOR.F90"/>

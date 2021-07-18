@@ -132,8 +132,8 @@
                 end do
             end if
             td%left => build_tree(resB, pt, b, depth2)
-            !       build right child 
-            resB => res(mid + 1 : n)
+!       build right child 
+           resB => res(mid + 1 : n)
             if ( td%splitaxis == 1 ) then            
                 b(4) = bt
                 b(1) = min(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
@@ -372,21 +372,81 @@
     end subroutine KDTree_out
 
 !----------------------------------------------------------------------
+!     recursive subroutine nearest_search(Tar, node, nearest, i)
+!     !Find the nearest triangle of space point Tar in the KDTree begin with node
+!!     .. Input Arguments .. 
+!        type(typpoint)                                    :: Tar
+!        type(KDT_node), pointer              :: node
+!!     .. Output Arguments ..
+!        type(KDT_node), pointer              :: nearest
+!!     .. Local Arguments .. 
+!        type(KDT_node), pointer              :: near, far
+!        real(R8)                                       :: dist, dist1, dist2, aa
+!        integer                                          :: i, split
+!        
+!        i = i + 1
+!        !write(102,*) node%level
+!        aa = 1.d0
+!        if ( .not. associated(node%left) .and. .not.associated(node%right) ) then
+!            dist = distance(Tar, nearest%the_data%p(4))
+!            dist2 = distance(Tar, node%the_data%p(4))
+!            if ( dist2 - dist < 0.d0 ) then
+!                nearest => node
+!            end if
+!            return
+!        end if
+!    
+!        split = node%splitaxis        
+!        dist1 = Tar%p(split) - node%the_data%p(4)%p(split)            
+!        aa = 1.d0
+!        if ( dist1 <= 0.d0 ) then
+!            near => node%left  
+!            far => node%right
+!        else
+!            near => node%right
+!            far => node%left
+!        end if
+!    
+!        if ( associated(near) ) then
+!            call nearest_search(Tar, near, nearest, i)
+!        end if
+!    
+!    
+!        dist = distance(Tar, nearest%the_data%p(4))
+!        if ( dist <= abs(dist1) ) then
+!            return
+!        else if( dist > dist1 .and. dist < 1.d0) then
+!        else if ( dist > abs(dist1) ) then
+!            dist2 = distance(Tar, node%the_data%p(4))
+!            if ( dist2 - dist < 0.d0 ) then
+!                nearest => node
+!                dist = dist2
+!            end if
+!            if ( associated(far) ) then
+!                call nearest_search(Tar, far, nearest, i) 
+!            end if
+!        end if
+!        aa = 1.d0
+!    
+!    end subroutine nearest_search   
 
+!----------------------------------------------------------------------    
     recursive subroutine nearest_search(Tar, node, nearest, i)
     ! Find the nearest triangle of space point Tar in the KDTree begin with node
     ! .. Input Arguments .. 
-        type(typPoint)                                     :: Tar
-        type(KDT_node), pointer                         :: node
+        type(typPoint)                                    :: Tar
+        type(KDT_node), pointer              :: node
     ! .. Output Arguments ..
-        type(KDT_node), pointer                         :: nearest
+        type(KDT_node), pointer              :: nearest
     ! .. Local Arguments .. 
-        type(KDT_node), pointer                         :: near, far
-        real(R8)                                      :: dist, dist1, dist2, aa
-        integer                                         :: i, split
+        type(KDT_node), pointer              :: near, far
+        real(R8)                           :: dist, dist1, dist2, aa
+        integer                              :: i, split
+        real(R8)                           :: cy,cz,y1,z1,y2,z2,y0,z0,r
+        logical                              :: SSC
         
         i = i + 1
-        !write(12,*) node%level
+        !write(*,*) node%level
         aa = 1.d0
         if ( .not. associated(node%left) .and. .not.associated(node%right) ) then
             dist = distance(Tar, nearest%the_data%p(4))
@@ -398,7 +458,7 @@
         end if
 
         split = node%splitaxis        
-        dist1 = Tar%P(split) - node%the_data%p(4)%P(split)            
+        dist1 = Tar%p(split) - node%the_data%p(4)%p(split)            
         aa = 1.d0
         if ( dist1 <= 0.d0 ) then
             near => node%left  
@@ -417,7 +477,60 @@
         if ( dist <= abs(dist1) ) then
             return
  !       else if( dist > dist1 .and. dist < 1.d0) then
-        else if ( dist > abs(dist1) ) then
+        else if (split == 1) then
+            cy = Tar%P(2)
+            cz = Tar%P(3)
+            r  = sqrt(dist*dist - dist1*dist1)
+            y1 = node%box(2)
+            z1 = node%box(3)
+            y2 = node%box(5)
+            z2 = node%box(6)
+            y0 = (node%box(2) + node%box(5))/2
+            z0 = (node%box(3) + node%box(6))/2
+            SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
+            if(dist > abs(dist1) .and. SSC)then
+                dist2 = distance(Tar, node%the_data%p(4))
+                if ( dist2 - dist < 0.d0 ) then
+                    nearest => node
+                    dist = dist2
+                end if
+                if ( associated(far) ) then
+                    call nearest_search(Tar, far, nearest, i) 
+                end if
+            endif
+        elseif(split == 2)then
+            cy = Tar%P(1)
+            cz = Tar%P(3)
+            r  = sqrt(dist*dist - dist1*dist1)
+            y1 = node%box(1)
+            z1 = node%box(3)
+            y2 = node%box(4)
+            z2 = node%box(6)
+            y0 = (node%box(1) + node%box(4))/2
+            z0 = (node%box(3) + node%box(6))/2
+            SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
+            if(dist > abs(dist1) .and. SSC)then
+                dist2 = distance(Tar, node%the_data%p(4))
+                if ( dist2 - dist < 0.d0 ) then
+                    nearest => node
+                    dist = dist2
+                end if
+                if ( associated(far) ) then
+                    call nearest_search(Tar, far, nearest, i) 
+                end if
+            endif
+        elseif(split == 3)then
+            cy = Tar%P(1)
+            cz = Tar%P(2)
+            r  = sqrt(dist*dist - dist1*dist1)
+            y1 = node%box(1)
+            z1 = node%box(2)
+            y2 = node%box(4)
+            z2 = node%box(5)
+            y0 = (node%box(1) + node%box(4))/2
+            z0 = (node%box(2) + node%box(5))/2
+            SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
+            if(dist > abs(dist1) .and. SSC)then
             dist2 = distance(Tar, node%the_data%p(4))
             if ( dist2 - dist < 0.d0 ) then
                 nearest => node
@@ -426,10 +539,35 @@
             if ( associated(far) ) then
                 call nearest_search(Tar, far, nearest, i) 
             end if
+            endif
         end if
         aa = 1.d0
 
     end subroutine nearest_search
+!----------------------------------------------------------------------
+    logical function SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
+        real(R8)    :: cy,cz,y1,z1,y2,z2,y0,z0,r
+        real(R8)    :: minx,miny
+        
+        minx = min(abs(y1-cy),abs(y2-cy))
+        miny = min(abs(z1-cz),abs(z2-cz))
+        if(minx*minx+miny*miny<r*r)then
+            SphereSplitsurfaceCross= .true.
+            return
+        endif
+        
+        if((abs(y0-cy)<(abs(y2-y1)/2+r)) .and. abs(z0-cz)<abs(z2-z1)/2)then
+            SphereSplitsurfaceCross= .true.
+            return
+        endif
+        
+        if((abs(z0-cz)<(abs(z2-z1)/2+r)) .and. abs(y0-cy)<abs(y2-y1)/2)then
+            SphereSplitsurfaceCross= .true.
+            return
+        endif
+        SphereSplitsurfaceCross= .false.
+        return
+    end function SphereSplitsurfaceCross
 !----------------------------------------------------------------------
     real(R8) function distance(a, b)
  !      real(R8)                                    :: distance
