@@ -6,7 +6,7 @@
         integer :: nCells     ! Number of total Cells.
         real(R8):: BGCellSize(3)    ! Step size for background OctCell.
         type(typOctCell),pointer :: OctCell(:,:,:)
-        ! type(typStructCell),pointer:: StruCell(:,:,:,:)
+        ! type(typStructCell),pointer:: StrCell(:,:,:,:)
     endmodule ModMesh
 !======================================================================
     module ModMeshTools
@@ -212,7 +212,6 @@
                     stop 'Subroutine CellInout error2'
                 endif
             endif
-        endif
         endif
         endsubroutine CellInout
 !----------------------------------------------------------------------
