@@ -77,13 +77,19 @@
     use ModPrecision
     use ModInpGlobal
     use ModInpMesh
+    use ModMemoryMonitor
+    use Kernel32
+    use ISO_C_Binding 
     implicit none
-    integer::i
+    integer::i,a,b
+    integer(DWORDLONG)  ::ii
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
     real(R8):: tStartG   ! Start time
     real(R8):: tEndG     ! End time
     print*,'Generating mesh......'
+    
+    call memorymonitor(ii)
 
     call CPU_TIME(tStart)
     if (Restart) return
@@ -94,7 +100,17 @@
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
 
-    call GetMinDistance
+    !call GetMinDistance
+    b=0
+     !inquire( file = fort , exist = file_exist )
+ !    open(1,file='fort.102')
+ !    do i=1,6990126
+ !    read(1,*) a
+ !    b=b+a
+ !enddo
+ !write(*,*)b
+ !close(1)
+     
 
     write(*,'(1X,A,F10.5)') "BackG Mesh generation time: ", tEndG-tStartG
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
@@ -111,17 +127,23 @@
     use ModMesh
     use ModInpMesh
     implicit none
-    !call GetMinDistance
     TimeStep=CFL*(BGCellSize(1)/2**InitRefineLVL)
     end subroutine TDCGSolver
 !======================================================================
     subroutine TDCGOutput(TimeStepStr)
     use ModPrecision
     use ModInpGlobal
+    use ModMemoryMonitor
+    use Kernel32
+    use ISO_C_Binding 
     implicit none
     character(*),INTENT(IN) :: TimeStepStr
+    integer(DWORDLONG)  ::i 
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
+    
+    call memorymonitor(i)
+    !write(*,*)"There is  ",i,"MB of memory in use." 
 
     call CPU_TIME(tStart)
     if (OutputFormat=='.plt') then

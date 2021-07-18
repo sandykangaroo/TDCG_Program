@@ -38,10 +38,10 @@
         case (2)
             if (CellCast(c)) then
                 c%cross = -3
-                c%cross = CellInout(c)
+                !c%cross = CellInout(c)
             else
                 c%cross = -4
-                c%cross = CellInout(c)
+                !c%cross = CellInout(c)
             endif
         case (3)
             if (AABB(c)) then
@@ -52,18 +52,18 @@
         case (4)
             if (AABB(c)) then
                 c%cross = -3
-                c%cross = CellInout(c)
+                !c%cross = CellInout(c)
             else
                 c%cross = -4
-                c%cross = CellInout(c)
+                !c%cross = CellInout(c)
             endif
         case (5)
             if (AABBTraverse(c)) then
                 c%cross = -3
-                c%cross = CellInout(c)
+                !c%cross = CellInout(c)
             else
                 c%cross = -4
-                c%cross = CellInout(c)
+                !c%cross = CellInout(c)
             endif
         end select
         endsubroutine initCellCross
@@ -1151,11 +1151,11 @@
             t       =>Cell(i,j,k)
             if (CellCast(t)) then
                 t%cross = -3
-                t%cross = CellInout(t)
+                !t%cross = CellInout(t)
                 call SurfaceAdapt(t)
             else
                 t%cross = -4
-                t%cross = CellInout(t)
+                !t%cross = CellInout(t)
             endif
             step=step+1
             p=step/real(nBGCells,R8)*100
@@ -1201,11 +1201,11 @@
             t       =>Cell(i,j,k)
             if (AABB(t)) then
                 t%cross = -3
-                t%cross = CellInout(t)
+                !t%cross = CellInout(t)
                 call SurfaceAdapt(t)
             else
                 t%cross = -4
-                t%cross = CellInout(t)
+                !t%cross = CellInout(t)
             endif
             step=step+1
             p=step/real(nBGCells,R8)*100
@@ -1214,10 +1214,12 @@
         enddo
         enddo
         enddo
+        !call TDCGOutput('OK')
         write(*,*) '' ! Stop write with advance='no'
         call initFindNeighbor
         call initSmoothMesh
         call initFindNeighbor
+        write(*,*)"Cells:", nCells
 
     case (5)    ! AABBTraverse
         do k = 1, nCell(3)
@@ -1226,11 +1228,11 @@
             t       =>Cell(i,j,k)
             if (AABBTraverse(t)) then
                 t%cross = -3
-                t%cross = CellInout(t)
+                !t%cross = CellInout(t)
                 call SurfaceAdapt(t)
             else
                 t%cross = -4
-                t%cross = CellInout(t)
+                !t%cross = CellInout(t)
             endif
             step=step+1
             p=step/real(nBGCells,R8)*100

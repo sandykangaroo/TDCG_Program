@@ -7,7 +7,7 @@ $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
     Limiter = 1, Restart = .f., nGeometry = 1,
-    GeometryName  = './Data/sphere_4982_',
+    GeometryName  = './Data/sphere_408394_',
     OutputNameStr = './Data/test',
     OutputFormat  = '.plt'
 $END
@@ -27,16 +27,20 @@ $Mesh
 !bogie  
 !   DomainMin = -100.0, -100.0, -100.0,
 !   DomainMax =  200.0,  200.0,  100.0,
+!    DomainMin = -200.0, -100.0, -50.0,
+!    DomainMax =  350.0,  100.0,  50.0,
 !sphere   
-	DomainMin = -2000.0, -2000.0, -2000.0,
+   DomainMin = -2000.0, -2000.0, -2000.0,
    DomainMax = 2000.0,  2000.0,  2000.0,
+!   DomainMin = 0.0, -1200.0, 0.0,
+!   DomainMax = 500.0,  -700.0,  500.0,
 !pantograph  
-!	DomainMin = -1200.0, -150.0, 0.0,
-!    DomainMax = -200.0,  150.0,  400.0,
+!   DomainMin = -1000.0, -150.0, 0.0,
+!   DomainMax = -400.0,  150.0,  300.0,
 
 	
-    InitRefineLVL = 4 AdaptRefineLVL  =  2,
-    cIntersectMethod = 4
+    InitRefineLVL = 3 AdaptRefineLVL  =  1,
+    cIntersectMethod = 2
 $END
 
 $NRRset
