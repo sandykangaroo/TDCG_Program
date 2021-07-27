@@ -14,7 +14,7 @@
         endfunction CROSS_PRODUCT_3
 !----------------------------------------------------------------------
         PURE function PtF_normal(p,tri) ! Point to Face normal.
-        ! PtF_Dist: normal vector from p -> tri. 
+        ! PtF_Dist: normal vector from p -> tri.
         !           Note not the vector tri -> p.
         use ModPrecision
         use ModTypDef, only: triangle
@@ -38,7 +38,7 @@
 !----------------------------------------------------------------------
         function BBOX(p,box)
         ! =-1 outside bbox; = 0 on the box; = 1 inside bbox.
-        use ModPrecision, only: R8, I2
+        use ModPrecision
         implicit none
         integer(I2)         :: BBOX
         real(R8),INTENT(IN) :: p(3)
@@ -77,8 +77,8 @@
         u = DOT_PRODUCT(P,V0)
         v = DOT_PRODUCT(Q,D)
         t = DOT_PRODUCT(Q,V2)
-        ! Add if() judgment before each operation is no necessary, for 
-        ! the reason that BBOX judgment leads to a high probability of 
+        ! Add if() judgment before each operation is no necessary, for
+        ! the reason that BBOX judgment leads to a high probability of
         ! return value = .True.
         if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. &
             t>=0 .and. t<=A) then
@@ -95,6 +95,54 @@
             return
         endif
         endfunction CrossPoint
+!----------------------------------------------------------------------
+        PURE function MollerTrumbore(Point,D,tri,ios)
+        use ModPrecision
+        use ModTypDef
+        implicit none
+        logical                  :: MollerTrumbore
+        real(R8)      ,INTENT(IN):: point(3)   ! point(3) = x, y, z.
+        real(R8)      ,INTENT(IN):: D(3)
+        type(triangle),INTENT(IN):: tri
+        logical       ,INTENT(IN):: ios ! T: Called by CCIspecial.
+                                        ! F: Called by others.
+        real(R8):: V0(3), V1(3), V2(3)
+        real(R8):: P(3), Q(3)
+        real(R8):: t, u, v
+        real(R8):: A
+
+        V0 = point      - tri%P(1)%P
+        V1 = tri%P(2)%P - tri%P(1)%P
+        V2 = tri%P(3)%P - tri%P(1)%P
+        P = CROSS_PRODUCT_3(D,V2)
+        Q = CROSS_PRODUCT_3(V0,V1)
+        A = DOT_PRODUCT(P,V1)   ! A=0 is impossible.
+        u = DOT_PRODUCT(P,V0)
+        v = DOT_PRODUCT(Q,D)
+        t = DOT_PRODUCT(Q,V2)
+        ! Add if() judgment before each operation is no necessary, for
+        ! the reason that BBOX judgment leads to a high probability of
+        ! return value = .True.
+        if (ios) then
+            if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. &
+                t>=0 .and. t<=A) then
+                MollerTrumbore=.true.; return
+            elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. &
+                t<=0 .and. t>=A) then
+                MollerTrumbore=.true.; return
+            else
+                MollerTrumbore=.false.; return
+            endif
+        else
+            if (A>0 .and. u>=0 .and. v>=0 .and. u+v<=A .and. t>=0) then
+                MollerTrumbore=.true.; return
+            elseif (A<0 .and. u<=0 .and. v<=0 .and. u+v>=A .and. t<=0) then
+                MollerTrumbore=.true.; return
+            else
+                MollerTrumbore=.false.; return
+            endif
+        endif
+        endfunction MollerTrumbore
 !----------------------------------------------------------------------
     endmodule ModTools
 !======================================================================

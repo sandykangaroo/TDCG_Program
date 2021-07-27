@@ -1,20 +1,4 @@
 !======================================================================
-    module ModGeometry
-    ! Define geometry discreted points and elements.
-    use ModPrecision
-    use ModTypDef
-    implicit none
-
-    type geom
-        integer                          :: nsp, nse
-        type(triangle) , allocatable     :: se3d(:)
-        real(R8)                         :: box(6)
-    end type geom
-
-    type(geom), allocatable, target     :: body(:) 
-
-    end module ModGeometry
-!======================================================================
     module geometry_mod2
     use ModPrecision
     use ModTypDef
@@ -26,27 +10,24 @@
 !----------------------------------------------------------------------
     subroutine create_KDT_tree_for_body_i(Tree, i)
     ! .. create the actual tree structure, given an input array of data.
-    ! .. Return Value ..    
-        type(typKDTtree)         :: Tree
+    ! .. Return Value ..
+        type(typKDTtree)       :: Tree
     ! .. Input Arguments ..
         Integer, Intent (In)   :: i      ! the ith body
     ! .. Local Arguments ..
-        integer                :: n      ! number of triangles on surface of body i
+        integer                :: n      ! number of triangles of body i
         integer                :: j      ! loop parameter
         integer                :: depth  ! level of node in the tree
-        type(triangle), pointer:: res(:) ! store triangles on surface of body i
+        type(triangle), pointer:: res(:) ! store triangles of body i
         type(KDT_node), pointer:: p
         real(R8)               :: box(6)
 
         n =  body(i)%nse
         depth = 1
-
         res => body(i)%se3d
         p => null()
         box(:) = body(i)%box(:)
-
         Tree%root => build_tree(res, p, box, depth)
-
         nullify(res)
 
     end subroutine create_KDT_tree_for_body_i
@@ -56,11 +37,11 @@
         use ModInpMesh,only : useKDT
     ! .. Return Value ..
         type(KDT_node), pointer              :: td
-    ! .. Input Arguments .. 
+    ! .. Input Arguments ..
         type(KDT_node), pointer              :: p, pt
         type(triangle), pointer              :: res(:), resB(:)
         integer                              :: depth, depth2
-        real(R8)                           :: box(6), b(6), bt
+        real(R8)                             :: box(6), b(6), bt
     ! .. Local Arguments ..
         integer                              :: n, j, mid
 
@@ -82,10 +63,10 @@
             td%right => null()
         else if ( n == 2 ) then
             td%the_data = res(mid)
-            td%splitaxis = 1                         
+            td%splitaxis = 1
             resB => res(2:2)
             if ( res(2)%p(4)%P(1) < res(1)%p(4)%P(1) ) then
-                b(4) = max(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))    
+                b(4) = max(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 td%left => build_tree(resB, pt, b, depth2)
                 td%right => null()
             else ! if ( res(2)%p(4)%P(1) >= res(2)%p(4)%P(1) ) then
@@ -110,10 +91,10 @@
                 end if
             endif
             td%the_data = res(mid)
-            !       build left child 
+            !       build left child
             resB => res(1:mid - 1)
-            if ( td%splitaxis == 1 ) then       
-                bt = b(4)                              
+            if ( td%splitaxis == 1 ) then
+                bt = b(4)
                 b(4) = max(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 do j = 2, mid - 1
                     b(4) = max(b(4), resB(j)%p(1)%P(1), resB(j)%p(2)%P(1), resB(j)%p(3)%P(1))
@@ -132,9 +113,9 @@
                 end do
             end if
             td%left => build_tree(resB, pt, b, depth2)
-!       build right child 
+!       build right child
            resB => res(mid + 1 : n)
-            if ( td%splitaxis == 1 ) then            
+            if ( td%splitaxis == 1 ) then
                 b(4) = bt
                 b(1) = min(resB(1)%p(1)%P(1), resB(1)%p(2)%P(1), resB(1)%p(3)%P(1))
                 do j = 2, n - mid
@@ -151,7 +132,7 @@
                 b(3) = min(resB(1)%p(1)%P(3), resB(1)%p(2)%P(3), resB(1)%p(3)%P(3))
                 do j = 2, n - mid
                     b(3) = min(b(3), resB(j)%p(1)%P(3), resB(j)%p(2)%P(3), resB(j)%p(3)%P(3))
-                end do    
+                end do
             end if
             td%right => build_tree(resB, pt, b, depth2)
         end if
@@ -163,13 +144,14 @@
 
     subroutine  find_split_direction(res, split)
     ! find the most_spread_direction and define it as split direction
-    ! .. Input Arguments .. 
-        type(triangle), pointer                :: res(:)  ! 
-    ! .. Output Arguments .. 
-        integer                                :: split    ! split direction, =1, x; =2, y; =3, z. 
-    ! .. Local Arguments ..        
-        integer                                :: n, j
-        real(R8)                             :: summ(3), average(3), variance(3), var
+    ! .. Input Arguments ..
+        type(triangle), pointer :: res(:)  !
+    ! .. Output Arguments ..
+        integer                 :: split ! split direction, 1 x; 2 y; 3 z.
+    ! .. Local Arguments ..
+        integer                 :: n, j
+        real(R8)                :: summ(3), average(3), variance(3)
+        real(R8)                :: var
 
         n = size(res)
         summ = 0.d0
@@ -190,28 +172,29 @@
             end if
         end do
 !        write(*,*) variance, split
-    
+
     end subroutine  find_split_direction
 !----------------------------------------------------------------------
 
     subroutine sort_under_split_direction(res, split)
-    ! sort the data (res) under the direction (split), and store the results into (sort)
-    ! .. Input Arguments .. 
-        integer                                   :: split    ! split direction
+    ! sort the data (res) under the direction (split), and store the
+    ! results into (sort)
+    ! .. Input Arguments ..
+        integer                 :: split    ! split direction
     ! .. Input/Output Arguments ..
-        type(triangle), pointer                   :: res(:)  
-    ! .. Local Arguments .. 
-        real(R8), allocatable                   :: A(:)
-        integer                                   :: i, n
+        type(triangle), pointer :: res(:)
+    ! .. Local Arguments ..
+        real(R8), allocatable   :: A(:)
+        integer                 :: i, n
 
         n = size(res)
         allocate(A(n))
         do i =1, n
             A(i) = res(i)%p(4)%P(split)
         end do
- 
+
         call quicksort(res, A)
- 
+
     end subroutine sort_under_split_direction
 !----------------------------------------------------------------------
 
@@ -232,17 +215,17 @@
             B => res(iq:)
             call quicksort(B, A(iq:))
         endif
-        
+
     end subroutine quicksort
 !----------------------------------------------------------------------
 
     subroutine Partition(res, A, marker)
-        type(triangle), pointer                   :: res(:)
-        real(R8), intent(in out)                :: A(:)
-        integer, intent(out)                      :: marker
-        integer                                   :: i, j, k, l
-        type(triangle), pointer                   :: temp, Ai, Aj
-        real(R8)                                :: tempx, x      ! pivot point
+        type(triangle), pointer :: res(:)
+        real(R8), intent(inout) :: A(:)
+        integer, intent(out)    :: marker
+        integer                 :: i, j, k, l
+        type(triangle), pointer :: temp, Ai, Aj
+        real(R8)                :: tempx, x ! pivot point
 
         allocate(Ai, Aj)
 
@@ -264,9 +247,9 @@
             ! exchange A(i) and A(j)
                 do l =1, 4
                     do k =1,3
-                        Ai%p(l)%P(k) = res(i)%p(l)%P(k)                   
+                        Ai%p(l)%P(k) = res(i)%p(l)%P(k)
                     end do
-                    Ai%p(l)%label = res(i)%p(l)%label     
+                    Ai%p(l)%label = res(i)%p(l)%label
                 end do
                 do l =1, 4
                     do k =1,3
@@ -305,7 +288,7 @@
             endif
         end do
         deallocate(Ai, Aj)
-        
+
     end subroutine Partition
 !----------------------------------------------------------------------
     recursive subroutine KDTree_out(node)
@@ -313,22 +296,21 @@
         real(R8)                                       :: xmid, x(6), aa
         integer                                          :: i, mid
         logical                                          :: opd
- 
+
         inquire(file='./Data/split2.dat', opened=opd)
         if ( .not. opd) then
             open(1, file='./Data/split2.dat', status='unknown', form='formatted')
         end if
-        
-        if( .not. associated(node%left) .and. .not. associated(node%right) ) then 
-            return
-        end if
-                
-        p => node        
+
+        if( .not. associated(node%left) .and. &
+            .not. associated(node%right) ) return
+
+        p => node
         mid = p%splitaxis
         xmid = p%the_data%p(4)%P(mid)
 !        write(1,*) ' ZONE T = "1" '
         write(1,*) ' VARIABLES = "X", "Y", "Z" '
-        write(1,*) ' ZONE NODES=4, ELEMENTS=1, DATAPACKING=POINT, ZONETYPE=FEBRICK '        
+        write(1,*) ' ZONE NODES=4, ELEMENTS=1, DATAPACKING=POINT, ZONETYPE=FEBRICK '
         if ( mid == 1) then
             write(1,*) xmid, p%box(2), p%box(3)
             write(1,*) xmid, p%box(2), p%box(6)
@@ -340,15 +322,15 @@
             write(1,*) p%box(1), xmid, p%box(6)
             write(1,*) p%box(4), xmid, p%box(6)
             write(1,*) p%box(4), xmid, p%box(3)
-            write(1,*) '1 2 3 4 1 2 3 4'    
+            write(1,*) '1 2 3 4 1 2 3 4'
         else if ( mid == 3) then
             write(1,*) p%box(1), p%box(2), xmid
             write(1,*) p%box(1), p%box(5), xmid
             write(1,*) p%box(4), p%box(5), xmid
             write(1,*) p%box(4), p%box(2), xmid
-            write(1,*) '1 2 3 4 1 2 3 4'  
+            write(1,*) '1 2 3 4 1 2 3 4'
         end if
-        
+
         if( associated(node%left) .OR. associated(node%right) ) then
             if ( associated(node%left) .and. associated(node%right) ) then
                 p => node%left
@@ -374,16 +356,16 @@
 !----------------------------------------------------------------------
 !     recursive subroutine nearest_search(Tar, node, nearest, i)
 !     !Find the nearest triangle of space point Tar in the KDTree begin with node
-!!     .. Input Arguments .. 
+!!     .. Input Arguments ..
 !        type(typpoint)                                    :: Tar
 !        type(KDT_node), pointer              :: node
 !!     .. Output Arguments ..
 !        type(KDT_node), pointer              :: nearest
-!!     .. Local Arguments .. 
+!!     .. Local Arguments ..
 !        type(KDT_node), pointer              :: near, far
 !        real(R8)                                       :: dist, dist1, dist2, aa
 !        integer                                          :: i, split
-!        
+!
 !        i = i + 1
 !        !write(102,*) node%level
 !        aa = 1.d0
@@ -395,23 +377,23 @@
 !            end if
 !            return
 !        end if
-!    
-!        split = node%splitaxis        
-!        dist1 = Tar%p(split) - node%the_data%p(4)%p(split)            
+!
+!        split = node%splitaxis
+!        dist1 = Tar%p(split) - node%the_data%p(4)%p(split)
 !        aa = 1.d0
 !        if ( dist1 <= 0.d0 ) then
-!            near => node%left  
+!            near => node%left
 !            far => node%right
 !        else
 !            near => node%right
 !            far => node%left
 !        end if
-!    
-!        if ( associated(near) ) then
+!
+!        if ( ASSOCIATED(near) ) then
 !            call nearest_search(Tar, near, nearest, i)
 !        end if
-!    
-!    
+!
+!
 !        dist = distance(Tar, nearest%the_data%p(4))
 !        if ( dist <= abs(dist1) ) then
 !            return
@@ -422,23 +404,23 @@
 !                nearest => node
 !                dist = dist2
 !            end if
-!            if ( associated(far) ) then
-!                call nearest_search(Tar, far, nearest, i) 
+!            if ( ASSOCIATED(far) ) then
+!                call nearest_search(Tar, far, nearest, i)
 !            end if
 !        end if
 !        aa = 1.d0
-!    
-!    end subroutine nearest_search   
+!
+!    end subroutine nearest_search
 
 !----------------------------------------------------------------------
     recursive subroutine nearest_search(Tar, node, nearest, i)
     ! Find the nearest triangle of space point Tar in the KDTree begin with node
-    ! .. Input Arguments .. 
+    ! .. Input Arguments ..
     real(R8),INTENT(IN)     :: Tar(3)
     type(KDT_node), pointer :: node
     ! .. Output Arguments ..
     type(KDT_node), pointer :: nearest
-    ! .. Local Arguments .. 
+    ! .. Local Arguments ..
     type(KDT_node), pointer :: near, far
     real(R8)                :: dist, dist1, dist2
     integer                 :: i, split
@@ -448,8 +430,8 @@
     i = i + 1
     if ( .not. associated(node%left) .and. &
          .not. associated(node%right) ) then
-        dist = distance(Tar, nearest%the_data%p(4))
-        dist2 = distance(Tar, node%the_data%p(4))
+        dist = distance(Tar, nearest%the_data%p(4)%P(1:3))
+        dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
         if ( dist2 < dist ) then
             nearest => node
         end if
@@ -459,16 +441,16 @@
     split = node%splitaxis
     dist1 = Tar(split) - node%the_data%p(4)%p(split)
     if ( dist1 <= 0.d0 ) then
-        near => node%left  
+        near => node%left
         far => node%right
     else
         near => node%right
         far => node%left
     end if
 
-    if ( associated(near) ) call nearest_search(Tar, near, nearest, i)
+    if ( ASSOCIATED(near) ) call nearest_search(Tar, near, nearest, i)
 
-    dist = distance(Tar, nearest%the_data%p(4))
+    dist = distance(Tar, nearest%the_data%p(4)%P(1:3))
     if ( dist <= abs(dist1) ) then
         return
     else if (split == 1) then
@@ -483,13 +465,13 @@
         z0 = (node%box(3) + node%box(6))/2
         SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         if(dist > abs(dist1) .and. SSC)then
-            dist2 = distance(Tar, node%the_data%p(4))
+            dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
             if ( dist2 - dist < 0.d0 ) then
                 nearest => node
                 dist = dist2
             end if
-            if ( associated(far) ) then
-                call nearest_search(Tar, far, nearest, i) 
+            if ( ASSOCIATED(far) ) then
+                call nearest_search(Tar, far, nearest, i)
             end if
         endif
     elseif(split == 2)then
@@ -504,13 +486,13 @@
         z0 = (node%box(3) + node%box(6))/2
         SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         if(dist > abs(dist1) .and. SSC)then
-            dist2 = distance(Tar, node%the_data%p(4))
+            dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
             if ( dist2 - dist < 0.d0 ) then
                 nearest => node
                 dist = dist2
             end if
-            if ( associated(far) ) then
-                call nearest_search(Tar, far, nearest, i) 
+            if ( ASSOCIATED(far) ) then
+                call nearest_search(Tar, far, nearest, i)
             end if
         endif
     elseif(split == 3)then
@@ -525,13 +507,13 @@
         z0 = (node%box(2) + node%box(5))/2
         SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         if(dist > abs(dist1) .and. SSC)then
-        dist2 = distance(Tar, node%the_data%p(4))
+        dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
         if ( dist2 - dist < 0.d0 ) then
             nearest => node
             dist = dist2
         end if
-        if ( associated(far) ) then
-            call nearest_search(Tar, far, nearest, i) 
+        if ( ASSOCIATED(far) ) then
+            call nearest_search(Tar, far, nearest, i)
         end if
         endif
     end if
@@ -541,19 +523,19 @@
     logical function SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         real(R8)    :: cy,cz,y1,z1,y2,z2,y0,z0,r
         real(R8)    :: minx,miny
-        
+
         minx = min(abs(y1-cy),abs(y2-cy))
         miny = min(abs(z1-cz),abs(z2-cz))
         if(minx*minx+miny*miny<r*r)then
             SphereSplitsurfaceCross= .true.
             return
         endif
-        
+
         if((abs(y0-cy)<(abs(y2-y1)/2+r)) .and. abs(z0-cz)<abs(z2-z1)/2)then
             SphereSplitsurfaceCross= .true.
             return
         endif
-        
+
         if((abs(z0-cz)<(abs(z2-z1)/2+r)) .and. abs(y0-cy)<abs(y2-y1)/2)then
             SphereSplitsurfaceCross= .true.
             return
@@ -562,15 +544,15 @@
         return
     end function SphereSplitsurfaceCross
 !----------------------------------------------------------------------
-    real(R8) function distance(a, b)
- !      real(R8)                                    :: distance
-        type(typPoint)                                   :: a, b
-        !real(R8)                                    :: a(3), b(3)
+    function distance(a, b)
+      real(R8)                                    :: distance
+        ! type(typPoint)                                   :: a, b
+        real(R8)                                    :: a(3), b(3)
         integer                                       :: i
 
         distance = 0.d0
         do i = 1, 3
-            distance = distance + (a%P(i)-b%P(i)) * (a%P(i)-b%P(i))
+            distance = distance + (a(i)-b(i)) * (a(i)-b(i))
         end do
         distance = dsqrt(distance)
         return
@@ -605,7 +587,7 @@
     use ModTypDef
     use ModKDTree
     implicit none
-    
+
     integer                     :: i, j, k, l
     integer                     :: vertex(3), ng, nsp, nse, a
     character(80)               :: FileName
@@ -620,7 +602,7 @@
     real(R8)                    :: tstart,tend
 
     ! write(*,"(a, I3)") ' Number of seperated objects in this simulation is: ', nGeometry
-    ! write(*,*)'-----------------------------------------------------------------------------'    
+    ! write(*,*)'-----------------------------------------------------------------------------'
     ! write(*,"(a, 1x, a, 1x, a, 1x)") '| Name of Objects |','Number of surface points |', 'Number of surface elements |'
     ! write(*,"(a, a)")'|-----------------|--------------------------|----------------------------', '|'
 
@@ -700,7 +682,7 @@
         ! if (ng .NE. nGeometry) then
         !     write(*,"(a, a)")' ----------------- -------------------------- ----------------------------', ' '
         ! else
-        !     write(*,*)'-----------------------------------------------------------------------------'   
+        !     write(*,*)'-----------------------------------------------------------------------------'
         ! end if
 
         close(1)
@@ -926,7 +908,7 @@
         ! elseif (Nnow(3)<0.and.Nin(3)<0)then
         ! continue
         ! else
-        !     a = a 
+        !     a = a
         ! endif
 
         if (a<=0) then

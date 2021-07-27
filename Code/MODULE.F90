@@ -76,22 +76,22 @@
 !         type Real1DArray
 !             real(R8)::R1D(:)
 !         end type Real1DArray
-    
+
 ! ! Two dimension dynamic real array
 !         type Real2DArray
 !             real(R8)::R2D(:,:)
 !         end type Real2DArray
-    
+
 ! ! One dimension dynamic integer array
 !         type Integer1DArray
 !             integer::I1D(:)
 !         end type Integer1DArray
-    
+
 ! ! Two dimension dynamic integer array
 !         type Integer2DArray
 !             integer::I2D(:,:)
 !         end type Integer2DArray
-    
+
 ! Cartesian OctCell's point coordinate
         type typPoint
             real(R8):: P(3)
@@ -103,17 +103,13 @@
         end type segment
 
         type triangle
-            type(typPoint):: P(4)  
+            type(typPoint):: P(4)
             !p(1) = p1, p(2) = p2, p(3) = p3, p(4) = center
         end type triangle
-    type typCrossTri
-        type(KDT_node),   pointer :: tri
-        type(typCrossTri),pointer :: next, prev
-    end type typCrossTri
 
 ! Cartesian grid data structure
         ! nBGCell    = number of the back-ground cells (root node)
-        ! nCell      = number of the cells (leaf node) 
+        ! nCell      = number of the cells (leaf node)
         ! levelx     = x-direct level
         ! levely     = y-direct level
         ! levelz     = z-direct level
@@ -127,14 +123,14 @@
         !            =  3 Cell inside the object surface
         !            = -1 NRR: ray region
         !            = -2 NRR: region between ray-ray
-        ! fSplitType = 0 Cell is isotropical 
+        ! fSplitTyp = 0 Cell is isotropical
         !            = 1 Cell is obtained by refined in x-direction
         !            = 2 Cell is obtained by refined in y-direction
         !            = 3 Cell is obtained by refined in z-direction
         !            = 4 Cell is obtained by refined in xy-direction
         !            = 5 Cell is obtained by refined in xz-direction
         !            = 6 Cell is obtained by refined in yz-direction
-        ! Location   = 0 Cell does not have a son 
+        ! Location   = 0 Cell does not have a son
         !            = 1,2,3,...8 Cell's location among siblings
         ! Node       number of the eight vertexs
         ! U          1 rou*u
@@ -146,29 +142,40 @@
         ! Center     1 x
         !            2 y
         !            3 z
-        ! Neighbor   1 minus
-        !            2 plus
+        ! Neighbor   1 Xminus
+        !            2 Xplus
+        !            3 Yminus
+        !            4 Yplus
+        !            5 Zminus
+        !            6 Zplus
         ! nCrossTri  Size of CrossTri(:)
         ! CrossTri   KDT pointer for the triangle cross the cell
-        type typOctCell
-            integer :: nBGCell(3)
-            integer :: nCell
-            integer :: lvl(3)
-            integer :: cross
-            integer :: fSplitType, Location
-            ! integer :: Node(8)
-            real(R8):: Center(3)
-            real(R8):: U(5)
-            logical :: Mark(6)
-            type(typOctCell),pointer :: Father
-            type(typOctCell),pointer :: son1, son2, son3, son4,    &
-                                        son5, son6, son7, son8
-            type(typOctCell),pointer :: NeighborX1, NeighborX2,    &
-                                        NeighborY1, NeighborY2,    &
-                                        NeighborZ1, NeighborZ2
-            ! INTEGER                  :: nCrossTri
-            type(typCrossTri),pointer:: CrossTri
-        end type typOctCell
+        type FttCell
+            integer(I4)             :: nBGCell(3)
+            integer(I4)             :: nCell
+            integer(I2)             :: Location
+            integer(I2)             :: LVL(3)
+            integer(I2)             :: fSplitTyp
+            integer(I2)             :: Cross
+            logical                 :: Mark(3)
+            real(R8)                :: Center(3)
+            real(R8)                :: U(5)
+            type(FttCell),pointer   :: Father
+            type(FttOct), pointer   :: Octson
+            type(tCrossTri),pointer :: CrossTri
+        end type FttCell
+
+        type FttOct
+            integer(I2)             :: nSon
+            type(FttCell),pointer   :: Neighbor1, Neighbor2, Neighbor3, &
+                                       Neighbor4, Neighbor5, Neighbor6
+            type(FttCell)           :: son(8)
+        end type FttOct
+
+        type tCrossTri
+            type(KDT_node), pointer :: tri
+            type(tCrossTri),pointer :: next
+        end type tCrossTri
 
         ! type BlockCell
 
@@ -203,22 +210,77 @@
 !         integer,parameter:: FluxRoe=1,Fluxcentral=2
 !         integer,parameter:: BCWall=2, BCSymmetry=3, BCFarfield=4
 !         integer,parameter:: TimeRK3=1,TimeLUSGS=0
-!         integer,parameter:: TurSA=1,TurSST=2,TurKW=3  
+!         integer,parameter:: TurSA=1,TurSST=2,TurKW=3
         real(R4),parameter :: epsR4 = 0.00001
         real(R8),parameter :: epsR8 = 0.00000000000001
     end module ModGlobalConstants
 !======================================================================
     module ModKDTree
-    use ModPrecision
-    use ModTypDef
-    implicit none
+        use ModPrecision
+        use ModTypDef
+        implicit none
 
-    type typKDTtree 
-        type(KDT_node), pointer:: root=>null()
-    end type typKDTtree
+        type typKDTtree
+            type(KDT_node), pointer:: root=>null()
+        end type typKDTtree
 
-    type(typKDTtree), allocatable, target   :: KDTree(:)
+        type(typKDTtree), allocatable, target   :: KDTree(:)
 
     endmodule ModKDTree
 !======================================================================
+    module ModGeometry
+    ! Define geometry discreted points and elements.
+        use ModPrecision
+        use ModTypDef
+        implicit none
+
+        type geom
+            integer                          :: nsp, nse
+            type(triangle) , allocatable     :: se3d(:)
+            real(R8)                         :: box(6)
+        end type geom
+
+        type(geom), allocatable, target     :: body(:)
+
+    end module ModGeometry
 !======================================================================
+    module ModMesh
+        use ModPrecision
+        use ModTypDef
+        implicit none
+        integer :: nBGCells     ! Number of the background Cells.
+        integer :: nCells     ! Number of total Cells.
+        real(R8):: BGCellSize(3)    ! Step size for background OctCell.
+        type(FTTCell),pointer :: OctCell(:,:,:)
+        ! type(typStructCell),pointer:: StrCell(:,:,:,:)
+    endmodule ModMesh
+!======================================================================
+    module ModSolve
+        use ModPrecision
+        implicit none
+        integer :: step
+        real(R8):: TimeStep
+    endmodule ModSolve
+!======================================================================
+    module ModOutput
+        use ModPrecision
+        use ModTypDef
+        implicit none
+        real(R8),ALLOCATABLE :: Nodes(:,:)      ! Nodes coordinate
+        real(R8),ALLOCATABLE :: cVariables(:,:) ! OctCell variables value
+        integer ,ALLOCATABLE :: cNodes(:,:)     ! OctCell nodes number
+        integer :: nNodes
+    endmodule ModOutput
+!======================================================================
+!======================================================================
+
+        ! type(FTTCell),pointer :: cs
+        ! integer:: is
+
+        ! if(ASSOCIATED(c%Octson))then
+        !     do is=1,c%Octson%nSon
+        !         cs=>c%Octson%son(is)
+        !         call (cs)
+        !     enddo
+        !     return
+        ! endif

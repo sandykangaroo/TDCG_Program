@@ -1,14 +1,4 @@
 !======================================================================
-    module ModOutput
-        use ModTypDef
-        implicit none
-        real(R8),ALLOCATABLE :: Nodes(:,:)      ! Nodes coordinate
-        real(R8),ALLOCATABLE :: cVariables(:,:) ! OctCell variables value
-        integer ,ALLOCATABLE :: cNodes(:,:)     ! OctCell nodes number
-        integer :: nNodes
-
-    endmodule ModOutput
-!======================================================================
 
 !======================================================================
     subroutine OutputFlowFieldASCII(TimeStepStr)
@@ -83,13 +73,13 @@
     Integer*4               :: VarLocation(11)
     INTEGER*4,TARGET        :: NULL(11)
     integer*4,pointer       :: NullPtr(:)
-    
+
     NullPtr => Null
     NullPtr =  0
     VarLocation=(/1,1,1,0,0,0,0,0,0,0,0/)
     NULLCHR = CHAR(0)
     SolTime = real(step,R8)*TimeStep
-    
+
     ALLOCATE(Nodes(nCells*8,3))  ! Reserve enough space for Nodes-array.
     ALLOCATE(cNodes(nCells,8))
     print*, 'Outputting binary data......'
@@ -97,7 +87,7 @@
     print*, 'Save to file: ',FileName
     call InitNodeInfo
     print"(A7,I10,/,A7,I10)", "Nodes:", nNodes, "Cells:", nCells
-    
+
     if (MeshOnly) then
         ! Open the file and write the tecplot datafile header information.
         ios = TecIni142('TDCG-program Results'//NULLCHR, &
@@ -129,7 +119,7 @@
                         Null, &     ! ShareVarFromZone
                         0)          ! ShareConnectivityFromZone
             if (ios/=0) stop "Error value returned in TecZne142"
-            
+
         do i=1,3
         ios = TecDat142(nNodes,real(Nodes(1:nNodes,i),R4),0)
             if (ios/=0) stop "Error value returned in TecDat142"
@@ -203,17 +193,19 @@
     use ModOutput
     use ModTypDef
     implicit none
-    type(typOctCell),pointer :: t
-    integer :: i, j, k
+    type(FTTCell),pointer :: t
+    integer :: i, j, k, l
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
+    l = 0
+    nNodes = 0
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
         t=>OctCell(i, j, k)
-        call NodeInfo(t)
+        call NodeInfo(t,l)
     enddo
     enddo
     enddo
@@ -222,41 +214,27 @@
 
     contains
 !----------------------------------------------------------------------
-        recursive subroutine NodeInfo(c)
-        use ModTypDef
-        use ModMesh
-        use ModOutput
+        recursive subroutine NodeInfo(c,n)
         implicit none
-        type(typOctCell),pointer :: c
+        type(FTTCell),pointer :: c
+        integer,INTENT(INOUT)    :: n
         real(R8):: dx, dy, dz, tN(6) ! Temp-Nodes
-        integer,SAVE:: n=0
+        type(FTTCell),pointer :: cs
+        integer:: is
 
-        if(ASSOCIATED(c%son8))then
-            call NodeInfo(c%son1)
-            call NodeInfo(c%son2)
-            call NodeInfo(c%son3)
-            call NodeInfo(c%son4)
-            call NodeInfo(c%son5)
-            call NodeInfo(c%son6)
-            call NodeInfo(c%son7)
-            call NodeInfo(c%son8)
-            return
-        elseif(ASSOCIATED(c%son4))then
-            call NodeInfo(c%son1)
-            call NodeInfo(c%son2)
-            call NodeInfo(c%son3)
-            call NodeInfo(c%son4)
-            return
-        elseif(ASSOCIATED(c%son2))then
-            call NodeInfo(c%son1)
-            call NodeInfo(c%son2)
+        if(ASSOCIATED(c%Octson))then
+            do is=1,c%Octson%nSon
+                cs=>c%Octson%son(is)
+                call NodeInfo(cs,n)
+            enddo
             return
         endif
 
-        n=n+1
-        dx=BGCellSize(1)/2**(c%lvl(1)+1)
-        dy=BGCellSize(2)/2**(c%lvl(2)+1)
-        dz=BGCellSize(3)/2**(c%lvl(3)+1)
+        n = n + 1
+        c%nCell = n
+        dx=BGCellSize(1)/2**(c%LVL(1)+1)
+        dy=BGCellSize(2)/2**(c%LVL(2)+1)
+        dz=BGCellSize(3)/2**(c%LVL(3)+1)
         ! Initial node number.
         tN(1)=c%Center(1)-dx   ! x -
         tN(2)=c%Center(2)-dy   ! y -
@@ -333,18 +311,19 @@
     use ModMesh
     use ModOutput
     implicit none
-    type(typOctCell),pointer :: t
-    integer :: i, j, k
+    type(FTTCell),pointer :: t
+    integer :: i, j, k, l
     logical,INTENT(IN) :: meshonly ! If most of cells is NAN, output mesh only
     real(R8):: tStart   ! Start time
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
+    l=0
     do k = 1, nCell(3)
     do j = 1, nCell(2)
     do i = 1, nCell(1)
         t=>OctCell(i, j, k)
-        call TmpStorageVar(t,meshonly)
+        call TmpStorageVar(t,meshonly,l)
     enddo
     enddo
     enddo
@@ -352,44 +331,28 @@
     write(*,'(1X,A,F10.2)') "initTmpStorageVar time: ", tEnd-tStart
         contains
 !----------------------------------------------------------------------
-        recursive subroutine TmpStorageVar(c,ios)
+        recursive subroutine TmpStorageVar(c,ios,n)
         use ModInpInflow,only : Rgas, Gama00
         implicit none
-        type(typOctCell),pointer :: c
+        type(FTTCell),pointer :: c
         logical,INTENT(IN)    :: ios
         ! If most of cells is NAN, output mesh only
-        integer,save :: n=0
+        integer,INTENT(INOUT) :: n
         REAL(R8):: u, v, w,p
+        type(FTTCell),pointer :: cs
+        integer:: is
 
-        if(ASSOCIATED(c%son8))then
-            call TmpStorageVar(c%son1,ios)
-            call TmpStorageVar(c%son2,ios)
-            call TmpStorageVar(c%son3,ios)
-            call TmpStorageVar(c%son4,ios)
-            call TmpStorageVar(c%son5,ios)
-            call TmpStorageVar(c%son6,ios)
-            call TmpStorageVar(c%son7,ios)
-            call TmpStorageVar(c%son8,ios)
-            return
-        elseif(ASSOCIATED(c%son4))then
-            call TmpStorageVar(c%son1,ios)
-            call TmpStorageVar(c%son2,ios)
-            call TmpStorageVar(c%son3,ios)
-            call TmpStorageVar(c%son4,ios)
-            return
-        elseif(ASSOCIATED(c%son2))then
-            call TmpStorageVar(c%son1,ios)
-            call TmpStorageVar(c%son2,ios)
+        if(ASSOCIATED(c%Octson))then
+            do is=1,c%Octson%nSon
+                cs=>c%Octson%son(is)
+                call TmpStorageVar(cs,ios,n)
+            enddo
             return
         endif
 
-        ! n=c%nCell
-        ! do jj=1,8
-        !     cNodes(n,jj)=c%Node(jj)
-        ! enddo
         n=n+1
         if (ios)then
-            cVariables(n,1)= c%cross    ! Cross
+            cVariables(n,1)= c%Cross    ! Cross
         else
             u=c%U(1)/c%U(4); v=c%U(2)/c%U(4); w=c%U(3)/c%U(4)
             p=Rgas*c%U(4)*c%U(5)
@@ -400,7 +363,7 @@
             cVariables(n,5)= c%U(5)     ! T
             cVariables(n,6)= p          ! P
             cVariables(n,7)= sqrt((u*u+v*v+w*w)/abs(Gama00*p/c%U(4)))!Ma
-            cVariables(n,8)= c%cross    ! Cross
+            cVariables(n,8)= c%Cross    ! Cross
         endif
         endsubroutine TmpStorageVar
 !----------------------------------------------------------------------

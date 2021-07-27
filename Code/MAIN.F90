@@ -1,7 +1,7 @@
 !======================================================================
-!  
+!
 !  TDCG Program ---- Three Demision Cartesian Grid Program
-!  
+!
 !                          ����������������
 !                        ����  ��������������
 !                        ��������������������
@@ -23,14 +23,14 @@
 !            ����      ��
 !            ��        ��
 !            ����      ����
-!  
+!
 !  1...
 !  2...
 !  3...
 !  Owuuuuuu~~~~~~~~
-!  
+!
 !  An unreliable CFD solver based on the Cartesian grid
-!  
+!
 !======================================================================
 !  Author:
 !  Xueliang Li
@@ -51,6 +51,7 @@
     call TDCGMesh
     call TDCGInitAll
     call TDCGSolver
+    call dellocateTri
     call TDCGOutput('OK')
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') 'Program running time: ', tEnd-tStart
@@ -131,18 +132,43 @@
     real(R8):: tEnd     ! End time
 
     call CPU_TIME(tStart)
-    if (OutputFormat=='plt') then
+    select case(OutputFormat)
+    case ('plt')
         CALL OutputFlowFieldBinary(TimeStepStr,0)
-    elseif (OutputFormat=='szplt') then
+    case ('szplt')
         CALL OutputFlowFieldBinary(TimeStepStr,1)
-    elseif (OutputFormat=='dat') then
+    case ('dat')
         CALL OutputFlowFieldASCII(TimeStepStr)
-    else
+    case default
         stop 'error OutputFormat'
-    endif
+    end select
     call CPU_TIME(tEnd)
     write(*,'(1X,A,F10.2)') "Subroutine-Output time: ", tEnd-tStart
 
     endsubroutine TDCGOutput
 !======================================================================
 !======================================================================
+    subroutine dellocateTri
+    use ModGeometry
+    use ModTypDef
+    use ModKDTree
+
+    call aaa(KDTree(1)%root)
+    DEALLOCATE(KDTree)
+    ! DEALLOCATE(body)
+    contains
+        recursive subroutine aaa(tree)
+        implicit none
+        type(KDT_node),pointer::tree
+        if(ASSOCIATED(tree%left))then
+            call aaa(tree%left)
+        endif
+        if(ASSOCIATED(tree%right))then
+            call aaa(tree%right)
+        endif
+        DEALLOCATE(tree%the_data)
+        NULLIFY(tree%parent)
+        DEALLOCATE(tree)
+
+        endsubroutine aaa
+    endsubroutine

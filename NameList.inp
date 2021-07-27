@@ -1,11 +1,11 @@
-! 
+!
 ! GeometryName    Both single and double precision files are supported
 ! OutputFormat    = '.szplt'
 !                   '.plt'
 !                   '.dat'
 $Global
-    Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500, 
-    Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f., 
+    Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500,
+    Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f.,
     Limiter = 1, Restart = .f., nGeometry = 1, MeshOnly  = .t.
     ! GeometryName  = './Data/11/bogie_8W',
     GeometryName  = './Data/sphere10k',
@@ -27,31 +27,33 @@ $END
 !                     2 Ray-cast
 !                     3 AABB Painting Algorithm
 !                     4 AABB KDT
-!                     5 AABB Traverse
-!                     6 Ray-cast Traverse
+!                     5 AABB Traverse, obsolesced.
+!                     6 Ray-cast Traverse, obsolesced.
+! useKDT            = T slice surface data by KDT rules
+!                     F slice surface data by x/y/z in turn
 $Mesh
-    InitRefineLVL = 4, AdaptRefineLVL  =  2,
-    cIntersectMethod = 4, useKDT = .t.,
-!bogie  
+    InitRefineLVL = 5, AdaptRefineLVL  =  2,
+    cIntersectMethod = 3, useKDT = .t.,
+!bogie
 !    nCell = 30,30,20,
 !   DomainMin = -100.0, -100.0, -100.0,
 !   DomainMax =  200.0,  200.0,  100.0,
 !    DomainMin = -200.0, -100.0, -50.0,
 !    DomainMax =  350.0,  100.0,  50.0,
-!sphere   
+!sphere
 !	DomainMin = -2000.0, -2000.0, -2000.0,
 !   DomainMax = 2000.0,  2000.0,  2000.0,
-!pantograph  
+!pantograph
     ! nCell = 25, 10, 10,
 	! DomainMin = -40000.0, -1700.0, 3000.0,
     ! DomainMax = -26000.0,  1700.0, 5500.0,
 !sphere
-   nCell = 5,5,5,
-   DomainMin = -200, -200, -200,
-   DomainMax =  200,  200,  200,
-!    nCell = 20,20,20,
-!    DomainMin = -150.0, -150.0, -150,
-!    DomainMax =  150.0,  150.0,  150.0,
+!   nCell = 5,5,5,
+!   DomainMin = -200, -200, -200,
+!   DomainMax =  200,  200,  200,
+    nCell = 20,20,20,
+    DomainMin = -150.0, -150.0, -150,
+    DomainMax =  150.0,  150.0,  150.0,
 !wheel
 !    nCell = 30,30,10,
 !    DomainMin = -1., -0.5, -0.5,
