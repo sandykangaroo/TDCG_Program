@@ -364,6 +364,7 @@
             cVariables(n,6)= p          ! P
             cVariables(n,7)= sqrt((u*u+v*v+w*w)/abs(Gama00*p/c%U(4)))!Ma
             cVariables(n,8)= c%Cross    ! Cross
+            ! cVariables(n,1)= c%walldistance ! 20210728
         endif
         endsubroutine TmpStorageVar
 !----------------------------------------------------------------------

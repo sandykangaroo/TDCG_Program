@@ -90,7 +90,6 @@
     use ModPrecision
     use ModInpGlobal
     use ModInpMesh
-    use ModWalldistance
     implicit none
     integer::i,a,b
     real(R8):: tStart   ! Start time
@@ -105,7 +104,7 @@
     call initSurfaceAdapt
     call CPU_TIME(tEnd)
 
-    !call GetWallDistance
+    ! call GetWallDistance
 
     write(*,'(1X,A,F10.2)') "Total Mesh generation time: ", tEnd-tStart
     print*,'Done'

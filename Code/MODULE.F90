@@ -160,6 +160,7 @@
             logical                 :: Mark(3)
             real(R8)                :: Center(3)
             real(R8)                :: U(5)
+            ! real(R8)                :: walldistance
             type(FttCell),pointer   :: Father
             type(FttOct), pointer   :: Octson
             type(tCrossTri),pointer :: CrossTri
