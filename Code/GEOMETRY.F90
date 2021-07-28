@@ -416,7 +416,7 @@
     recursive subroutine nearest_search(Tar, node, nearest, i)
     ! Find the nearest triangle of space point Tar in the KDTree begin with node
     ! .. Input Arguments ..
-    real(R8),INTENT(IN)     :: Tar(3)
+    type(typPoint)          :: Tar
     type(KDT_node), pointer :: node
     ! .. Output Arguments ..
     type(KDT_node), pointer :: nearest
@@ -426,12 +426,15 @@
     integer                 :: i, split
     real(R8)                :: cy,cz,y1,z1,y2,z2,y0,z0,r
     logical                 :: SSC
+    type (triangle)         :: tri1,tri2,tri3,tri4
 
     i = i + 1
     if ( .not. associated(node%left) .and. &
          .not. associated(node%right) ) then
-        dist = distance(Tar, nearest%the_data%p(4)%P(1:3))
-        dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
+        tri1%p(:)=nearest%the_data%p(:)
+        tri2%p(:)=node%the_data%p(:)
+        dist     = DisBetweenPointAndTri(Tar,tri1)**2
+        dist2    = DisBetweenPointAndTri(Tar,tri2)**2
         if ( dist2 < dist ) then
             nearest => node
         end if
@@ -439,7 +442,7 @@
     end if
 
     split = node%splitaxis
-    dist1 = Tar(split) - node%the_data%p(4)%p(split)
+    dist1 = Tar%p(split) - node%the_data%p(4)%p(split)
     if ( dist1 <= 0.d0 ) then
         near => node%left
         far => node%right
@@ -450,12 +453,13 @@
 
     if ( ASSOCIATED(near) ) call nearest_search(Tar, near, nearest, i)
 
-    dist = distance(Tar, nearest%the_data%p(4)%P(1:3))
+    tri3%p(:)=nearest%the_data%p(:)
+    dist = DisBetweenPointAndTri(Tar,tri3)**2
     if ( dist <= abs(dist1) ) then
         return
     else if (split == 1) then
-        cy = Tar(2)
-        cz = Tar(3)
+        cy = Tar%P(2)
+        cz = Tar%P(3)
         r  = sqrt(dist*dist - dist1*dist1)
         y1 = node%box(2)
         z1 = node%box(3)
@@ -465,7 +469,8 @@
         z0 = (node%box(3) + node%box(6))/2
         SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         if(dist > abs(dist1) .and. SSC)then
-            dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
+            tri4%p(:)= node%the_data%p(:)
+            dist2  = DisBetweenPointAndTri(Tar,tri4)**2
             if ( dist2 - dist < 0.d0 ) then
                 nearest => node
                 dist = dist2
@@ -475,8 +480,8 @@
             end if
         endif
     elseif(split == 2)then
-        cy = Tar(1)
-        cz = Tar(3)
+        cy = Tar%P(1)
+        cz = Tar%P(3)
         r  = sqrt(dist*dist - dist1*dist1)
         y1 = node%box(1)
         z1 = node%box(3)
@@ -486,7 +491,8 @@
         z0 = (node%box(3) + node%box(6))/2
         SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         if(dist > abs(dist1) .and. SSC)then
-            dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
+            tri4%p(:)= node%the_data%p(:)
+            dist2  = DisBetweenPointAndTri(Tar,tri4)**2
             if ( dist2 - dist < 0.d0 ) then
                 nearest => node
                 dist = dist2
@@ -496,8 +502,8 @@
             end if
         endif
     elseif(split == 3)then
-        cy = Tar(1)
-        cz = Tar(2)
+        cy = Tar%P(1)
+        cz = Tar%P(2)
         r  = sqrt(dist*dist - dist1*dist1)
         y1 = node%box(1)
         z1 = node%box(2)
@@ -507,7 +513,8 @@
         z0 = (node%box(2) + node%box(5))/2
         SSC= SphereSplitsurfaceCross(cy,cz,y1,z1,y2,z2,y0,z0,r)
         if(dist > abs(dist1) .and. SSC)then
-        dist2 = distance(Tar, node%the_data%p(4)%P(1:3))
+        tri4%p(:)= node%the_data%p(:)
+        dist2  = DisBetweenPointAndTri(Tar,tri4)**2
         if ( dist2 - dist < 0.d0 ) then
             nearest => node
             dist = dist2
@@ -572,6 +579,198 @@
         rot%P(3) =  a%P(1)*b%P(2) - a%P(2)*b%P(1)
         return
     end function rot
+!----------------------------------------------------------------------
+    real(R8) function DisBetweenPointAndTri(tem,tri)
+        use ModPrecision
+        use ModTypDef
+        use ModMesh
+        use ModKDTree 
+        use ModInpMesh
+        use ModMeshTools
+        use ModGeometry
+        use ModGlobalConstants
+        implicit none
+        type(typPoint)                  :: tem,diff,edge0,edge1
+        type(KDT_node), pointer         :: nearest
+        real(R8)  :: a00,a01,a11,b0,b1,c,det,s,t,invdet,tmp0, tmp1, numer, denom
+        type (triangle)                 :: tri
+    
+        diff%p(:)  = tri%p(1)%p(:)-tem%p(:)
+        edge0%p(:) = tri%p(2)%p(:)-tri%p(1)%p(:)
+        edge1%p(:) = tri%p(3)%p(:)-tri%p(1)%p(:)
+        a00 = dot(edge0,edge0)
+        a01 = dot(edge0,edge1)
+        a11 = dot(edge1,edge1)
+        b0  = dot(diff,edge0)
+        b1  = dot(diff,edge1)
+        c   = dot(diff,diff)
+        det = Max(a00 * a11 - a01 * a01,epsR8)
+        s   = a01 * b1 - a11 * b0
+        t   = a01 * b0 - a00 * b1
+    
+        if(s+t<=det)then
+            if(s<epsR8)then
+                if(t<epsR8)then  !region4
+                    if(b0<epsR8) then
+                        t=epsR8
+                        if(-b0>=a00)then
+                            s=1
+                            DisBetweenPointAndTri=sqrt(a00+2*b0+c)
+                            return
+                        else
+                            s=-b0/a00
+                            DisBetweenPointAndTri=sqrt(b0 * s + c)
+                            return
+                        endif
+                    else
+                        s=epsR8
+                        if(b1>=epsR8) then
+                            t=epsR8
+                            DisBetweenPointAndTri=sqrt(c)
+                            return
+                        elseif(-b1 >= a11)then
+                            t=1
+                            DisBetweenPointAndTri=sqrt(a11 + 2 * b1 + c)
+                            return
+                        else
+                            t = -b1 / a11
+                            DisBetweenPointAndTri=sqrt(b1 * t + c)
+                            return
+                        endif
+                    endif
+                else   !region3
+                    s=epsR8
+                    if(b1>=epsR8)then
+                        t=epsR8
+                        DisBetweenPointAndTri= sqrt(c)
+                        return
+                    elseif(-b1>=a11)then
+                        t=1
+                        DisBetweenPointAndTri= sqrt(a11+2*b1+c)
+                        return
+                    else
+                        t=-b1/a11
+                        DisBetweenPointAndTri=sqrt(b1*t + c)
+                        return
+                    endif
+                endif
+            elseif(t<epsR8)then !region 5
+                t=epsR8
+                if(b0>=epsR8)then
+                    s=epsR8
+                    DisBetweenPointAndTri=sqrt(c)
+                    return
+                elseif(-b0>=a00)then
+                    s=1
+                    DisBetweenPointAndTri=sqrt(a00 + 2 * b0 + c)
+                    return
+                else
+                    s=-b0/a00
+                    DisBetweenPointAndTri=sqrt(s* b0 + c)
+                    return
+                endif
+            else !region 0
+            !minimum at interior point
+                invdet=1/det
+                s=s*invdet
+                t=t*invdet
+                DisBetweenPointAndTri=sqrt(s*(a00*s+a01*t+2*b0)+t*(a01*s+a11*t+2*b1)+c)
+                return
+            endif
+        else
+            if(s<epsR8)then   !region 2
+                tmp0 = a01 + b0
+                tmp1 = a11 + b1
+                if(tmp1 > tmp0)then
+                    numer = tmp1 - tmp0
+                    denom = a00 - 2 * a01 + a11
+                    if (numer >= denom)then
+                        s=1
+                        t=epsR8
+                        DisBetweenPointAndTri=sqrt(a00 + 2 * b0 + c)
+                        return
+                    else
+                        s = numer / denom
+                        t = 1 - s
+                        DisBetweenPointAndTri=sqrt(s * (a00 * s + a01 * t + 2 * b0) +&
+                                    &t * (a01 * s + a11 * t + 2 * b1) + c)
+                        return
+                    endif
+                else
+                    s=epsR8
+                    if (tmp1 <= epsR8)then
+                        t=1
+                        DisBetweenPointAndTri=sqrt(a11 + 2 * b1 + c)
+                        return
+                    elseif(b1 >= epsR8)then
+                        t=epsR8
+                        DisBetweenPointAndTri= sqrt(c)
+                        return
+                    else
+                        t=-b1/a11
+                        DisBetweenPointAndTri= sqrt(t * b1 + c)
+                        return
+                    endif
+                endif
+            elseif(t<epsR8)then  !region 6
+                tmp0 = a01 + b1
+                tmp1 = a00 + b0
+                if(tmp1 > tmp0)then
+                    numer = tmp1 - tmp0
+                    denom = a00 - 2 * a01 + a11
+                    if (numer >= denom)then
+                        t=1
+                        s=epsR8
+                        DisBetweenPointAndTri= sqrt(a11 + 2 * b1 + c)
+                        return
+                    else
+                        t = numer / denom
+                        s = 1 - t
+                        DisBetweenPointAndTri = sqrt(s * (a00 * s + a01 * t + 2 * b0) +&
+                                    &t * (a01 * s + a11 * t + 2 * b1) + c)
+                        return
+                    endif
+                else
+                    t = epsR8
+                    if (tmp1 <= epsR8)then
+                        s=1
+                        DisBetweenPointAndTri = sqrt(a00 + 2 * b0 + c)
+                        return
+                    elseif(b0>=epsR8)then
+                        s=epsR8
+                        DisBetweenPointAndTri = sqrt(c)
+                        return
+                    else
+                        s = -b0 / a00
+                        DisBetweenPointAndTri = sqrt(b0*s + c)
+                        return
+                    endif
+                endif
+            else  !region 1
+                numer = a11 + b1 - a01 - b0
+                if (numer <= epsR8)then
+                    s = epsR8
+                    t = 1
+                    DisBetweenPointAndTri = sqrt(a11 + 2 * b1 + c)
+                    return
+                else
+                    denom = a00 - 2 * a01 + a11
+                    if(numer >= denom)then
+                        s=1
+                        t=epsR8
+                        DisBetweenPointAndTri = sqrt(a00 + 2 * b0 + c)
+                        return
+                    else
+                        s = numer / denom
+                        t = 1 - s
+                        DisBetweenPointAndTri = sqrt(s * (a00 * s + a01 * t + 2 * b0) +&
+                                    &t * (a01 * s + a11 * t + 2 * b1) + c)
+                        return
+                    endif
+                endif
+            endif
+        endif
+    end function DisBetweenPointAndTri
     end module geometry_mod2
 !======================================================================
 !   1. 3D Geometry read from POINTWISE file (*.facet) and change into TECPLOT file (*.plt)

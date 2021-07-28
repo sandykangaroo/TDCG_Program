@@ -63,7 +63,7 @@
 		<File RelativePath=".\Code\NEIGHBOR.F90"/>
 		<File RelativePath=".\Code\OUTPUT.F90"/>
 		<File RelativePath=".\Code\READ.F90"/>
-		<File RelativePath=".\Code\SOLVE.F90"/>
+		<File RelativePath=".\Code\WallDistance.F90"/>
 		<File RelativePath=".\Code\TOOLS.F90"/></Filter>
 		<File RelativePath=".\lib\tecio.lib"/></Files>
 	<Globals/></VisualStudioProject>

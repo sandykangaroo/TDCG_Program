@@ -1,4 +1,76 @@
 !======================================================================
+ module ModWalldistance
+    use ModPrecision
+    use geometry_mod2
+    implicit none
+    integer :: step
+    real(R8):: TimeStep
+    
+    contains   
+!---------------------------------------------------------------------- 
+    recursive subroutine GetWallDistance
+        use ModPrecision
+        use ModMesh
+        use ModTypDef
+        use ModMeshTools
+        use ModInpMesh
+        implicit none
+        type(FttCell),POINTER :: t
+        integer               :: i, j, k
+    
+        do k = 1, nCell(3)
+        do j = 1, nCell(2)
+        do i = 1, nCell(1)
+            t=>OctCell(i, j, k)
+            call GetMinDistanceKDT(t)
+        enddo
+        enddo
+        enddo
+    endsubroutine GetWallDistance  
+!----------------------------------------------------------------------     
+    recursive subroutine GetMinDistanceKDT(c)
+        use ModPrecision
+        use ModTypDef
+        use ModMesh
+        use ModKDTree 
+        use ModInpMesh
+        use ModMeshTools
+        use ModGeometry
+        use geometry_mod2
+        implicit none
+    
+        integer ::  l, h, is
+        type(FttCell),pointer           :: c,cs
+        type(typKDTtree),pointer        :: tp => null()
+        real(R8)                        :: mindis
+        type(KDT_node), pointer         :: nearest
+        type(typpoint)                  :: tem
+        type (triangle)                 :: tri
+        
+        
+            if(ASSOCIATED(c%Octson))then
+                do is=1,c%Octson%nSon
+                    cs=>c%Octson%son(is)
+                    call GetMinDistanceKDT(cs)
+                enddo
+                return
+            endif
+            
+            tp=>kdtree(1)
+            tem%P(:)=c%center(:)
+            nearest => tp%root
+            h=0
+            call nearest_search(tem, tp%root, nearest, h)
+            tri%P(:) = nearest%the_data%p(:)
+            mindis=DisBetweenPointAndTri(tem,tri) 
+            write(102,*)mindis
+            !c%walldistance=mindis
+            
+  end subroutine GetMinDistanceKDT 
+    
+    
+    
+    
 !     subroutine GetMinDistance
 !     use ModPrecision
 !     use ModTypDef
@@ -69,5 +141,4 @@
 !         end subroutine GetMinDistanceKDT
 !     end subroutine GetMinDistance
 !======================================================================
-
-!======================================================================
+endmodule ModWalldistance
