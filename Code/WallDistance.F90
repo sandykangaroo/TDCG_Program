@@ -63,14 +63,10 @@
             call nearest_search(tem, tp%root, nearest, h)
             tri%P(:) = nearest%the_data%p(:)
             mindis=DisBetweenPointAndTri(tem,tri) 
-            !write(102,*)mindis
             c%WallDistance=mindis
             
   end subroutine GetMinDistanceKDT 
-    
-    
-    
-    
+!----------------------------------------------------------------------      
 !     subroutine GetMinDistance
 !     use ModPrecision
 !     use ModTypDef

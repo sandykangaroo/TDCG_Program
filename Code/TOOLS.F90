@@ -144,6 +144,201 @@
         endif
         endfunction MollerTrumbore
 !----------------------------------------------------------------------
+    pure function DistPointToTri(tem,tri)
+        use ModPrecision
+        use ModTypDef
+        use ModMesh
+        use ModKDTree
+        use ModInpMesh
+        use ModMeshTools
+        use ModGeometry
+        use ModGlobalConstants
+        implicit none
+        real(R8)                  :: DistPointToTri
+        type(typPoint),INTENT(IN) :: tem
+        type (triangle),INTENT(IN):: tri
+        type(typPoint)            :: diff,edge0,edge1
+        type(KDT_node), pointer   :: nearest
+        real(R8)                  :: a00,a01,a11,b0,b1,c
+        real(R8)                  :: det,s,t,invdet,tmp0, tmp1, numer, denom
+
+        diff%p(:)  = tri%p(1)%p(:)-tem%p(:)
+        edge0%p(:) = tri%p(2)%p(:)-tri%p(1)%p(:)
+        edge1%p(:) = tri%p(3)%p(:)-tri%p(1)%p(:)
+        a00 = DOT_PRODUCT(edge0%P(1:3),edge0%P(1:3))
+        a01 = DOT_PRODUCT(edge0%P(1:3),edge1%P(1:3))
+        a11 = DOT_PRODUCT(edge1%P(1:3),edge1%P(1:3))
+        b0  = DOT_PRODUCT(diff%P(1:3),edge0%P(1:3))
+        b1  = DOT_PRODUCT(diff%P(1:3),edge1%P(1:3))
+        c   = DOT_PRODUCT(diff%P(1:3),diff%P(1:3))
+        det = Max(a00 * a11 - a01 * a01,epsR8)
+        s   = a01 * b1 - a11 * b0
+        t   = a01 * b0 - a00 * b1
+
+        if(s+t<=det)then
+            if(s<epsR8)then
+                if(t<epsR8)then  !region4
+                    if(b0<epsR8) then
+                        t=epsR8
+                        if(-b0>=a00)then
+                            s=1
+                            DistPointToTri=sqrt(a00+2*b0+c)
+                            return
+                        else
+                            s=-b0/a00
+                            DistPointToTri=sqrt(b0 * s + c)
+                            return
+                        endif
+                    else
+                        s=epsR8
+                        if(b1>=epsR8) then
+                            t=epsR8
+                            DistPointToTri=sqrt(c)
+                            return
+                        elseif(-b1 >= a11)then
+                            t=1
+                            DistPointToTri=sqrt(a11 + 2 * b1 + c)
+                            return
+                        else
+                            t = -b1 / a11
+                            DistPointToTri=sqrt(b1 * t + c)
+                            return
+                        endif
+                    endif
+                else   !region3
+                    s=epsR8
+                    if(b1>=epsR8)then
+                        t=epsR8
+                        DistPointToTri= sqrt(c)
+                        return
+                    elseif(-b1>=a11)then
+                        t=1
+                        DistPointToTri= sqrt(a11+2*b1+c)
+                        return
+                    else
+                        t=-b1/a11
+                        DistPointToTri=sqrt(b1*t + c)
+                        return
+                    endif
+                endif
+            elseif(t<epsR8)then !region 5
+                t=epsR8
+                if(b0>=epsR8)then
+                    s=epsR8
+                    DistPointToTri=sqrt(c)
+                    return
+                elseif(-b0>=a00)then
+                    s=1
+                    DistPointToTri=sqrt(a00 + 2 * b0 + c)
+                    return
+                else
+                    s=-b0/a00
+                    DistPointToTri=sqrt(s* b0 + c)
+                    return
+                endif
+            else !region 0
+            !minimum at interior point
+                invdet=1/det
+                s=s*invdet
+                t=t*invdet
+                DistPointToTri=sqrt(s*(a00*s+a01*t+2*b0)+t*(a01*s+a11*t+2*b1)+c)
+                return
+            endif
+        else
+            if(s<epsR8)then   !region 2
+                tmp0 = a01 + b0
+                tmp1 = a11 + b1
+                if(tmp1 > tmp0)then
+                    numer = tmp1 - tmp0
+                    denom = a00 - 2 * a01 + a11
+                    if (numer >= denom)then
+                        s=1
+                        t=epsR8
+                        DistPointToTri=sqrt(a00 + 2 * b0 + c)
+                        return
+                    else
+                        s = numer / denom
+                        t = 1 - s
+                        DistPointToTri=sqrt(s * (a00 * s + a01 * t + 2 * b0) +&
+                                    &t * (a01 * s + a11 * t + 2 * b1) + c)
+                        return
+                    endif
+                else
+                    s=epsR8
+                    if (tmp1 <= epsR8)then
+                        t=1
+                        DistPointToTri=sqrt(a11 + 2 * b1 + c)
+                        return
+                    elseif(b1 >= epsR8)then
+                        t=epsR8
+                        DistPointToTri= sqrt(c)
+                        return
+                    else
+                        t=-b1/a11
+                        DistPointToTri= sqrt(t * b1 + c)
+                        return
+                    endif
+                endif
+            elseif(t<epsR8)then  !region 6
+                tmp0 = a01 + b1
+                tmp1 = a00 + b0
+                if(tmp1 > tmp0)then
+                    numer = tmp1 - tmp0
+                    denom = a00 - 2 * a01 + a11
+                    if (numer >= denom)then
+                        t=1
+                        s=epsR8
+                        DistPointToTri= sqrt(a11 + 2 * b1 + c)
+                        return
+                    else
+                        t = numer / denom
+                        s = 1 - t
+                        DistPointToTri = sqrt(s * (a00 * s + a01 * t + 2 * b0) +&
+                                    &t * (a01 * s + a11 * t + 2 * b1) + c)
+                        return
+                    endif
+                else
+                    t = epsR8
+                    if (tmp1 <= epsR8)then
+                        s=1
+                        DistPointToTri = sqrt(a00 + 2 * b0 + c)
+                        return
+                    elseif(b0>=epsR8)then
+                        s=epsR8
+                        DistPointToTri = sqrt(c)
+                        return
+                    else
+                        s = -b0 / a00
+                        DistPointToTri = sqrt(b0*s + c)
+                        return
+                    endif
+                endif
+            else  !region 1
+                numer = a11 + b1 - a01 - b0
+                if (numer <= epsR8)then
+                    s = epsR8
+                    t = 1
+                    DistPointToTri = sqrt(a11 + 2 * b1 + c)
+                    return
+                else
+                    denom = a00 - 2 * a01 + a11
+                    if(numer >= denom)then
+                        s=1
+                        t=epsR8
+                        DistPointToTri = sqrt(a00 + 2 * b0 + c)
+                        return
+                    else
+                        s = numer / denom
+                        t = 1 - s
+                        DistPointToTri = sqrt(s * (a00 * s + a01 * t + 2 * b0) +&
+                                    &t * (a01 * s + a11 * t + 2 * b1) + c)
+                        return
+                    endif
+                endif
+            endif
+        endif
+    end function DistPointToTri
+!----------------------------------------------------------------------
     endmodule ModTools
 !======================================================================
 !======================================================================

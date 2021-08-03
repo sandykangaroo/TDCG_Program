@@ -330,7 +330,7 @@
             enddo
             return
         endif
-        
+
         
         if(c%Location==0)then
             if(c%nBGCell(1)==1 .and. c%nBGCell(2)==1)then
@@ -1226,7 +1226,7 @@
                Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)+BGCellSize(3)/2**(c%LVL(3)+1)  
             endif
-            
+
             if(ASSOCIATED(cX1).and. cX1%cnode(7)/=-1.and.cX1%LVL(1)==c%LVL(1)&  ! node8
                &.and. cX1%LVL(2)==c%LVL(2).and. cX1%LVL(3)==c%LVL(3))then
                c%cnode(8)=cX1%cnode(7)
@@ -1242,7 +1242,7 @@
             cY1=>NeighborY1(c)
             cX1=>NeighborX1(c)
             cX2=>NeighborX2(c)
-            
+
             if(ASSOCIATED(cZ1))then
             if(ASSOCIATED(cZ1%Octson))then
                 call corner(cZ1)
@@ -1376,7 +1376,7 @@
                Node(nNode,2)=c%Center(2)-BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cZ1).and. cZ1%cnode(6)/=-1)then          !node2
                 c%cnode(2)=cZ1%cnode(6)  
             else
@@ -1386,7 +1386,7 @@
                Node(nNode,2)=c%Center(2)-BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cZ1).and. cZ1%cnode(7)/=-1)then          !node3
                 c%cnode(3)=cZ1%cnode(7)  
             else
@@ -1396,7 +1396,7 @@
                Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cZ1).and. cZ1%cnode(8)/=-1)then          !node4
                 c%cnode(4)=cZ1%cnode(8)  
             else
@@ -1406,7 +1406,7 @@
                Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cY1).and. cY1%cnode(8)/=-1)then          !node5
                 c%cnode(5)=cY1%cnode(8)  
             else
@@ -1416,7 +1416,7 @@
                Node(nNode,2)=c%Center(2)-BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)+BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cY1).and. cY1%cnode(7)/=-1)then          !node6
                 c%cnode(6)=cY1%cnode(7)  
             else
@@ -1426,7 +1426,7 @@
                Node(nNode,2)=c%Center(2)-BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)+BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cX2).and. cX2%cnode(8)/=-1)then          !node7
                 c%cnode(7)=cX2%cnode(8)  
             else
@@ -1436,7 +1436,7 @@
                Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
                Node(nNode,3)=c%Center(3)+BGCellSize(3)/2**(c%LVL(3)+1)
             endif
-            
+
             if(ASSOCIATED(cX1).and. cX1%cnode(7)/=-1.and.cX1%LVL(1)+1>=c%LVL(1)& 
                &.and. cX1%LVL(2)+1>=c%LVL(2).and. cX1%LVL(3)+1>=c%LVL(3))then          !node8
                 c%cnode(8)=cX1%cnode(7)  

@@ -1,12 +1,12 @@
 !
 ! GeometryName    Both single and double precision files are supported
-! OutputFormat    = '.szplt'
-!                   '.plt'
-!                   '.dat'
+! OutputFormat    = 'szplt', new data structure for tecplot.
+!                   'plt', recommended.
+!                   'dat'
 $Global
     Aniso = .f., nStep = 10000, nSave = 1000, nAdaptStep = 500,
     Debug =  0 , CFL   = 0.5,   NRR   = .f.,  Chimera    = .f.,
-    Limiter = 1, Restart = .f., nGeometry = 1, MeshOnly  = .t.
+    Limiter = 1, Restart = .f., nGeometry = 1, MeshOnly  = .t.,
     ! GeometryName  = './Data/11/bogie_8W',
     GeometryName  = './Data/sphere_500_',
     ! GeometryName  = './Data/pantograph',
@@ -32,7 +32,7 @@ $END
 ! useKDT            = T slice surface data by KDT rules
 !                     F slice surface data by x/y/z in turn
 $Mesh
-    InitRefineLVL = 3, AdaptRefineLVL  =  2,
+    InitRefineLVL = 6, AdaptRefineLVL  =  2,
     cIntersectMethod = 4, useKDT = .t.,
 !bogie
 !    nCell = 30,30,20,
@@ -51,12 +51,15 @@ $Mesh
 !   nCell = 5,5,5,
 !   DomainMin = -200, -200, -200,
 !   DomainMax =  200,  200,  200,
-!   nCell = 20,20,20,
-!   DomainMin = -150.0, -150.0, -150,
-!   DomainMax =  150.0,  150.0,  150.0,
-    nCell = 8,8,8,
-    DomainMin = -2000, -2000, -2000,
-    DomainMax =  2000,  2000,  2000,
+!  nCell = 20,20,20,
+!  DomainMin = -150.0, -150.0, -150,
+!  DomainMax =  150.0,  150.0,  150.0,
+    ! nCell = 20,20,20,
+    ! DomainMin = -200, -200, -200,
+    ! DomainMax =  200,  200,  200,
+	 nCell = 20,20,20,
+     DomainMin = -2000, -2000, -2000,
+     DomainMax =  2000,  2000,  2000,
 !wheel
 !    nCell = 30,30,10,
 !    DomainMin = -1., -0.5, -0.5,

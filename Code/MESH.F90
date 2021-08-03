@@ -845,348 +845,36 @@
             return
         endif
 
-        if (c%Cross==-3) call CellInout(c)
+        if (c%Cross==-3) call CrossCellInout(c)
 
         endsubroutine initCrossCellInout
 !----------------------------------------------------------------------
         subroutine CrossCellInout(c)
-        use ModGlobalConstants, only : epsR8
         use ModTools, only: BBOX, MollerTrumbore
+        use ModTools, only: DistPointToTri
         implicit none
-        type(FTTCell),pointer :: c
-        INTEGER                  :: nTri ! Num. of CrossTri
-        INTEGER                  :: nDP  ! Num. of DotProductInout = F.
-        type(tCrossTri),pointer:: p
-        logical                  :: ios
-        type(tCrossTri),pointer:: pp
-        real(R8)                 :: n(3)
-        integer                  :: b ! counter for loop22
-        real(R8)                 :: boxCell(6)
-        integer                  :: i
-        integer                  :: pointOrder
-        real(R8)                 :: point(3)
-        type(triangle), pointer  :: tri
-        real(R8)                 :: derta
-        integer:: aia,aib
-        aia=0
-        aib=0
+        type(FTTCell),pointer    :: c
+        type(tCrossTri),pointer  :: tri, minTri
+        real(R8)                 :: Dist, minDist
+        type(typPoint)           :: tar
 
-        nTri = 1
-        p    => c%CrossTri
-        boxCell(1)=c%center(1)-BGCellSize(1)/2.**(c%LVL(1)+1)
-        boxCell(2)=c%center(2)-BGCellSize(2)/2.**(c%LVL(2)+1)
-        boxCell(3)=c%center(3)-BGCellSize(3)/2.**(c%LVL(3)+1)
-        boxCell(4)=c%center(1)+BGCellSize(1)/2.**(c%LVL(1)+1)
-        boxCell(5)=c%center(2)+BGCellSize(2)/2.**(c%LVL(2)+1)
-        boxCell(6)=c%center(3)+BGCellSize(3)/2.**(c%LVL(3)+1)
-
-        loop11: do while (ASSOCIATED(p))
-            tri => p%tri%the_data
-            ! Find a tri-vertex inside cell
-            pointOrder = 0
-            loop3: do i = 1, 3
-                if (BBOX(tri%P(i)%P, boxCell(:))==-1) then
-                    cycle loop3
-                elseif(BBOX(tri%P(i)%P, boxCell(:))==0) then
-                    if (pointOrder == 0)then
-                        pointOrder = -i
-                    else
-                        pointOrder = pointOrder - i - 5
-                    endif
-                else
-                    pointOrder = i
-                    exit loop3
-                endif
-            enddo loop3
-
-            if (pointOrder == 0) then ! No point inside cell.
-                derta = BGCellSize(3)/2.**c%LVL(3)
-                point = FindPointInsideCell(boxCell,tri,derta)
-            elseif (pointOrder < 0) then ! point on the cell face.
-                if (pointOrder >= -3) then ! only one point on the cell.
-                    if (pointOrder == -1) then
-                        point = tri%P(1)%P + &
-                                (tri%P(2)%P - tri%P(1)%P) * epsR8 + &
-                                (tri%P(3)%P - tri%P(1)%P) * epsR8
-                    elseif (pointOrder == -2) then
-                        point = tri%P(2)%P + &
-                                (tri%P(1)%P - tri%P(2)%P) * epsR8 + &
-                                (tri%P(3)%P - tri%P(2)%P) * epsR8
-                    else ! pointOrder == -3
-                        point = tri%P(3)%P + &
-                                (tri%P(1)%P - tri%P(3)%P) * epsR8 + &
-                                (tri%P(2)%P - tri%P(3)%P) * epsR8
-                    endif
-                elseif (pointOrder >= -15) then ! two point on the cell.
-                    if (pointOrder == -8) then ! point 1/2
-                        point = (tri%P(1)%P+tri%P(2)%P)/2
-                        point = (tri%P(3)%P-point)*epsR8+point
-                    elseif (pointOrder == -9) then ! point 1/3
-                        point = (tri%P(1)%P+tri%P(3)%P)/2
-                        point = (tri%P(2)%P-point)*epsR8+point
-                    else ! point 2/3
-                        point = (tri%P(2)%P+tri%P(3)%P)/2
-                        point = (tri%P(1)%P-point)*epsR8+point
-                    endif
-                else ! three point on the cell.
-                    point = tri%P(4)%P
-                endif
-            else ! Have a point inside cell.
-                if (pointOrder == 1) then
-                    point = tri%P(1)%P + &
-                            (tri%P(2)%P - tri%P(1)%P) * epsR8 + &
-                            (tri%P(3)%P - tri%P(1)%P) * epsR8
-                elseif (pointOrder == 2) then
-                    point = tri%P(2)%P + &
-                            (tri%P(1)%P - tri%P(2)%P) * epsR8 + &
-                            (tri%P(3)%P - tri%P(2)%P) * epsR8
-                else ! pointOrder == 3
-                    point = tri%P(3)%P + &
-                            (tri%P(1)%P - tri%P(3)%P) * epsR8 + &
-                            (tri%P(2)%P - tri%P(3)%P) * epsR8
-                endif
+        minDist = SUM(BGCellSize)
+        tar%p(1:3) = c%Center(1:3)
+        tri => c%CrossTri
+        do while (ASSOCIATED(tri))
+            dist = DistPointToTri(tar,tri%tri%the_data)
+            if (dist < minDist) then
+                minDist = Dist
+                minTri  =>tri
             endif
-
-            n = point - c%Center
-            pp=> c%CrossTri
-            b = 1
-            loop22: do while (ASSOCIATED(pp))
-                ! if line_n cross with other tri, return.
-                if (b /= nTri) then
-                    tri => pp%tri%the_data
-                    if (MollerTrumbore(c%Center,n,tri,.true.)) then
-                        if (.not.ASSOCIATED(p%next)) print*,"error"
-                        p => p%next
-                        nTri = nTri + 1
-                        cycle loop11
-                    endif
-                endif
-                pp => pp%next
-                b = b + 1
-            enddo loop22
-            if (DotProductInout(c%Center,tri)) then
-                c%Cross = 1
-            else
-                c%Cross = 2
-            endif
-            return
-        enddo loop11
-        ! ____________________________________________________________
-        ! if (nTri<=1) stop 'error subroutine CrossCellInout'! nTri must >=1.
-        ! if (nDP == nTri) then
-        !     c%Cross = 2 ! inside
-        ! else
-        !     c%Cross = 1 ! outside
-        ! endif
-        ! return
-            ! If the normal vector not cross with any other tri,
-            ! this is the normal we are looking for.
-            ! c%Cross = 2 ! inside
-            ! aia=aia+1
-            ! return
-
-
-
-
-                ! nDP = nDP + 1
-                ! pp=> c%CrossTri
-                ! b = 1
-                ! n = p%tri%the_data%P(4)%P - c%Center
-                ! ! n = n * 1.0000001 ! might have floot error
-                ! do while (ASSOCIATED(pp))
-                !     ! if normal cross with other tri, return.
-                !     if (b /= nTri) then
-                !         if (MollerTrumbore( c%Center, n, pp%tri%the_data, &
-                !                             .true.)) then
-                !             p => p%next
-                !             nTri = nTri + 1
-                !             cycle loop11
-                !         endif
-                !     endif
-                !     pp => pp%next
-                !     b = b + 1
-                ! enddo
-                ! ! If the normal vector not cross with any other tri,
-                ! ! this is the normal we are looking for.
-                ! c%Cross = 2 ! inside
-                ! aib=aib+1
-                ! return
-        !     p => p%next
-        !     nTri = nTri + 1
-        ! enddo loop11
-        ! if (aia>=1.and.aib>=1)then
-        ! print*,'1252346'
-        ! endif
-        ! if (nTri<=1) stop 'error subroutine CrossCellInout'! nTri must >=1.
-        ! if (nDP == nTri) then
-        !     c%Cross = 2 ! inside
-        ! else
-        !     c%Cross = 1 ! outside
-        ! endif
-        ! return
-        ! ____________________________________________________________
-        endsubroutine CrossCellInout
-!----------------------------------------------------------------------
-        function FindPointInsideCell(box,tri,derta)
-        use ModPrecision
-        use ModTools, only: CrossPoint
-        implicit none
-        real(R8)                :: FindPointInsideCell(3)
-        real(R8),INTENT(IN)     :: box(6)
-        type(triangle),INTENT(IN):: tri
-        real(R8),INTENT(IN)     :: derta
-        real(R8)                :: V1(3), V2(3)
-        real(R8)                :: D(3)
-        real(R8)                :: point1(3,3) ! point cell cross with tri.
-        INTEGER                 :: i
-        real(R8)                :: p(4,3)
-
-        do while (.true.)
-            i = 1
-            D = (/1,0,0/)
-            p(:,i) = CrossPoint(box(1:3),D*derta,tri)
-            if (p(4,i)==1) then
-                i = i + 1
-            endif
-            D = (/0,1,0/)
-            p(:,i) = CrossPoint(box(1:3),D*derta,tri)
-            if (p(4,i)==1) then
-                i = i + 1
-            endif
-            D = (/0,0,1/)
-            p(:,i) = CrossPoint(box(1:3),D*derta,tri)
-            if (p(4,i)==1) then
-                i = i + 1
-                if (i == 4) exit
-            endif
-            D = (/-1,0,0/)
-            p(:,i) = CrossPoint(box(4:6),D*derta,tri)
-            if (p(4,i)==1) then
-                i = i + 1
-                if (i == 4) exit
-            endif
-            D = (/0,-1,0/)
-            p(:,i) = CrossPoint(box(4:6),D*derta,tri)
-            if (p(4,i)==1) then
-                i = i + 1
-                if (i == 4) exit
-            endif
-            D = (/0,0,-1/)
-            p(:,i) = CrossPoint(box(4:6),D*derta,tri)
-            if (p(4,i)==1) then
-                i = i + 1
-            endif
-            exit
+            tri => tri%next
         enddo
-
-        if (i /= 4) print*, 'error subroutine FindPointInsideCell i=', i
-        FindPointInsideCell(1) = (p(1,1) + p(1,2) + p(1,3)) / 3
-        FindPointInsideCell(2) = (p(2,1) + p(2,2) + p(2,3)) / 3
-        FindPointInsideCell(3) = (p(3,1) + p(3,2) + p(3,3)) / 3
-
-        endfunction FindPointInsideCell
-!----------------------------------------------------------------------
-        ! subroutine CCIspecial(c,a,tri,ios)
-        ! use ModTools, only: PtF_normal
-        ! implicit none
-        ! type(FTTCell),pointer :: c
-        ! integer,INTENT(IN)       :: a ! counter for loop11
-        ! type(tCrossTri),pointer:: tri
-        ! logical,INTENT(OUT)      :: ios ! statu, T: has changed c%Cross
-        ! type(tCrossTri),pointer:: ptri
-        ! real(R8)                 :: n(3)
-        ! integer                  :: b ! counter for loop22
-
-        ! ios = .false.
-        ! ptri=> c%CrossTri
-        ! b = 1
-        ! n = tri%tri%the_data%P(4)%P - c%Center
-        ! n = n * 1.0000001 ! might have floot error
-        ! ! n = PtF_normal(c%center,tri%tri%the_data)
-        ! ! If foot point not on this tri, return.
-        ! ! if (.not.MollerTrumbore(c%Center,n,tri%tri%the_data,.true.)) then
-        ! !     print*,'!'
-        ! !     return
-        ! ! endif
-        ! loop22: do while (ASSOCIATED(ptri))
-        !     ! if normal cross with other tri, return.
-        !     if (a /= b) then
-        !     if (MollerTrumbore(c%Center,n,ptri%tri%the_data,.true.)) return
-        !     endif
-        !     ptri => ptri%next
-        !     b = b + 1
-        ! enddo loop22
-
-        ! ! If the normal vector not cross with any other tri, this is the
-        ! ! normal we are looking for.
-        ! c%Cross = 2 ! inside
-        ! ios = .true.
-        ! return
-
-        ! ! stop 'subroutine CCIspecial special error'
-        ! endsubroutine CCIspecial
-! !----------------------------------------------------------------------
-!         subroutine CCIspecial(c)
-!         use ModTools, only: PtF_normal
-!         implicit none
-!         type(FTTCell),pointer :: c
-!         type(tCrossTri),pointer:: p, pp
-!         real(R8)                 :: n(3)
-!         real(R8)                 :: dist
-!         integer                  :: a, b ! counter for loop11 and loop22
-!         real(R8)                 :: maxdist
-!         type(triangle),pointer   :: maxtri
-
-
-!         p => c%CrossTri
-!         a = 1
-!         maxdist = 0
-!         loop11: do while (ASSOCIATED(p))
-!             pp=> c%CrossTri
-!             b = 1
-!             n = PtF_normal(c%center,p%tri%the_data)
-!             if (.not.MollerTrumbore(c%Center,n,p%tri%the_data,.true.)) return
-!             loop22: do while (.true.)
-!                 if (a /= b) then
-!                 if (MollerTrumbore(c%Center,n,pp%tri%the_data,.true.)) &
-!                     exit loop22
-!                 endif
-!                 pp => pp%next
-!                 b = b + 1
-!                 if (.not.ASSOCIATED(pp)) then !'That is my good boy!'
-!                     if (MollerTrumbore(c%Center,n,p%tri%the_data,.false.))then
-!                         ! Foot point on the tri.
-!                         if (DotProductInout(c%Center,p%tri%the_data))then
-!                             c%Cross = 1
-!                         else
-!                             c%Cross = 2
-!                         endif
-!                         return
-!                     else
-!                         dist = sqrt(n(1)*n(1)+n(2)*n(2)+n(3)*n(3))
-!                         if (maxdist<dist) then
-!                             maxdist = dist
-!                             maxtri  =>p%tri%the_data
-!                         endif
-!                         exit loop22
-!                     endif
-!                 endif
-!             enddo loop22
-!             p => p%next
-!             a = a + 1
-!         enddo loop11
-
-!         if (a == 1) stop 'subroutine CCIspecial no c%CrossTri'
-
-!         if (DotProductInout(c%Center,maxtri))then
-!             c%Cross = 1
-!         else
-!             c%Cross = 2
-!         endif
-!         return
-
-!         ! stop 'subroutine CCIspecial special error'
-!         endsubroutine CCIspecial
+        if (DotProductInout(c%Center,minTri%tri%the_data)) then
+            c%Cross = 1
+        else
+            c%Cross = 2
+        endif
+        endsubroutine CrossCellInout
 !----------------------------------------------------------------------
         logical function DotProductInout(p,tri)
         ! Dot Poduct Method to discriminate in/out cell.
@@ -1778,17 +1466,17 @@
             iosout      = .true.
             call UpdateNeighbor(c,0)
             cs=>c%Octson%Neighbor1
-            call UpdateNeighbor(cs,2)
+            if (ASSOCIATED(cs)) call UpdateNeighbor(cs,2)
             cs=>c%Octson%Neighbor2
-            call UpdateNeighbor(cs,1)
+            if (ASSOCIATED(cs)) call UpdateNeighbor(cs,1)
             cs=>c%Octson%Neighbor3
-            call UpdateNeighbor(cs,4)
+            if (ASSOCIATED(cs)) call UpdateNeighbor(cs,4)
             cs=>c%Octson%Neighbor4
-            call UpdateNeighbor(cs,3)
+            if (ASSOCIATED(cs)) call UpdateNeighbor(cs,3)
             cs=>c%Octson%Neighbor5
-            call UpdateNeighbor(cs,6)
+            if (ASSOCIATED(cs)) call UpdateNeighbor(cs,6)
             cs=>c%Octson%Neighbor6
-            call UpdateNeighbor(cs,5)
+            if (ASSOCIATED(cs)) call UpdateNeighbor(cs,5)
         endif
         endsubroutine SmoothMesh
     endsubroutine initSmoothMesh
