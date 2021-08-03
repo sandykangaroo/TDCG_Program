@@ -157,9 +157,11 @@
             integer(I2)             :: LVL(3)
             integer(I2)             :: fSplitTyp
             integer(I2)             :: Cross
+            integer(I4)             :: cnode(8)
             logical                 :: Mark(3)
             real(R8)                :: Center(3)
             real(R8)                :: U(5)
+            real(R8)                :: WallDistance
             type(FttCell),pointer   :: Father
             type(FttOct), pointer   :: Octson
             type(tCrossTri),pointer :: CrossTri
@@ -266,10 +268,10 @@
         use ModPrecision
         use ModTypDef
         implicit none
-        real(R8),ALLOCATABLE :: Nodes(:,:)      ! Nodes coordinate
+        real(R8),ALLOCATABLE :: Node(:,:)    ! Nodes coordinate
         real(R8),ALLOCATABLE :: cVariables(:,:) ! OctCell variables value
         integer ,ALLOCATABLE :: cNodes(:,:)     ! OctCell nodes number
-        integer :: nNodes
+        integer :: nNode,nElment
     endmodule ModOutput
 !======================================================================
 !======================================================================

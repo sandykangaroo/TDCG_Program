@@ -32,7 +32,7 @@ $END
 ! useKDT            = T slice surface data by KDT rules
 !                     F slice surface data by x/y/z in turn
 $Mesh
-    InitRefineLVL = 4, AdaptRefineLVL  =  2,
+    InitRefineLVL = 3, AdaptRefineLVL  =  2,
     cIntersectMethod = 4, useKDT = .t.,
 !bogie
 !    nCell = 30,30,20,
@@ -54,7 +54,7 @@ $Mesh
 !   nCell = 20,20,20,
 !   DomainMin = -150.0, -150.0, -150,
 !   DomainMax =  150.0,  150.0,  150.0,
-    nCell = 20,20,20,
+    nCell = 8,8,8,
     DomainMin = -2000, -2000, -2000,
     DomainMax =  2000,  2000,  2000,
 !wheel
