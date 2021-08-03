@@ -601,36 +601,20 @@
                 Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1) 
            endif
            
-           if(ASSOCIATED(cZ1))then                                         ! node4
-               if(cZ1%cnode(8)/=-1.and.cZ1%LVL(1)==c%LVL(1)& 
+            
+           if(ASSOCIATED(cZ1).and.cZ1%cnode(8)/=-1.and.cZ1%LVL(1)==c%LVL(1)& ! node4
                &.and. cZ1%LVL(2)==c%LVL(2).and. cZ1%LVL(3)==c%LVL(3))then
                     c%cnode(4)=cZ1%cnode(8)   
-               else
-                    nNode=nNode+1
-                    c%cnode(4)=nNode
-                    Node(nNode,1)=c%Center(1)-BGCellSize(1)/2**(c%LVL(1)+1)
-                    Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
-                    Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1)  
-               endif
-           elseif(ASSOCIATED(cX1))then
-               if(cX1%cnode(3)/=-1.and.cX1%LVL(1)==c%LVL(1)& 
+           elseif(ASSOCIATED(cX1).and.cX1%cnode(3)/=-1.and.cX1%LVL(1)==c%LVL(1)& 
                &.and. cX1%LVL(2)==c%LVL(2).and. cX1%LVL(3)==c%LVL(3))then
-                    c%cnode(4)=cX1%cnode(3)   
-               else
+                    c%cnode(4)=cX1%cnode(3) 
+           else
                     nNode=nNode+1
                     c%cnode(4)=nNode
                     Node(nNode,1)=c%Center(1)-BGCellSize(1)/2**(c%LVL(1)+1)
                     Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
                     Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1)  
-               endif
-           else
-                nNode=nNode+1
-                c%cnode(4)=nNode
-                Node(nNode,1)=c%Center(1)-BGCellSize(1)/2**(c%LVL(1)+1)
-                Node(nNode,2)=c%Center(2)+BGCellSize(2)/2**(c%LVL(2)+1) 
-                Node(nNode,3)=c%Center(3)-BGCellSize(3)/2**(c%LVL(3)+1) 
            endif
-           
            if(ASSOCIATED(cY1).and. cY1%cnode(8)/=-1.and.cY1%LVL(1)==c%LVL(1)&  ! node5
                &.and. cY1%LVL(2)==c%LVL(2).and. cY1%LVL(3)==c%LVL(3))then
                c%cnode(5)=cY1%cnode(8) 
